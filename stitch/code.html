@@ -1474,11 +1474,16 @@
             }
             activeInput = inputEl;
             activeBtn = btnEl;
-            recognition.start();
-            isRecognitionRunning = true;
-            btnEl.classList.add('animate-pulse', '!text-red-500');
-            const icon = btnEl.querySelector('.material-symbols-outlined');
-            if (icon) icon.textContent = 'mic_active';
+            try {
+                recognition.start();
+                isRecognitionRunning = true;
+                btnEl.classList.add('animate-pulse', '!text-red-500');
+                const icon = btnEl.querySelector('.material-symbols-outlined');
+                if (icon) icon.textContent = 'graphic_eq';
+            } catch (e) {
+                console.error('Speech recognition start failed:', e);
+                isRecognitionRunning = false;
+            }
         }
 
         // ── TTS (Text-to-Speech) ──
