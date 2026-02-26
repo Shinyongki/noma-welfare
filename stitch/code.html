@@ -60,31 +60,82 @@
         #results-section { transition: all 0.5s ease-out; }
         /* Noma card link styling */
         .noma-card-detail strong { display: block; margin-bottom: 2px; }
-        /* Journey connector */
-        .journey-connector { position: relative; }
-        .journey-connector::after {
+        /* Stepper timeline */
+        .stepper { position: relative; padding-left: 2rem; }
+        .stepper::before {
             content: '';
             position: absolute;
-            top: 50%;
-            right: -2rem;
-            width: 2rem;
-            height: 3px;
+            left: 0.6875rem;
+            top: 1.25rem;
+            bottom: 1.25rem;
+            width: 2px;
             background: #e5e0db;
         }
-        .journey-connector:last-child::after { display: none; }
-        @media (max-width: 768px) {
-            .journey-connector::after { display: none; }
+        .step-item { position: relative; padding-bottom: 0.25rem; }
+        .step-item:last-child { padding-bottom: 0; }
+        .step-dot {
+            position: absolute;
+            left: -2rem;
+            top: 0.125rem;
+            width: 1.375rem;
+            height: 1.375rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.625rem;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+            z-index: 1;
         }
-        /* Pop-out mode */
-        body.is-noma-popout > *:not(#noma-widget):not(script):not(style):not(link) { display: none !important; }
-        body.is-noma-popout { background: white !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
-        body.is-noma-popout #noma-widget { position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; }
-        body.is-noma-popout #noma-panel { display: flex !important; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; border: none !important; border-radius: 0 !important; right: auto !important; bottom: auto !important; position: static !important; resize: none !important; }
-        body.is-noma-popout #noma-toggle, body.is-noma-popout #noma-close, body.is-noma-popout #noma-popout { display: none !important; }
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            cursor: pointer;
+            padding: 0.5rem 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .step-header:active { opacity: 0.7; }
+        .step-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+            opacity: 0;
+            padding-bottom: 0;
+        }
+        .step-body.open {
+            max-height: 500px;
+            opacity: 1;
+            padding-bottom: 0.75rem;
+        }
+        .step-chevron {
+            transition: transform 0.3s ease;
+            font-size: 1.125rem !important;
+        }
+        .step-body.open ~ .step-header .step-chevron,
+        .step-item.open .step-chevron {
+            transform: rotate(180deg);
+        }
+        .tel-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: #f0fdf4;
+            color: #15803d;
+            padding: 0.5rem 0.875rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            font-size: 0.9375rem;
+            text-decoration: none;
+            border: 1px solid #bbf7d0;
+            margin-top: 0.375rem;
+        }
+        .tel-link:active { background: #dcfce7; }
         /* Voice mode */
-        .voice-toggle-active { color: #3b82f6 !important; background: #eff6ff; }
         @keyframes voice-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .voice-listening-pulse { animation: voice-pulse 1.5s ease-in-out infinite; }
         /* Floating mic button */
         #floating-mic {
             position: fixed;
@@ -543,72 +594,6 @@
         </div>
     </div>
 
-    <!-- ═══════════════════ CHAT WIDGET ═══════════════════ -->
-    <div id="noma-widget" class="fixed bottom-5 right-5 z-[100] font-sans">
-        <button id="noma-toggle" class="w-14 h-14 rounded-full text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center bg-gradient-to-br from-primary to-deep-purple hover:scale-105 active:scale-95">
-            <span class="material-symbols-outlined text-2xl">chat</span>
-        </button>
-        <div id="noma-panel" class="hidden fixed bottom-[88px] right-[20px] z-[110] w-[380px] h-[560px] min-w-[300px] min-h-[400px] max-w-[900px] max-h-[900px] bg-white rounded-2xl shadow-2xl border border-stone-200 flex flex-col overflow-hidden" style="resize: both; overflow: auto;">
-            <!-- Chat Header -->
-            <div class="flex items-center justify-between px-4 py-3 border-b border-stone-100 bg-gradient-to-r from-primary/5 to-purple-50">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-deep-purple flex items-center justify-center shadow-sm">
-                        <span class="material-symbols-outlined text-white !text-lg">smart_toy</span>
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-bold text-slate-800 leading-tight">노마(Noma)</h2>
-                        <span class="text-[10px] text-slate-500">AI 복지 상담원</span>
-                    </div>
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <button id="noma-tts-toggle" class="p-1 text-slate-400 hover:text-blue-500 transition-colors rounded" title="음성 읽기">
-                        <span class="material-symbols-outlined !text-xl">volume_up</span>
-                    </button>
-                    <button id="noma-continuous-toggle" class="p-1 text-slate-400 hover:text-blue-500 transition-colors rounded" title="연속 대화 모드">
-                        <span class="material-symbols-outlined !text-xl">record_voice_over</span>
-                    </button>
-                    <button id="noma-popout" class="p-1 text-slate-400 hover:text-blue-500 transition-colors rounded" title="새 창으로 열기">
-                        <span class="material-symbols-outlined !text-xl">open_in_new</span>
-                    </button>
-                    <button id="noma-clear" class="p-1 text-slate-400 hover:text-red-500 transition-colors rounded" title="대화 초기화">
-                        <span class="material-symbols-outlined !text-xl">delete</span>
-                    </button>
-                    <button id="noma-close" class="p-1 text-slate-400 hover:text-slate-600 transition-colors rounded">
-                        <span class="material-symbols-outlined !text-xl">close</span>
-                    </button>
-                </div>
-            </div>
-            <!-- Voice Conversation Indicator -->
-            <div id="noma-voice-indicator" class="hidden px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-blue-500 !text-lg voice-listening-pulse">mic</span>
-                    <span class="text-xs font-semibold text-blue-700">연속 대화 모드</span>
-                </div>
-                <button id="noma-voice-stop" class="text-xs font-semibold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-full transition-colors">중지</button>
-            </div>
-            <!-- Chat Messages -->
-            <div id="noma-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-stone-50/50 flex flex-col scrollbar-hide">
-                <div class="flex justify-start">
-                    <div class="bg-white rounded-2xl rounded-tl-sm border border-stone-200 px-4 py-3 shadow-sm max-w-[85%]">
-                        <p class="text-sm text-slate-700 leading-relaxed">안녕하세요! 저는 경상남도사회서비스원 AI 복지 상담원 <b>노마(Noma)</b>입니다.<br/>어떤 어려움이 있으신지 편하게 말씀해 주세요. 맞춤 서비스를 찾아 드리겠습니다.</p>
-                    </div>
-                </div>
-            </div>
-            <!-- Chat Input -->
-            <form id="noma-form" class="p-3 border-t border-stone-100 bg-white">
-                <div class="flex items-end gap-2 bg-stone-50 border rounded-xl p-2 border-stone-200 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
-                    <textarea id="noma-input" rows="1" class="flex-1 resize-none border-0 bg-transparent px-2 py-1.5 text-sm focus:outline-none placeholder:text-slate-400 min-h-[36px] max-h-[80px] scrollbar-hide" placeholder="어려운 점을 말씀해 주세요..."></textarea>
-                    <button type="button" id="noma-mic" class="bg-white hover:bg-stone-100 text-slate-400 rounded-full w-8 h-8 flex items-center justify-center transition-colors flex-shrink-0" title="음성 입력">
-                        <span class="material-symbols-outlined !text-lg">mic</span>
-                    </button>
-                    <button type="submit" id="noma-send" class="w-8 h-8 rounded-lg flex items-center justify-center bg-primary hover:bg-primary-light text-white flex-shrink-0 transition-colors disabled:opacity-40" disabled>
-                        <span class="material-symbols-outlined !text-sm">send</span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- ═══════════════════ JAVASCRIPT ═══════════════════ -->
     <script>
     (() => {
@@ -645,39 +630,18 @@
             modalConfirmText: $('modal-confirm-text'),
             modalCancel: $('modal-cancel'),
             modalNext: $('modal-next'),
-            // Chat Widget
-            nomaToggle: $('noma-toggle'),
-            nomaPanel: $('noma-panel'),
-            nomaClose: $('noma-close'),
-            nomaClear: $('noma-clear'),
-            nomaPopout: $('noma-popout'),
-            nomaForm: $('noma-form'),
-            nomaInput: $('noma-input'),
-            nomaMessages: $('noma-messages'),
-            nomaSend: $('noma-send'),
-            nomaMic: $('noma-mic'),
+            // Floating Mic
             floatingMic: $('floating-mic'),
-            nomaTtsToggle: $('noma-tts-toggle'),
-            nomaContinuousToggle: $('noma-continuous-toggle'),
-            nomaVoiceIndicator: $('noma-voice-indicator'),
-            nomaVoiceStop: $('noma-voice-stop'),
         };
 
         // ── State ──
         let chatHistory = [];
         let currentCards = [];
         let modalState = { step: 'name', serviceName: '', name: '', phone: '' };
-        let serviceRequestState = null; // Conversational info collection state
-        // Voice conversation state
-        let voiceAutoSubmit = true;
-        let continuousVoiceMode = false;
-        let ttsEnabled = false;
+        let lastInputWasVoice = false;
         let isSpeaking = false;
-        let currentUtterance = null;
         let currentAudio = null;
-        let isListeningContinuous = false;
-        let voiceConversationActive = false;
-        let lastInputWasVoice = false; // Track if current query came from voice input
+        let currentUtterance = null;
 
         // ── Utility: Parse <noma-card> blocks from AI text ──
         function parseNomaCards(text) {
@@ -709,41 +673,75 @@
             { bg: 'bg-violet-50', text: 'text-violet-600', icon: 'volunteer_activism', border: 'border-violet-200', reasonBg: 'bg-violet-50', reasonBorder: 'border-violet-100', reasonTitle: 'text-violet-800', reasonText: 'text-violet-900/80' },
         ];
 
-        // ── Render a single recommendation card ──
+        // ── 전화번호 자동 감지 → tel: 링크 변환 ──
+        function linkifyPhone(text) {
+            if (!text) return '';
+            return text.replace(/(0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4})/g, (match) => {
+                const digits = match.replace(/[-.\s]/g, '');
+                return `<a href="tel:${digits}" class="tel-link"><span class="material-symbols-outlined" style="font-size:1.125rem">call</span>${match}</a>`;
+            });
+        }
+
+        // ── Render a single recommendation card (Stepper 경로형) ──
         function createCardElement(data, index) {
             const theme = cardThemes[index % cardThemes.length];
             const delay = index * 100;
             const card = document.createElement('div');
-            card.className = `bg-white rounded-2xl p-6 md:p-7 shadow-sm border border-stone-100 hover:border-primary/20 flex flex-col h-full transition-all group relative overflow-hidden opacity-0 animate-fade-up`;
+            card.className = `bg-white rounded-2xl p-5 md:p-7 shadow-sm border border-stone-100 hover:border-primary/20 flex flex-col h-full transition-all group relative overflow-hidden opacity-0 animate-fade-up`;
             card.style.animationDelay = `${delay}ms`;
+
+            // 단계 데이터 구성 (값이 있는 단계만 포함)
+            const steps = [
+                data.target  && { num: 1, title: '대상 확인',  icon: 'person_check', content: data.target,  color: '#2563eb' },
+                data.method  && { num: 2, title: '신청 방법',  icon: 'edit_document', content: data.method,  color: '#7c3aed' },
+                data.benefits && { num: 3, title: '받는 혜택', icon: 'featured_seasonal_and_gifts', content: data.benefits, color: '#059669' },
+                data.agency  && { num: 4, title: '연락처',     icon: 'call',          content: data.agency,  color: '#0891b2', isContact: true },
+            ].filter(Boolean);
+
+            // 단계 번호 재정렬
+            steps.forEach((s, i) => s.num = i + 1);
+
+            const stepsHTML = steps.map((step, i) => {
+                const isFirst = i === 0;
+                return `
+                    <div class="step-item${isFirst ? ' open' : ''}" data-step>
+                        <div class="step-dot" style="background:${step.color}">${step.num}</div>
+                        <div class="step-header" data-step-toggle>
+                            <span class="material-symbols-outlined text-base" style="color:${step.color}">${step.icon}</span>
+                            <span class="font-semibold text-slate-700 text-sm">${step.title}</span>
+                            <span class="material-symbols-outlined step-chevron text-stone-400 ml-auto">expand_more</span>
+                        </div>
+                        <div class="step-body${isFirst ? ' open' : ''}">
+                            <div class="text-slate-600 text-[13px] leading-relaxed break-keep pl-0.5">
+                                ${step.isContact ? linkifyPhone(step.content) : step.content}
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
 
             card.innerHTML = `
                 <div class="absolute top-0 right-0 w-28 h-28 ${theme.bg} rounded-full -mr-8 -mt-8 blur-2xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
-                <div class="flex items-start justify-between mb-4 relative z-10">
-                    <div class="${theme.bg} p-3 rounded-xl ${theme.text}">
+                <div class="flex items-start justify-between mb-3 relative z-10">
+                    <div class="${theme.bg} p-2.5 rounded-xl ${theme.text}">
                         <span class="material-symbols-outlined text-2xl">${theme.icon}</span>
                     </div>
                     <button class="btn-bookmark p-2 rounded-lg text-stone-300 hover:text-primary hover:bg-primary/5 transition-all" data-service-name="${data.serviceName || ''}" title="내 서랍에 담기">
                         <span class="material-symbols-outlined text-xl">bookmark_add</span>
                     </button>
                 </div>
-                <h3 class="text-xl font-bold text-slate-800 mb-2 relative z-10 break-keep">${data.serviceName || ''}</h3>
-                <p class="text-slate-500 text-sm mb-4 leading-relaxed relative z-10 break-keep">${data.summary || ''}</p>
+                <h3 class="text-lg font-bold text-slate-800 mb-1 relative z-10 break-keep">${data.serviceName || ''}</h3>
+                <p class="text-slate-500 text-[13px] mb-4 leading-relaxed relative z-10 break-keep">${data.summary || ''}</p>
 
-                <div class="space-y-2 mb-5 relative z-10 text-sm">
-                    ${data.target ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">group</span><div><span class="font-semibold text-slate-700">지원 대상</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${data.target}</p></div></div>` : ''}
-                    ${data.benefits ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">featured_seasonal_and_gifts</span><div><span class="font-semibold text-slate-700">지원 내용</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${data.benefits}</p></div></div>` : ''}
-                    ${data.method ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">edit_document</span><div><span class="font-semibold text-slate-700">신청 방법</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${data.method}</p></div></div>` : ''}
+                <div class="stepper relative z-10 mb-4">
+                    ${stepsHTML}
                 </div>
-
-                ${data.agency ? `<p class="text-[11px] text-slate-400 mb-4 relative z-10 flex items-center gap-1"><span class="material-symbols-outlined text-xs">account_balance</span>담당: ${data.agency}</p>` : ''}
 
                 <div class="mt-auto relative z-10">
                     <button class="btn-apply w-full bg-primary hover:bg-primary-light active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-sm" data-service="${data.serviceName || ''}">
-                        이 사업 상담 신청하기
+                        이 서비스 상담 신청
                         <span class="material-symbols-outlined text-base">arrow_outward</span>
                     </button>
-                    <p class="text-[10px] text-slate-400 text-center mt-2 leading-snug">버튼을 누르시면 담당 기관에 이메일로 정보가 전달되며,<br/>2~3일 내로 전화 연락을 드릴 예정입니다.</p>
+                    <p class="text-[10px] text-slate-400 text-center mt-2 leading-snug">버튼을 누르면 담당 기관에 정보가 전달되며,<br/>2~3일 내 전화 연락드립니다.</p>
                 </div>
             `;
             return card;
@@ -870,6 +868,17 @@
         // ── HERO SEARCH → INLINE RESULTS FLOW ──
         // ══════════════════════════════════════════
 
+        // Clean chatHistory before sending to API: strip noma-card blocks and limit length
+        function prepareMessagesForAPI() {
+            const MAX_HISTORY = 8;
+            return chatHistory.slice(-MAX_HISTORY).map(m => ({
+                role: m.role,
+                content: m.role === 'model'
+                    ? m.content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim()
+                    : m.content
+            }));
+        }
+
         async function performSearch(query) {
             if (!query.trim()) return;
 
@@ -890,11 +899,16 @@
             chatHistory.push({ role: 'user', content: query });
 
             try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 30000);
+
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: chatHistory })
+                    body: JSON.stringify({ messages: prepareMessagesForAPI() }),
+                    signal: controller.signal,
                 });
+                clearTimeout(timeout);
 
                 if (!response.ok) throw new Error('Network error');
 
@@ -912,13 +926,53 @@
                     } catch (e) { /* partial chunk */ }
                 }
 
-                // API 오류 시 사용자에게 안내
+                // API 오류 시 사용자에게 안내 + 재시도 버튼
                 if (!fullResponse && apiError) {
+                    chatHistory.pop(); // 실패한 사용자 메시지 제거
                     DOM.cardsSkeleton.classList.add('hidden');
                     DOM.cardsTitle.classList.add('hidden');
                     DOM.cardsGrid.classList.add('hidden');
                     DOM.aiSummaryArea.classList.remove('hidden');
-                    DOM.aiSummaryText.innerHTML = `<p>죄송합니다. 일시적으로 AI 서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.</p>`;
+                    DOM.aiSummaryText.innerHTML = `
+                        <p>죄송합니다. AI 서버에서 응답을 받지 못했습니다.</p>
+                        <p class="text-sm text-slate-500 mt-2">네트워크 상태를 확인하시거나, 잠시 후 다시 시도해 주세요.</p>
+                        <button id="btn-retry-search" class="mt-4 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-light transition-colors inline-flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-base">refresh</span>
+                            다시 시도하기
+                        </button>
+                    `;
+                    const retryBtn = $('btn-retry-search');
+                    if (retryBtn) {
+                        retryBtn.addEventListener('click', () => {
+                            DOM.heroInput.value = query;
+                            performSearch(query);
+                        });
+                    }
+                    DOM.discoverMore.classList.remove('hidden');
+                    return;
+                }
+
+                // 빈 응답 처리 (fullResponse가 없고 에러도 없는 경우)
+                if (!fullResponse) {
+                    chatHistory.pop();
+                    DOM.cardsSkeleton.classList.add('hidden');
+                    DOM.cardsTitle.classList.add('hidden');
+                    DOM.cardsGrid.classList.add('hidden');
+                    DOM.aiSummaryArea.classList.remove('hidden');
+                    DOM.aiSummaryText.innerHTML = `
+                        <p>AI 응답이 비어 있습니다. 다시 시도해 주세요.</p>
+                        <button id="btn-retry-search" class="mt-4 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-light transition-colors inline-flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-base">refresh</span>
+                            다시 시도하기
+                        </button>
+                    `;
+                    const retryBtn = $('btn-retry-search');
+                    if (retryBtn) {
+                        retryBtn.addEventListener('click', () => {
+                            DOM.heroInput.value = query;
+                            performSearch(query);
+                        });
+                    }
                     DOM.discoverMore.classList.remove('hidden');
                     return;
                 }
@@ -942,25 +996,21 @@
 
                 // Render cards or handle no-card cases
                 if (cards.length > 0) {
-                    // 추천 서비스 카드가 있는 경우
                     DOM.cardsTitle.classList.remove('hidden');
                     DOM.cardsGrid.classList.remove('hidden');
                     cards.forEach((card, i) => {
                         DOM.cardsGrid.appendChild(createCardElement(card, i));
                     });
                 } else if (displayText) {
-                    // AI 텍스트 답변은 있지만 카드가 없는 경우 (일반 질문)
-                    // → "맞춤 추천 서비스" 섹션 자체를 숨김
                     DOM.cardsTitle.classList.add('hidden');
                     DOM.cardsGrid.classList.add('hidden');
                 } else {
-                    // 텍스트도 카드도 없는 경우
                     DOM.cardsTitle.classList.remove('hidden');
                     DOM.cardsGrid.classList.remove('hidden');
                     DOM.cardsGrid.innerHTML = `
                         <div class="col-span-full text-center py-10 opacity-0 animate-fade-up">
                             <span class="material-symbols-outlined text-stone-300 text-5xl mb-3">search_off</span>
-                            <p class="text-slate-500 text-sm">관련 서비스를 찾지 못했습니다.<br/>노마에게 더 자세히 물어보시면 도움을 드릴 수 있습니다.</p>
+                            <p class="text-slate-500 text-sm">관련 서비스를 찾지 못했습니다.<br/>다른 키워드로 다시 검색해 보세요.</p>
                         </div>
                     `;
                 }
@@ -971,8 +1021,8 @@
                 // Smooth scroll to results
                 DOM.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-                // TTS: read AI summary aloud (voice input or TTS enabled)
-                if (fullResponse && (lastInputWasVoice || ttsEnabled)) {
+                // TTS: read AI summary aloud (voice input only)
+                if (fullResponse && lastInputWasVoice) {
                     lastInputWasVoice = false;
                     await speakText(extractSpeakableText(fullResponse));
                 } else {
@@ -981,14 +1031,30 @@
 
             } catch (err) {
                 lastInputWasVoice = false;
+                chatHistory.pop(); // 실패한 사용자 메시지 제거
                 console.error('Search error:', err);
                 DOM.cardsSkeleton.classList.add('hidden');
-                DOM.cardsGrid.innerHTML = `
-                    <div class="col-span-full text-center py-10">
-                        <span class="material-symbols-outlined text-red-300 text-5xl mb-3">error_outline</span>
-                        <p class="text-slate-500 text-sm">AI 서버에 연결할 수 없습니다.<br/>로컬 서버(localhost:5000)가 실행 중인지 확인해 주세요.</p>
-                    </div>
+
+                const isTimeout = err.name === 'AbortError';
+                DOM.aiSummaryArea.classList.remove('hidden');
+                DOM.aiSummaryText.innerHTML = `
+                    <p>${isTimeout ? 'AI 서버 응답 시간이 초과되었습니다.' : 'AI 서버에 연결할 수 없습니다.'}</p>
+                    <p class="text-sm text-slate-500 mt-2">${isTimeout ? '잠시 후 다시 시도해 주세요.' : '로컬 서버(localhost:5000)가 실행 중인지 확인해 주세요.'}</p>
+                    <button id="btn-retry-search" class="mt-4 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-light transition-colors inline-flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-base">refresh</span>
+                        다시 시도하기
+                    </button>
                 `;
+                DOM.cardsTitle.classList.add('hidden');
+                DOM.cardsGrid.classList.add('hidden');
+                const retryBtn = $('btn-retry-search');
+                if (retryBtn) {
+                    retryBtn.addEventListener('click', () => {
+                        DOM.heroInput.value = query;
+                        performSearch(query);
+                    });
+                }
+                DOM.discoverMore.classList.remove('hidden');
             }
         }
 
@@ -1014,7 +1080,6 @@
 
         // ── Reset to Home ──
         function resetToHome() {
-            // 히어로 섹션 복원
             DOM.heroSection.classList.remove('hero-compact');
             DOM.heroChips.classList.remove('hidden');
             DOM.resultsSection.classList.add('hidden');
@@ -1024,10 +1089,6 @@
 
             // 모달 닫기
             DOM.serviceModal.classList.add('hidden');
-
-            // 챗봇 패널 닫기
-            DOM.nomaPanel.classList.add('hidden');
-            DOM.nomaToggle.classList.remove('scale-0');
 
             // 대화 내역 초기화
             clearChatData();
@@ -1049,6 +1110,18 @@
                 document.getElementById('browse-section')?.scrollIntoView({ behavior: 'smooth' });
             });
         }
+
+        // ── Stepper: Step toggle (expand/collapse) ──
+        DOM.cardsGrid.addEventListener('click', e => {
+            const toggle = e.target.closest('[data-step-toggle]');
+            if (!toggle) return;
+            const stepItem = toggle.closest('[data-step]');
+            if (!stepItem) return;
+            const body = stepItem.querySelector('.step-body');
+            const isOpen = body.classList.contains('open');
+            body.classList.toggle('open', !isOpen);
+            stepItem.classList.toggle('open', !isOpen);
+        });
 
         // ── Card Click → Service Request Modal ──
         DOM.cardsGrid.addEventListener('click', e => {
@@ -1080,7 +1153,6 @@
 
         DOM.modalCancel.addEventListener('click', () => {
             if (modalState.step === 'confirm') {
-                // 신청 완료 상태에서 닫기 → 첫 화면 복귀
                 resetToHome();
             } else {
                 DOM.serviceModal.classList.add('hidden');
@@ -1127,7 +1199,6 @@
                     DOM.modalNext.classList.add('hidden');
                     DOM.modalCancel.textContent = '닫기';
 
-                    // 4초 후 자동 복귀
                     setTimeout(resetToHome, 4000);
                 } catch (err) {
                     modalState.step = 'error';
@@ -1146,390 +1217,13 @@
         DOM.modalPhoneInput.addEventListener('keydown', e => { if (e.key === 'Enter') DOM.modalNext.click(); });
 
         // ══════════════════════════════════════
-        // ── CHAT WIDGET ──
-        // ══════════════════════════════════════
-
-        // Toggle panel
-        DOM.nomaToggle.addEventListener('click', () => {
-            DOM.nomaPanel.classList.remove('hidden');
-            DOM.nomaToggle.classList.add('scale-0');
-            DOM.nomaInput.focus();
-            if (!DOM.nomaPanel.style.top) {
-                const rect = DOM.nomaPanel.getBoundingClientRect();
-                DOM.nomaPanel.style.top = rect.top + 'px';
-                DOM.nomaPanel.style.left = rect.left + 'px';
-                DOM.nomaPanel.style.bottom = 'auto';
-                DOM.nomaPanel.style.right = 'auto';
-            }
-        });
-
-        DOM.nomaClose.addEventListener('click', () => {
-            DOM.nomaPanel.classList.add('hidden');
-            DOM.nomaToggle.classList.remove('scale-0');
-        });
-
-        // Draggable panel
-        const chatHeader = DOM.nomaPanel.querySelector('.border-b');
-        let isDragging = false, dragStartX, dragStartY, dragInitLeft, dragInitTop;
-        chatHeader.style.cursor = 'grab';
-
-        chatHeader.addEventListener('mousedown', e => {
-            if (e.target.closest('button')) return;
-            isDragging = true;
-            chatHeader.style.cursor = 'grabbing';
-            dragStartX = e.clientX; dragStartY = e.clientY;
-            const cs = getComputedStyle(DOM.nomaPanel);
-            dragInitLeft = parseInt(cs.left) || 0;
-            dragInitTop = parseInt(cs.top) || 0;
-            DOM.nomaPanel.style.transition = 'none';
-        });
-        document.addEventListener('mousemove', e => {
-            if (!isDragging) return;
-            e.preventDefault();
-            DOM.nomaPanel.style.left = `${dragInitLeft + e.clientX - dragStartX}px`;
-            DOM.nomaPanel.style.top = `${dragInitTop + e.clientY - dragStartY}px`;
-        });
-        document.addEventListener('mouseup', () => {
-            if (isDragging) { isDragging = false; chatHeader.style.cursor = 'grab'; DOM.nomaPanel.style.transition = ''; }
-        });
-
-        // Clear chat
-        DOM.nomaClear.addEventListener('click', () => {
-            if (!confirm('모든 대화 기록을 지우고 새로 시작할까요?')) return;
-            clearChatData();
-        });
-
-        // Pop-out
-        DOM.nomaPopout.addEventListener('click', () => {
-            window.open(location.href.split('?')[0] + '?nomaPopout=true', 'NomaChat', 'width=420,height=700,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
-            DOM.nomaPanel.classList.add('hidden');
-            DOM.nomaToggle.classList.remove('scale-0');
-        });
-
-        // Pop-out mode check
-        if (new URLSearchParams(location.search).get('nomaPopout') === 'true') {
-            document.body.classList.add('is-noma-popout');
-            document.title = '노마(Noma) AI - 경상남도사회서비스원';
-        }
-
-        // Auto-resize textarea
-        DOM.nomaInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = this.scrollHeight + 'px';
-            DOM.nomaSend.disabled = !this.value.trim();
-        });
-
-        DOM.nomaInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                if (DOM.nomaInput.value.trim()) DOM.nomaForm.dispatchEvent(new Event('submit'));
-            }
-        });
-
-        // ── Card formatting for chat messages ──
-        function formatChatMessage(text) {
-            const cardRegex = /<noma-card>([\s\S]*?)<\/noma-card>/g;
-            const cards = [];
-
-            let html = text.replace(cardRegex, (_, json) => {
-                try {
-                    cards.push(JSON.parse(json.trim()));
-                    return `___CARD_${cards.length - 1}___`;
-                } catch (e) { return _; }
-            });
-
-            html = md(html);
-
-            cards.forEach((data, i) => {
-                const cardHtml = `
-                    <div class="mt-2 mb-2 p-4 bg-white border border-stone-200 rounded-xl shadow-sm text-sm text-slate-700 max-w-full">
-                        <h3 class="font-bold text-base text-primary mb-1">${data.serviceName || ''}</h3>
-                        <p class="text-xs text-slate-500 mb-3">${data.summary || ''}</p>
-                        <details class="group mb-3">
-                            <summary class="cursor-pointer text-xs font-semibold text-slate-600 bg-stone-100 p-2 rounded flex justify-between items-center hover:bg-stone-200 transition-colors">
-                                <span>자세히 보기</span>
-                                <span class="transition-transform group-open:rotate-180">&#9662;</span>
-                            </summary>
-                            <div class="p-3 text-xs space-y-2 border-x border-b border-stone-100 rounded-b bg-stone-50 leading-relaxed">
-                                ${data.target ? `<div><strong class="text-slate-600">지원 대상</strong> ${data.target}</div>` : ''}
-                                ${data.method ? `<div><strong class="text-slate-600">신청 방법</strong> ${data.method}</div>` : ''}
-                                ${data.benefits ? `<div><strong class="text-slate-600">주요 혜택</strong> ${data.benefits}</div>` : ''}
-                            </div>
-                        </details>
-                        ${data.agency ? `<p class="text-[10px] text-slate-400 mb-2">담당: ${data.agency}</p>` : ''}
-                        <div class="flex gap-2">
-                            <button class="btn-chat-apply flex-1 bg-primary/10 hover:bg-primary/20 text-primary font-bold py-2 px-4 rounded-lg transition-colors text-xs flex items-center justify-center gap-1" data-service="${data.serviceName || ''}">
-                                <span class="material-symbols-outlined !text-sm">outgoing_mail</span>
-                                담당자 연결
-                            </button>
-                            <button class="btn-chat-bookmark bg-stone-100 hover:bg-primary/10 text-stone-400 hover:text-primary py-2 px-3 rounded-lg transition-colors text-xs flex items-center justify-center" data-service-name="${data.serviceName || ''}" data-summary="${(data.summary || '').replace(/"/g, '&quot;')}" data-agency="${(data.agency || '').replace(/"/g, '&quot;')}">
-                                <span class="material-symbols-outlined !text-sm">bookmark_add</span>
-                            </button>
-                        </div>
-                        <p class="text-[9px] text-slate-400 text-center mt-1 leading-snug">버튼을 누르시면 담당 기관에 정보가 전달됩니다.</p>
-                    </div>
-                `;
-                html = html.replace(`___CARD_${i}___`, cardHtml);
-            });
-
-            return html;
-        }
-
-        // ── Append chat message ──
-        function appendChatMessage(role, text, skipScroll = false) {
-            const isUser = role === 'user';
-            const wrapper = document.createElement('div');
-            wrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
-
-            const bubble = document.createElement('div');
-            bubble.className = isUser
-                ? 'bg-primary text-white rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[85%] shadow-sm text-sm whitespace-pre-wrap'
-                : 'bg-white text-slate-700 rounded-2xl rounded-tl-sm border border-stone-200 px-4 py-3 shadow-sm max-w-[85%] text-sm whitespace-pre-wrap';
-
-            if (role === 'model') {
-                bubble.innerHTML = formatChatMessage(text);
-            } else {
-                bubble.textContent = text;
-            }
-
-            wrapper.appendChild(bubble);
-            DOM.nomaMessages.appendChild(wrapper);
-            if (!skipScroll) DOM.nomaMessages.scrollTop = DOM.nomaMessages.scrollHeight;
-            return bubble;
-        }
-
-        // ── Chat submit ──
-        DOM.nomaForm.addEventListener('submit', async e => {
-            e.preventDefault();
-            const text = DOM.nomaInput.value.trim();
-            if (!text) return;
-
-            // Conversational service request mode: intercept input
-            if (serviceRequestState) {
-                appendChatMessage('user', text);
-                DOM.nomaInput.value = '';
-                DOM.nomaInput.style.height = 'auto';
-                DOM.nomaSend.disabled = true;
-                handleConversationalInput(text);
-                return;
-            }
-
-            appendChatMessage('user', text);
-            chatHistory.push({ role: 'user', content: text });
-            saveHistory();
-
-            DOM.nomaInput.value = '';
-            DOM.nomaInput.style.height = 'auto';
-            DOM.nomaInput.disabled = true;
-            DOM.nomaSend.disabled = true;
-
-            const aiBubble = appendChatMessage('model', '');
-            aiBubble.innerHTML = '<span class="inline-block animate-pulse-soft text-slate-400 text-sm">분석 중...</span>';
-
-            let fullResponse = '';
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: chatHistory })
-                });
-                if (!res.ok) throw new Error('Network error');
-
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value, { stream: true });
-                    for (const line of chunk.split('\n')) {
-                        if (!line.startsWith('data: ')) continue;
-                        const dataStr = line.slice(6).trim();
-                        if (dataStr === '[DONE]') break;
-                        try {
-                            const d = JSON.parse(dataStr);
-                            if (d.text) {
-                                fullResponse += d.text;
-                                aiBubble.innerHTML = formatChatMessage(fullResponse);
-                                DOM.nomaMessages.scrollTop = DOM.nomaMessages.scrollHeight;
-                            }
-                        } catch (e) { /* partial */ }
-                    }
-                }
-
-                chatHistory.push({ role: 'model', content: fullResponse });
-                saveHistory();
-
-            } catch (err) {
-                aiBubble.innerHTML = '<span class="text-red-500 text-sm">오류: 서버 연결에 실패했습니다. localhost:5000이 실행 중인지 확인해 주세요.</span>';
-            } finally {
-                DOM.nomaInput.disabled = false;
-                DOM.nomaInput.focus();
-            }
-
-            // TTS: read AI response aloud (voice input or TTS enabled)
-            if (fullResponse && (lastInputWasVoice || ttsEnabled)) {
-                lastInputWasVoice = false;
-                await speakText(extractSpeakableText(fullResponse));
-            } else {
-                lastInputWasVoice = false;
-            }
-            // Continuous voice: restart listening after TTS completes
-            if (continuousVoiceMode && voiceConversationActive) {
-                startContinuousListening();
-            }
-        });
-
-        // ══════════════════════════════════════
-        // ── CONVERSATIONAL SERVICE REQUEST ──
-        // ══════════════════════════════════════
-
-        function normalizePhone(text) {
-            const koreanDigits = {
-                '공': '0', '영': '0', '빵': '0',
-                '하나': '1', '일': '1',
-                '둘': '2', '이': '2',
-                '셋': '3', '삼': '3',
-                '넷': '4', '사': '4',
-                '다섯': '5', '오': '5',
-                '여섯': '6', '육': '6',
-                '일곱': '7', '칠': '7',
-                '여덟': '8', '팔': '8',
-                '아홉': '9', '구': '9',
-            };
-            let normalized = text;
-            // Replace longer words first to avoid partial matches
-            Object.entries(koreanDigits)
-                .sort((a, b) => b[0].length - a[0].length)
-                .forEach(([word, digit]) => {
-                    normalized = normalized.replace(new RegExp(word, 'g'), digit);
-                });
-            return normalized.replace(/[^0-9]/g, '');
-        }
-
-        function formatPhoneNumber(digits) {
-            if (digits.length === 11) return `${digits.slice(0,3)}-${digits.slice(3,7)}-${digits.slice(7)}`;
-            if (digits.length === 10) return `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`;
-            return digits;
-        }
-
-        function startConversationalRequest(serviceName) {
-            serviceRequestState = { step: 'awaiting_name', serviceName, name: '', phone: '' };
-            appendChatMessage('model', `네, **${serviceName}** 담당 기관에 연결해 드리겠습니다.\n\n먼저 성함을 여쭤봐도 될까요?`);
-        }
-
-        function handleConversationalInput(text) {
-            if (!serviceRequestState) return false;
-
-            if (serviceRequestState.step === 'awaiting_name') {
-                // Extract name: strip common suffixes
-                let name = text.trim()
-                    .replace(/(입니다|이에요|예요|이요|요|이야|야|이라고\s*합니다|라고\s*합니다)\.?$/g, '')
-                    .replace(/^(제?\s*이름은?\s*)/g, '')
-                    .replace(/^(저는?\s*)/g, '')
-                    .trim();
-                if (!name) name = text.trim();
-                serviceRequestState.name = name;
-                serviceRequestState.step = 'awaiting_phone';
-                appendChatMessage('model', `**${name}**님, 반갑습니다!\n\n연락받으실 전화번호를 말씀해 주시겠어요?\n(예: 공일공 일이삼사 오육칠팔)`);
-                return true;
-            }
-
-            if (serviceRequestState.step === 'awaiting_phone') {
-                const digits = normalizePhone(text);
-                if (digits.length < 9 || digits.length > 11) {
-                    appendChatMessage('model', `전화번호가 올바르지 않은 것 같아요. 다시 한 번 말씀해 주시겠어요?\n(예: 010-1234-5678 또는 공일공 일이삼사 오육칠팔)`);
-                    return true;
-                }
-                serviceRequestState.phone = digits;
-                serviceRequestState.step = 'awaiting_confirm';
-                const formatted = formatPhoneNumber(digits);
-                appendChatMessage('model', `확인하겠습니다.\n\n**${serviceRequestState.name}**님, **${formatted}**으로 연락드리면 될까요?\n\n"네" 또는 "아니요"로 답해 주세요.`);
-                return true;
-            }
-
-            if (serviceRequestState.step === 'awaiting_confirm') {
-                const t = text.trim();
-                const positive = /^(네|예|맞|응|그래|맞아|맞습니다|맞아요|넵|넹|확인|ㅇ|ㅇㅇ|yes|ok|좋아)/i.test(t);
-                const negative = /^(아니|아뇨|틀|다시|수정|변경|no|nope)/i.test(t);
-
-                if (positive) {
-                    const { serviceName, name, phone } = serviceRequestState;
-                    serviceRequestState = null;
-                    submitConversationalRequest(serviceName, name, phone);
-                    return true;
-                } else if (negative) {
-                    serviceRequestState.step = 'awaiting_name';
-                    serviceRequestState.name = '';
-                    serviceRequestState.phone = '';
-                    appendChatMessage('model', `알겠습니다. 다시 처음부터 진행할게요.\n\n성함을 말씀해 주시겠어요?`);
-                    return true;
-                } else {
-                    appendChatMessage('model', `"네" 또는 "아니요"로 답해 주세요.`);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        async function submitConversationalRequest(serviceName, name, phone) {
-            const formatted = formatPhoneNumber(phone);
-            const bubble = appendChatMessage('model', '');
-            bubble.innerHTML = '<span class="inline-block animate-pulse-soft text-slate-400 text-sm">신청 처리 중...</span>';
-
-            try {
-                const res = await fetch('/api/service-request/connect', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ serviceName, userName: name, userPhone: phone })
-                });
-                if (!res.ok) throw new Error('API failed');
-
-                bubble.innerHTML = `
-                    <div class="text-center py-3">
-                        <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <span class="material-symbols-outlined text-emerald-600 text-2xl">check_circle</span>
-                        </div>
-                        <p class="font-bold text-slate-800 mb-1 text-sm">상담 신청이 완료되었습니다!</p>
-                        <p class="text-xs text-slate-500 leading-relaxed">
-                            <b>${name}</b>님, <b>${serviceName}</b> 담당 기관에<br/>
-                            상담 요청을 보냈습니다.<br/>
-                            <b>${formatted}</b>으로 2~3일 내 연락드릴 예정입니다.
-                        </p>
-                        <p class="text-[10px] text-slate-400 mt-3">잠시 후 처음 화면으로 돌아갑니다...</p>
-                    </div>
-                `;
-                DOM.nomaMessages.scrollTop = DOM.nomaMessages.scrollHeight;
-
-                // 4초 후 첫 화면 복귀
-                setTimeout(resetToHome, 4000);
-            } catch (err) {
-                bubble.innerHTML = `
-                    <p class="text-sm text-red-500">
-                        신청 처리 중 오류가 발생했습니다.<br/>
-                        잠시 후 다시 시도하시거나, <b>055-230-8200</b>으로 전화 문의해 주세요.
-                    </p>
-                `;
-            }
-        }
-
-        // Chat card apply button → conversational flow
-        DOM.nomaMessages.addEventListener('click', e => {
-            const btn = e.target.closest('.btn-chat-apply');
-            if (!btn) return;
-            startConversationalRequest(btn.dataset.service);
-        });
-
-        // ══════════════════════════════════════
-        // ── SPEECH RECOGNITION + TTS + CONTINUOUS VOICE ──
+        // ── SPEECH RECOGNITION + TTS ──
         // ══════════════════════════════════════
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition = null;
         let activeInput = null;
         let activeBtn = null;
-
         let isRecognitionRunning = false;
 
         function startListening(inputEl, btnEl) {
@@ -1563,7 +1257,7 @@
             while ((m = cardRegex.exec(text)) !== null) {
                 try {
                     const card = JSON.parse(m[1].trim());
-                    if (card.serviceName) cards.push(card.serviceName);
+                    if (card.serviceName) cards.push(card);
                 } catch (e) {}
             }
             let clean = text.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
@@ -1574,9 +1268,17 @@
             clean = clean.replace(/`([^`]+)`/g, '$1');
             if (cards.length > 0) {
                 const ordinals = ['첫', '두', '세', '네', '다섯'];
-                const cardSummary = cards.map((name, i) =>
-                    `${ordinals[i] || (i + 1)} 번째 추천 서비스는 ${name}입니다.`
-                ).join(' ');
+                const cardSummary = cards.map((card, i) => {
+                    let line = `${ordinals[i] || (i + 1)} 번째 추천 서비스는 ${card.serviceName}입니다.`;
+                    // 연락처에서 전화번호 추출하여 읽어주기
+                    if (card.agency) {
+                        const phoneMatch = card.agency.match(/0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/);
+                        if (phoneMatch) {
+                            line += ` 문의는 ${phoneMatch[0]}로 전화하시면 됩니다.`;
+                        }
+                    }
+                    return line;
+                }).join(' ');
                 clean += '\n' + cardSummary;
             }
             return clean.trim();
@@ -1589,7 +1291,6 @@
                 isSpeaking = true;
                 updateFloatingMicState();
 
-                // Truncate very long text for TTS (keep under 500 chars)
                 const ttsText = text.length > 500 ? text.slice(0, 500) + '...' : text;
 
                 // Try Edge TTS (server-side)
@@ -1608,8 +1309,8 @@
                     if (data.audioContent && data.audioContent.length > 100) {
                         const audio = new Audio('data:audio/mpeg;base64,' + data.audioContent);
                         currentAudio = audio;
-                        audio.onended = () => { isSpeaking = false; currentAudio = null; resolve(); };
-                        audio.onerror = (e) => { console.error('Audio playback error:', e); isSpeaking = false; currentAudio = null; resolve(); };
+                        audio.onended = () => { isSpeaking = false; currentAudio = null; updateFloatingMicState(); resolve(); };
+                        audio.onerror = (e) => { console.error('Audio playback error:', e); isSpeaking = false; currentAudio = null; updateFloatingMicState(); resolve(); };
                         await audio.play().catch(e => { console.error('Audio play failed:', e); throw e; });
                         return;
                     }
@@ -1619,13 +1320,13 @@
                 }
 
                 // Fallback: Web Speech API
-                if (!window.speechSynthesis) { isSpeaking = false; resolve(); return; }
+                if (!window.speechSynthesis) { isSpeaking = false; updateFloatingMicState(); resolve(); return; }
                 const utterance = new SpeechSynthesisUtterance(ttsText);
                 utterance.lang = 'ko-KR';
                 utterance.rate = 0.9;
                 currentUtterance = utterance;
-                utterance.onend = () => { isSpeaking = false; currentUtterance = null; resolve(); };
-                utterance.onerror = () => { isSpeaking = false; currentUtterance = null; resolve(); };
+                utterance.onend = () => { isSpeaking = false; currentUtterance = null; updateFloatingMicState(); resolve(); };
+                utterance.onerror = () => { isSpeaking = false; currentUtterance = null; updateFloatingMicState(); resolve(); };
                 speechSynthesis.speak(utterance);
             });
         }
@@ -1642,48 +1343,6 @@
             updateFloatingMicState();
         }
 
-        // ── Continuous Voice Mode ──
-        function startContinuousListening() {
-            if (!recognition || isSpeaking) return;
-            isListeningContinuous = true;
-            voiceConversationActive = true;
-            updateVoiceIndicator();
-            startListening(DOM.nomaInput, DOM.nomaMic);
-        }
-
-        function stopContinuousMode() {
-            continuousVoiceMode = false;
-            voiceConversationActive = false;
-            isListeningContinuous = false;
-            stopSpeaking();
-            if (recognition && isRecognitionRunning) {
-                try { recognition.abort(); } catch (e) {}
-            }
-            updateVoiceIndicator();
-            updateVoiceToggleButtons();
-        }
-
-        function updateVoiceIndicator() {
-            if (continuousVoiceMode && voiceConversationActive) {
-                DOM.nomaVoiceIndicator.classList.remove('hidden');
-            } else {
-                DOM.nomaVoiceIndicator.classList.add('hidden');
-            }
-        }
-
-        function updateVoiceToggleButtons() {
-            if (ttsEnabled) {
-                DOM.nomaTtsToggle.classList.add('voice-toggle-active');
-            } else {
-                DOM.nomaTtsToggle.classList.remove('voice-toggle-active');
-            }
-            if (continuousVoiceMode) {
-                DOM.nomaContinuousToggle.classList.add('voice-toggle-active');
-            } else {
-                DOM.nomaContinuousToggle.classList.remove('voice-toggle-active');
-            }
-        }
-
         if (SpeechRecognition) {
             recognition = new SpeechRecognition();
             recognition.lang = 'ko-KR';
@@ -1696,12 +1355,9 @@
                     lastInputWasVoice = true;
                     activeInput.value = text;
                     activeInput.dispatchEvent(new Event('input'));
-                    const inputRef = activeInput;
                     setTimeout(() => {
-                        if (inputRef === DOM.heroInput) {
+                        if (activeInput === DOM.heroInput) {
                             handleHeroSubmit();
-                        } else if (inputRef === DOM.nomaInput && DOM.nomaInput.value.trim()) {
-                            DOM.nomaForm.requestSubmit();
                         }
                     }, 300);
                 }
@@ -1709,58 +1365,31 @@
 
             recognition.onend = () => {
                 isRecognitionRunning = false;
-                [DOM.heroMic, DOM.nomaMic].forEach(btn => {
-                    btn.classList.remove('animate-pulse', '!text-red-500');
-                    const icon = btn.querySelector('.material-symbols-outlined');
-                    if (icon) icon.textContent = 'mic';
-                });
+                DOM.heroMic.classList.remove('animate-pulse', '!text-red-500');
+                const icon = DOM.heroMic.querySelector('.material-symbols-outlined');
+                if (icon) icon.textContent = 'mic';
                 activeInput = null;
                 activeBtn = null;
                 updateFloatingMicState();
-                // Continuous mode: restart after silence timeout
-                if (continuousVoiceMode && voiceConversationActive && !isSpeaking) {
-                    setTimeout(() => {
-                        if (continuousVoiceMode && voiceConversationActive && !isSpeaking) {
-                            startContinuousListening();
-                        }
-                    }, 300);
-                }
             };
 
             recognition.onerror = event => {
                 console.warn('Speech recognition error:', event.error);
                 isRecognitionRunning = false;
-                if (event.error === 'no-speech' || event.error === 'aborted') {
-                    // Silence or aborted: let onend handle restart
-                } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                    stopContinuousMode();
-                } else if (event.error === 'network') {
-                    if (continuousVoiceMode) {
-                        setTimeout(() => {
-                            if (continuousVoiceMode && voiceConversationActive) startContinuousListening();
-                        }, 1000);
-                    }
-                }
             };
 
             DOM.heroMic.addEventListener('click', e => { e.preventDefault(); startListening(DOM.heroInput, DOM.heroMic); });
-            DOM.nomaMic.addEventListener('click', () => {
-                if (continuousVoiceMode) { stopContinuousMode(); return; }
-                startListening(DOM.nomaInput, DOM.nomaMic);
-            });
 
             // ── Floating Mic Button ──
             if (DOM.floatingMic) {
                 DOM.floatingMic.addEventListener('click', () => {
-                    // If Noma is speaking, stop speech first
                     if (isSpeaking) stopSpeaking();
-                    // Start voice input targeting hero input
                     startListening(DOM.heroInput, DOM.heroMic);
                     updateFloatingMicState();
                 });
             }
         } else {
-            [DOM.heroMic, DOM.nomaMic].forEach(btn => btn.style.display = 'none');
+            DOM.heroMic.style.display = 'none';
         }
 
         // Update floating mic visual state
@@ -1775,7 +1404,6 @@
                 DOM.floatingMic.classList.remove('listening');
                 if (icon) icon.textContent = 'mic';
             }
-            // Status badge: show stop icon when Noma is speaking
             if (statusIcon) {
                 if (isSpeaking) {
                     statusIcon.textContent = 'stop_circle';
@@ -1786,39 +1414,6 @@
                 }
             }
         }
-
-        // ── Voice Toggle Button Events ──
-        DOM.nomaTtsToggle.addEventListener('click', () => {
-            ttsEnabled = !ttsEnabled;
-            updateVoiceToggleButtons();
-            if (!ttsEnabled) stopSpeaking();
-        });
-
-        DOM.nomaContinuousToggle.addEventListener('click', () => {
-            if (continuousVoiceMode) {
-                stopContinuousMode();
-            } else {
-                continuousVoiceMode = true;
-                ttsEnabled = true; // TTS auto-enabled with continuous mode
-                updateVoiceToggleButtons();
-                // Open chat panel if closed
-                if (DOM.nomaPanel.classList.contains('hidden')) {
-                    DOM.nomaPanel.classList.remove('hidden');
-                    DOM.nomaToggle.classList.add('scale-0');
-                }
-                startContinuousListening();
-            }
-        });
-
-        DOM.nomaVoiceStop.addEventListener('click', () => stopContinuousMode());
-
-        // Input focus → pause continuous listening (manual typing)
-        DOM.nomaInput.addEventListener('focus', () => {
-            if (continuousVoiceMode && isListeningContinuous && isRecognitionRunning) {
-                try { recognition.abort(); } catch (e) {}
-                isListeningContinuous = false;
-            }
-        });
 
         // ══════════════════════════════════════
         // ── SESSION STORAGE + AUTO EXPIRY ──
@@ -1841,16 +1436,12 @@
             try {
                 const savedTime = sessionStorage.getItem(CHAT_TIMESTAMP_KEY);
                 if (savedTime && (Date.now() - parseInt(savedTime)) > CHAT_EXPIRY_MS) {
-                    // 5분 초과 → 만료 처리
                     clearChatData();
                     return;
                 }
                 const saved = sessionStorage.getItem(CHAT_STORAGE_KEY);
                 if (saved) {
                     chatHistory = JSON.parse(saved);
-                    chatHistory.forEach(msg => {
-                        appendChatMessage(msg.role === 'user' ? 'user' : 'model', msg.content, true);
-                    });
                     resetInactivityTimer();
                 }
             } catch (e) {}
@@ -1860,20 +1451,13 @@
             sessionStorage.removeItem(CHAT_STORAGE_KEY);
             sessionStorage.removeItem(CHAT_TIMESTAMP_KEY);
             chatHistory = [];
-            serviceRequestState = null;
-            const msgs = DOM.nomaMessages;
-            while (msgs.children.length > 1) msgs.removeChild(msgs.lastChild);
             if (inactivityTimer) clearTimeout(inactivityTimer);
-            // Stop voice features on clear
-            stopContinuousMode();
         }
 
         function resetInactivityTimer() {
             if (inactivityTimer) clearTimeout(inactivityTimer);
             inactivityTimer = setTimeout(() => {
                 clearChatData();
-                // 만료 안내 메시지 표시
-                appendChatMessage('model', '일정 시간 동안 대화가 없어 이전 내용이 초기화되었습니다.\n새로운 질문을 편하게 말씀해 주세요!');
             }, CHAT_EXPIRY_MS);
         }
 
@@ -1884,7 +1468,7 @@
         const DRAWER_CONSENT_KEY = 'nomaDrawerConsent';
         const DRAWER_DATA_KEY = 'nomaDrawerItems';
         let drawerItems = [];
-        let pendingBookmark = null; // temp store while consent is pending
+        let pendingBookmark = null;
 
         function hasDrawerConsent() {
             return localStorage.getItem(DRAWER_CONSENT_KEY) === 'true';
@@ -1914,7 +1498,6 @@
         }
 
         function addToDrawer(serviceData) {
-            // Check for duplicates
             if (drawerItems.some(item => item.serviceName === serviceData.serviceName)) {
                 showToast('이미 내 서랍에 담겨있는 서비스예요.');
                 return;
@@ -1927,7 +1510,6 @@
             });
             saveDrawerItems();
             showToast('내 서랍에 담았어요!');
-            // Update bookmark button state
             updateBookmarkButtons();
         }
 
@@ -1974,7 +1556,6 @@
                 </div>
             `).join('');
 
-            // Bind events
             itemsEl.querySelectorAll('.drawer-item-remove').forEach(btn => {
                 btn.addEventListener('click', () => removeFromDrawer(btn.dataset.service));
             });
@@ -2019,7 +1600,7 @@
                 $('drawer-panel').style.transform = 'translateX(0)';
             });
         }
-        window.openMyDrawer = openMyDrawer; // expose for mobile menu
+        window.openMyDrawer = openMyDrawer;
 
         function closeMyDrawer() {
             $('drawer-panel').style.transform = 'translateX(100%)';
@@ -2063,17 +1644,6 @@
             handleBookmark(serviceName, card || { serviceName });
         });
 
-        // Chat bookmark buttons
-        DOM.nomaMessages.addEventListener('click', e => {
-            const btn = e.target.closest('.btn-chat-bookmark');
-            if (!btn) return;
-            handleBookmark(btn.dataset.serviceName, {
-                serviceName: btn.dataset.serviceName,
-                summary: btn.dataset.summary || '',
-                agency: btn.dataset.agency || ''
-            });
-        });
-
         // Consent modal handlers
         $('consent-accept').addEventListener('click', () => {
             localStorage.setItem(DRAWER_CONSENT_KEY, 'true');
@@ -2100,17 +1670,6 @@
         window.addEventListener('DOMContentLoaded', () => {
             loadHistory();
             loadDrawerItems();
-            setTimeout(() => { DOM.nomaMessages.scrollTop = DOM.nomaMessages.scrollHeight; }, 100);
-        });
-
-        // 사용자 활동 감지 → 무활동 타이머 리셋
-        ['click', 'keydown', 'touchstart'].forEach(evt => {
-            DOM.nomaPanel.addEventListener(evt, () => {
-                if (chatHistory.length > 0) {
-                    sessionStorage.setItem(CHAT_TIMESTAMP_KEY, Date.now().toString());
-                    resetInactivityTimer();
-                }
-            });
         });
 
     })();

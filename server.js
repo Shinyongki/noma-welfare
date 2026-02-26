@@ -52,7 +52,101 @@ function parseCSVLine(line) {
 function stripKoreanSuffixes(word) {
     return word
         .replace(/(이|가|을|를|은|는|에|에서|으로|로|와|과|도|의|하고|에게|한테|께서|부터|까지|만|밖에|처럼|같이|보다|이나|나|이요|요|야)$/g, '')
-        .replace(/(합니다|해요|하는|입니다|이에요|예요|인가요|일까요|인데|해서|하면|해줘|되나요|받고|없어요|있어요|싶어요|필요해요|돌봐줄|사는)$/g, '');
+        .replace(/(합니다|해요|하는|입니다|이에요|예요|인가요|일까요|인데|해서|하면|해줘|되나요|받고|없어요|있어요|싶어요|필요해요|돌봐줄|사는)$/g, '')
+        .replace(/(아요|어요|아|어|지|네|네요|군요|구나|잖아|잖아요|거든|거든요|래요|세요|대요|는데|ㄴ데|던데|텐데|겠어|을까)$/g, '');
+}
+
+// 유의어/개념 매핑 사전 (일상어 → 지식베이스 키워드 확장)
+const synonymMap = {
+    // 건강/질병 관련
+    '아프': ['질병', '부상', '돌봄', '의료', '긴급돌봄'],
+    '아파': ['질병', '부상', '돌봄', '의료', '긴급돌봄'],
+    '병': ['질병', '부상', '의료', '돌봄'],
+    '몸': ['질병', '돌봄', '의료', '건강'],
+    '아프다': ['질병', '부상', '의료'],
+    '다쳐': ['부상', '긴급돌봄', '의료'],
+    '다치': ['부상', '긴급돌봄', '의료'],
+    '수술': ['퇴원후', '긴급돌봄', '의료'],
+    '입원': ['퇴원후', '긴급돌봄', '의료'],
+    '퇴원': ['퇴원후', '퇴원환자돌봄', '긴급돌봄'],
+    '치매': ['노인맞춤돌봄', '돌봄', '독거노인'],
+    '건강': ['건강모니터링', '의료', '돌봄', '방문의료'],
+    '간호': ['방문의료', '돌봄', '재가'],
+    '간병': ['돌봄', '방문요양', '긴급돌봄'],
+    '약': ['의료', '건강', '돌봄'],
+    '병원': ['의료', '퇴원후', '퇴원환자돌봄'],
+    // 정서/생활 관련
+    '외롭': ['독거노인', '1인가구', '고독사예방', '안부확인'],
+    '외로': ['독거노인', '1인가구', '고독사예방', '안부확인'],
+    '혼자': ['독거노인', '1인가구', '고독사예방'],
+    '우울': ['돌봄', '상담지원', '안부확인'],
+    '힘들': ['돌봄', '긴급돌봄', '상담지원'],
+    '무섭': ['긴급보호', '응급', '안전'],
+    '걱정': ['안부확인', '돌봄', '안전'],
+    // 긴급/안전 관련
+    '급해': ['긴급돌봄', '긴급보호', '응급안전안심'],
+    '긴급': ['긴급돌봄', '긴급보호', '긴급출동'],
+    '위험': ['응급안전안심', '긴급보호', '안전'],
+    '사고': ['부상', '긴급돌봄', '응급안전안심'],
+    '응급': ['응급안전안심', '긴급출동', '119자동신고'],
+    '쓰러': ['응급안전안심', '긴급출동'],
+    '넘어': ['응급안전안심', '긴급돌봄', '부상'],
+    // 대상자 관련
+    '어르신': ['노인맞춤돌봄', '독거노인', '취약노인'],
+    '노인': ['노인맞춤돌봄', '독거노인', '취약노인', '방문요양'],
+    '할머니': ['노인맞춤돌봄', '독거노인', '돌봄'],
+    '할아버지': ['노인맞춤돌봄', '독거노인', '돌봄'],
+    '장애': ['장애인복지', '장애인보조기기', '활동지원사교육'],
+    '아이': ['어린이집', '보육', '아이중심교육'],
+    '아기': ['어린이집', '보육'],
+    '어린이': ['어린이집', '보육', '아이중심교육'],
+    '육아': ['어린이집', '보육', '더불어돌봄'],
+    // 서비스 유형 관련
+    '도움': ['돌봄', '지원', '상담지원'],
+    '도와': ['돌봄', '지원', '상담지원'],
+    '돌봄': ['돌봄', '긴급돌봄', '통합돌봄', '방문요양'],
+    '돌봐': ['돌봄', '긴급돌봄', '방문요양'],
+    '집': ['재가', '방문요양', '방문의료', '일상돌봄'],
+    '방문': ['방문요양', '방문목욕', '방문의료'],
+    '요양': ['방문요양', '장기요양기관', '돌봄'],
+    '가사': ['가사지원', '일상돌봄'],
+    '청소': ['가사지원', '일상돌봄'],
+    '밥': ['가사지원', '일상돌봄', '돌봄'],
+    '식사': ['가사지원', '일상돌봄'],
+    '목욕': ['방문목욕', '돌봄'],
+    '씻기': ['방문목욕', '돌봄'],
+    '학대': ['피해장애인', '장애인학대보호', '긴급보호'],
+    '폭력': ['피해장애인', '장애인학대보호', '긴급보호'],
+    '피해': ['피해장애인', '긴급보호', '사회복귀지원'],
+    '일자리': ['직업재활', '취업'],
+    '직업': ['직업재활'],
+    '취업': ['직업재활'],
+    // 기술/장비 관련
+    '스마트폰': ['스마트폰앱', 'AI돌봄', '스마트케어'],
+    '앱': ['스마트폰앱', 'AI돌봄'],
+    '기기': ['보조기기', '장애인보조기기', '댁내장비'],
+    '보조기기': ['보조기기', '장애인보조기기', '기기대여'],
+    '안심': ['응급안전안심', '안부확인', '고독사예방'],
+};
+
+// 검색어 유의어 확장
+function expandSearchTerms(searchTerms) {
+    const expanded = new Set();
+    searchTerms.forEach(term => {
+        // 정확히 매칭되는 키
+        if (synonymMap[term]) {
+            synonymMap[term].forEach(syn => expanded.add(syn));
+        }
+        // 부분 매칭: 검색어가 synonymMap 키를 포함하거나, 키가 검색어를 포함
+        for (const [key, synonyms] of Object.entries(synonymMap)) {
+            if (key !== term && (term.includes(key) || key.includes(term)) && term.length >= 2) {
+                synonyms.forEach(syn => expanded.add(syn));
+            }
+        }
+    });
+    // 원래 searchTerms와 중복되는 것은 제외
+    searchTerms.forEach(t => expanded.delete(t));
+    return [...expanded];
 }
 
 function loadWelfareKB() {
@@ -96,10 +190,16 @@ app.post('/api/chat', async (req, res) => {
     }
     const lastUserMessage = messages[messages.length - 1]?.content || "";
 
-    // RAG: Search relevant services (한국어 조사 제거 + 복합어 분해 + 관련도 스코어링)
-    const searchTerms = lastUserMessage.split(/[\s,?!.]+/)
-        .map(w => stripKoreanSuffixes(w))
-        .filter(w => w.length > 1);
+    // RAG: Search relevant services (한국어 조사 제거 + 복합어 분해 + 유의어 확장 + 관련도 스코어링)
+    const rawWords = lastUserMessage.split(/[\s,?!.]+/).filter(w => w.length > 1);
+    const searchTerms = [...new Set([
+        ...rawWords.map(w => stripKoreanSuffixes(w)).filter(w => w.length > 1),
+        // 어미 제거로 사라진 단어 중 synonymMap에 있는 원형 복구 (예: "아이" → "아"로 잘못 제거 방지)
+        ...rawWords.filter(w => synonymMap[w] && !rawWords.map(r => stripKoreanSuffixes(r)).filter(r => r.length > 1).includes(w))
+    ])];
+
+    // 유의어/개념 확장: 일상어 → 지식베이스 키워드
+    const expandedTerms = expandSearchTerms(searchTerms);
 
     // 복합어 분해: 4글자 이상 단어를 2글자 서브텀으로 분해 (슬라이딩 윈도우)
     const subTerms = new Set();
@@ -111,6 +211,7 @@ app.post('/api/chat', async (req, res) => {
         }
     });
     searchTerms.forEach(t => subTerms.delete(t));
+    expandedTerms.forEach(t => subTerms.delete(t));
     const subTermsArray = [...subTerms].filter(t => t.length >= 2);
 
     const scoredServices = welfareKB.map(service => {
@@ -124,6 +225,13 @@ app.post('/api/chat', async (req, res) => {
             if (keywords.includes(term)) score += 2;   // 키워드 태그
             if (target.includes(term)) score += 1;     // 지원 대상
             if (content.includes(term)) score += 1;    // 지원 내용
+        });
+        // 유의어 확장 매칭 (원래 가중치 × 0.7)
+        expandedTerms.forEach(term => {
+            if (name.includes(term)) score += 3 * 0.7;
+            if (keywords.includes(term)) score += 2 * 0.7;
+            if (target.includes(term)) score += 1 * 0.7;
+            if (content.includes(term)) score += 1 * 0.7;
         });
         // 서브텀 매칭 (복합어 분해 결과, 낮은 가중치)
         subTermsArray.forEach(term => {
@@ -141,7 +249,7 @@ app.post('/api/chat', async (req, res) => {
     const topScore = scoredServices.length > 0 ? scoredServices[0].score : 0;
     const filteredServices = scoredServices.filter(s => s.score >= topScore * 0.3);
 
-    console.log(`[RAG] 검색어: [${searchTerms.join(', ')}]${subTermsArray.length > 0 ? ' 서브텀: [' + subTermsArray.join(', ') + ']' : ''} → ${filteredServices.length}건 매칭${filteredServices.length > 0 ? ': ' + filteredServices.map(s => `${s.service['사업명']}(${s.score})`).join(', ') : ''}`);
+    console.log(`[RAG] 검색어: [${searchTerms.join(', ')}]${expandedTerms.length > 0 ? ' 확장: [' + expandedTerms.join(', ') + ']' : ''}${subTermsArray.length > 0 ? ' 서브텀: [' + subTermsArray.join(', ') + ']' : ''} → ${filteredServices.length}건 매칭${filteredServices.length > 0 ? ': ' + filteredServices.map(s => `${s.service['사업명']}(${s.score})`).join(', ') : ''}`);
 
     let ragContext = "";
     if (filteredServices.length > 0) {
