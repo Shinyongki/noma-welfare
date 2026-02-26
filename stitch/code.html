@@ -1062,6 +1062,7 @@
         function handleHeroSubmit() {
             const query = DOM.heroInput.value.trim();
             if (!query) return;
+            DOM.heroInput.value = '';
             performSearch(query);
         }
 
