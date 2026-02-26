@@ -851,15 +851,16 @@
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let fullResponse = '';
+                let streamDone = false;
 
-                while (true) {
+                while (!streamDone) {
                     const { done, value } = await reader.read();
                     if (done) break;
                     const chunk = decoder.decode(value, { stream: true });
                     for (const line of chunk.split('\n')) {
                         if (!line.startsWith('data: ')) continue;
                         const dataStr = line.slice(6).trim();
-                        if (dataStr === '[DONE]') break;
+                        if (dataStr === '[DONE]') { streamDone = true; break; }
                         try {
                             const data = JSON.parse(dataStr);
                             if (data.text) fullResponse += data.text;
@@ -878,9 +879,10 @@
                 DOM.cardsSkeleton.classList.add('hidden');
 
                 // Show AI summary
-                if (summaryText) {
+                const displayText = summaryText || fullResponse.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
+                if (displayText) {
                     DOM.aiSummaryArea.classList.remove('hidden');
-                    DOM.aiSummaryText.innerHTML = md(summaryText);
+                    DOM.aiSummaryText.innerHTML = md(displayText);
                 }
 
                 // Render cards or handle no-card cases
@@ -891,7 +893,7 @@
                     cards.forEach((card, i) => {
                         DOM.cardsGrid.appendChild(createCardElement(card, i));
                     });
-                } else if (summaryText) {
+                } else if (displayText) {
                     // AI 텍스트 답변은 있지만 카드가 없는 경우 (일반 질문)
                     // → "맞춤 추천 서비스" 섹션 자체를 숨김
                     DOM.cardsTitle.classList.add('hidden');
