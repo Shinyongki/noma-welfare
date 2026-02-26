@@ -848,24 +848,16 @@
 
                 if (!response.ok) throw new Error('Network error');
 
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
+                const responseText = await response.text();
                 let fullResponse = '';
-                let streamDone = false;
-
-                while (!streamDone) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value, { stream: true });
-                    for (const line of chunk.split('\n')) {
-                        if (!line.startsWith('data: ')) continue;
-                        const dataStr = line.slice(6).trim();
-                        if (dataStr === '[DONE]') { streamDone = true; break; }
-                        try {
-                            const data = JSON.parse(dataStr);
-                            if (data.text) fullResponse += data.text;
-                        } catch (e) { /* partial chunk */ }
-                    }
+                for (const line of responseText.split('\n')) {
+                    if (!line.startsWith('data: ')) continue;
+                    const dataStr = line.slice(6).trim();
+                    if (dataStr === '[DONE]') break;
+                    try {
+                        const data = JSON.parse(dataStr);
+                        if (data.text) fullResponse += data.text;
+                    } catch (e) { /* partial chunk */ }
                 }
 
                 chatHistory.push({ role: 'model', content: fullResponse });
