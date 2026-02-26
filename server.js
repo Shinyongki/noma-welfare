@@ -356,26 +356,52 @@ app.post('/api/chat', async (req, res) => {
         const userPrompt = ragContext + "\n\n" +
             messages.map(m => `${m.role === 'user' ? 'User' : 'Noma'}: ${m.content}`).join("\n");
 
-        const responseStream = await ai.models.generateContentStream({
-            model: "gemini-2.5-flash",
-            contents: userPrompt,
-            config: {
-                systemInstruction: systemInstructionString,
-                temperature: 0.2,
-            }
-        });
+        // 429 대비 재시도 (최대 2회, 지수 백오프)
+        let lastError = null;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                const responseStream = await ai.models.generateContentStream({
+                    model: "gemini-2.0-flash",
+                    contents: userPrompt,
+                    config: {
+                        systemInstruction: systemInstructionString,
+                        temperature: 0.2,
+                    }
+                });
 
-        for await (const chunk of responseStream) {
-            if (chunk.text) {
-                res.write(`data: ${JSON.stringify({ type: 'stream', text: chunk.text })}\n\n`);
+                for await (const chunk of responseStream) {
+                    if (chunk.text) {
+                        res.write(`data: ${JSON.stringify({ type: 'stream', text: chunk.text })}\n\n`);
+                    }
+                }
+
+                res.write(`data: [DONE]\n\n`);
+                res.end();
+                return; // 성공 시 종료
+            } catch (e) {
+                lastError = e;
+                const is429 = e.message && e.message.includes('429');
+                if (is429 && attempt < 2) {
+                    console.warn(`[Chat] 429 rate limit, retrying in ${attempt * 3}s... (attempt ${attempt})`);
+                    await new Promise(r => setTimeout(r, attempt * 3000));
+                    continue;
+                }
+                break;
             }
         }
 
+        // 모든 시도 실패
+        const errMsg = lastError?.message || '';
+        console.error("Chat Error:", errMsg);
+        const is429 = errMsg.includes('429');
+        const userMsg = is429
+            ? "요청이 너무 많아 잠시 제한되었습니다. 10초 후 다시 시도해 주세요."
+            : "AI 응답 중 오류가 발생했습니다.";
+        res.write(`data: ${JSON.stringify({ type: 'error', error: userMsg })}\n\n`);
         res.write(`data: [DONE]\n\n`);
         res.end();
-
     } catch (e) {
-        console.error("Chat Error:", e.message);
+        console.error("Chat Fatal Error:", e.message);
         res.write(`data: ${JSON.stringify({ type: 'error', error: "AI 응답 중 오류가 발생했습니다." })}\n\n`);
         res.write(`data: [DONE]\n\n`);
         res.end();
