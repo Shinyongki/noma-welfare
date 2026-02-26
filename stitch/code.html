@@ -138,22 +138,19 @@
         @keyframes voice-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         /* Floating mic button */
         #floating-mic {
-            position: fixed;
-            bottom: 2rem;
-            right: 1.5rem;
-            z-index: 999;
-            width: 60px;
-            height: 60px;
+            width: 5rem;
+            height: 5rem;
             border-radius: 50%;
             background: linear-gradient(135deg, #98002E, #4A1942);
             color: white;
             border: none;
-            box-shadow: 0 4px 20px rgba(152, 0, 46, 0.4);
+            box-shadow: 0 4px 24px rgba(152, 0, 46, 0.45);
             cursor: pointer;
-            display: none;
+            display: flex;
             align-items: center;
             justify-content: center;
             transition: transform 0.2s, box-shadow 0.2s;
+            flex-shrink: 0;
         }
         #floating-mic:active { transform: scale(0.92); }
         #floating-mic.listening {
@@ -238,15 +235,18 @@
             <div class="max-w-2xl mx-auto mt-8">
                 <div class="relative group">
                     <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/15 to-primary/20 rounded-full blur-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-500"></div>
-                    <div class="relative flex items-center w-full h-16 md:h-[4.5rem] bg-white rounded-full shadow-lg shadow-stone-200/60 ring-1 ring-stone-200/80 transition-all focus-within:ring-2 focus-within:ring-primary/60 focus-within:shadow-xl overflow-hidden">
-                        <button id="hero-mic" class="pl-5 md:pl-7 text-primary/70 hover:text-primary flex items-center justify-center hover:scale-110 transition-all" title="음성으로 입력">
-                            <span class="material-symbols-outlined text-[28px]">mic</span>
+                    <div class="relative flex items-center w-full h-20 md:h-[4.5rem] bg-white rounded-full shadow-lg shadow-stone-200/60 ring-1 ring-stone-200/80 transition-all focus-within:ring-2 focus-within:ring-primary/60 focus-within:shadow-xl overflow-hidden">
+                        <button id="hero-mic" class="pl-4 md:pl-7 text-primary hover:text-primary-light flex flex-col items-center justify-center hover:scale-110 transition-all gap-0.5" title="음성으로 입력">
+                            <span class="w-11 h-11 md:w-auto md:h-auto rounded-full bg-primary/10 md:bg-transparent flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[30px] md:text-[28px]">mic</span>
+                            </span>
+                            <span class="text-[10px] font-bold text-primary md:hidden leading-none">말하기</span>
                         </button>
                         <input id="hero-input"
-                            class="w-full h-full bg-transparent border-none text-slate-800 placeholder:text-slate-400 text-lg md:text-xl px-4 md:px-5 focus:ring-0 focus:outline-none"
+                            class="w-full h-full bg-transparent border-none text-slate-800 placeholder:text-slate-400 text-xl md:text-xl px-4 md:px-5 focus:ring-0 focus:outline-none"
                             placeholder="예: 퇴원 후 당장 돌봐줄 사람이 없어요" />
                         <button id="hero-submit"
-                            class="mr-2 md:mr-3 size-12 md:size-13 bg-primary rounded-full flex items-center justify-center text-white hover:bg-primary-light active:scale-95 transition-all shadow-md flex-shrink-0">
+                            class="mr-2 md:mr-3 size-14 md:size-13 bg-primary rounded-full flex items-center justify-center text-white hover:bg-primary-light active:scale-95 transition-all shadow-md flex-shrink-0">
                             <span class="material-symbols-outlined text-2xl">arrow_forward</span>
                         </button>
                     </div>
@@ -468,12 +468,18 @@
     </main>
 
     <!-- ═══════════════════ FLOATING MIC BUTTON ═══════════════════ -->
-    <button id="floating-mic" title="음성으로 대화하기">
-        <span class="material-symbols-outlined" style="font-size:32px">mic</span>
-        <span class="mic-status">
-            <span class="material-symbols-outlined" style="font-size:14px;color:#98002E">volume_off</span>
-        </span>
-    </button>
+    <div id="floating-mic-wrap" style="position:fixed;bottom:2rem;right:1.5rem;z-index:999;display:none;align-items:center;gap:0.75rem;">
+        <div id="mic-tooltip" class="bg-white text-slate-700 text-sm font-semibold px-4 py-2.5 rounded-2xl shadow-lg border border-stone-200 whitespace-nowrap animate-fade-in" style="display:none;">
+            여기를 눌러 말씀해 주세요
+            <div style="position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:6px solid white;"></div>
+        </div>
+        <button id="floating-mic" title="음성으로 대화하기">
+            <span class="material-symbols-outlined" style="font-size:36px">mic</span>
+            <span class="mic-status">
+                <span class="material-symbols-outlined" style="font-size:14px;color:#98002E">volume_off</span>
+            </span>
+        </button>
+    </div>
 
     <!-- ═══════════════════ FOOTER ═══════════════════ -->
     <footer class="bg-white border-t border-stone-200 py-10 px-6 lg:px-20 xl:px-40">
@@ -632,6 +638,7 @@
             modalNext: $('modal-next'),
             // Floating Mic
             floatingMic: $('floating-mic'),
+            floatingMicWrap: $('floating-mic-wrap'),
         };
 
         // ── State ──
@@ -886,7 +893,7 @@
             DOM.heroSection.classList.add('hero-compact');
             DOM.heroChips.classList.add('hidden');
             // Show floating mic on mobile
-            if (DOM.floatingMic && SpeechRecognition) DOM.floatingMic.style.display = 'flex';
+            if (DOM.floatingMicWrap && SpeechRecognition) DOM.floatingMicWrap.style.display = 'flex';
             DOM.initialPlaceholder.classList.add('hidden');
             DOM.resultsSection.classList.remove('hidden');
             DOM.aiSummaryArea.classList.add('hidden');
@@ -912,23 +919,76 @@
 
                 if (!response.ok) throw new Error('Network error');
 
-                const responseText = await response.text();
+                // ── 실시간 스트리밍 처리 ──
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
                 let fullResponse = '';
                 let apiError = '';
-                for (const line of responseText.split('\n')) {
-                    if (!line.startsWith('data: ')) continue;
-                    const dataStr = line.slice(6).trim();
-                    if (dataStr === '[DONE]') break;
-                    try {
-                        const data = JSON.parse(dataStr);
-                        if (data.text) fullResponse += data.text;
-                        if (data.error) apiError = data.error;
-                    } catch (e) { /* partial chunk */ }
+                let fillerShown = false;
+                let streamStarted = false;
+                let sseBuffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    sseBuffer += decoder.decode(value, { stream: true });
+                    const lines = sseBuffer.split('\n');
+                    sseBuffer = lines.pop(); // 마지막 미완성 라인은 버퍼에 유지
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const dataStr = line.slice(6).trim();
+                        if (dataStr === '[DONE]') continue;
+
+                        try {
+                            const data = JSON.parse(dataStr);
+
+                            // filler 공감 응답: 즉시 표시
+                            if (data.type === 'filler' && data.text) {
+                                fillerShown = true;
+                                DOM.cardsSkeleton.classList.add('hidden');
+                                DOM.aiSummaryArea.classList.remove('hidden');
+                                DOM.aiSummaryText.innerHTML = `<p class="text-primary/80 animate-pulse">${data.text}</p>`;
+                            }
+
+                            // stream 실제 AI 응답: 실시간으로 이어서 표시
+                            if (data.type === 'stream' && data.text) {
+                                if (!streamStarted) {
+                                    streamStarted = true;
+                                    DOM.cardsSkeleton.classList.add('hidden');
+                                    DOM.aiSummaryArea.classList.remove('hidden');
+                                    // filler 아래에 실제 응답 영역 추가
+                                    if (fillerShown) {
+                                        DOM.aiSummaryText.innerHTML = `<p class="text-primary/80 text-sm mb-2">${DOM.aiSummaryText.textContent}</p><div id="stream-output"></div>`;
+                                    } else {
+                                        DOM.aiSummaryText.innerHTML = '<div id="stream-output"></div>';
+                                    }
+                                }
+                                fullResponse += data.text;
+                                // 실시간으로 마크다운 렌더링 (noma-card 태그는 최종 파싱에서 처리)
+                                const streamEl = $('stream-output');
+                                if (streamEl) {
+                                    const displaySoFar = fullResponse.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
+                                    streamEl.innerHTML = md(displaySoFar);
+                                }
+                            }
+
+                            // 하위 호환: type 없는 기존 형식 처리
+                            if (!data.type && data.text) {
+                                fullResponse += data.text;
+                            }
+
+                            if (data.error) apiError = data.error;
+                        } catch (e) { /* partial chunk */ }
+                    }
                 }
+
+                // ── 응답 완료 후 처리 ──
 
                 // API 오류 시 사용자에게 안내 + 재시도 버튼
                 if (!fullResponse && apiError) {
-                    chatHistory.pop(); // 실패한 사용자 메시지 제거
+                    chatHistory.pop();
                     DOM.cardsSkeleton.classList.add('hidden');
                     DOM.cardsTitle.classList.add('hidden');
                     DOM.cardsGrid.classList.add('hidden');
@@ -952,7 +1012,7 @@
                     return;
                 }
 
-                // 빈 응답 처리 (fullResponse가 없고 에러도 없는 경우)
+                // 빈 응답 처리
                 if (!fullResponse) {
                     chatHistory.pop();
                     DOM.cardsSkeleton.classList.add('hidden');
@@ -980,14 +1040,12 @@
                 chatHistory.push({ role: 'model', content: fullResponse });
                 saveHistory();
 
-                // Parse cards and summary
+                // Parse cards and summary (최종 전체 응답에서)
                 const { cards, summaryText } = parseNomaCards(fullResponse);
                 currentCards = cards;
 
-                // Hide skeleton
+                // 최종 렌더링: 스트리밍 중간 상태를 깔끔한 최종 상태로 교체
                 DOM.cardsSkeleton.classList.add('hidden');
-
-                // Show AI summary
                 const displayText = summaryText || fullResponse.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
                 if (displayText) {
                     DOM.aiSummaryArea.classList.remove('hidden');
@@ -1097,8 +1155,12 @@
             // 최상단 스크롤
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
-            // Hide floating mic
-            if (DOM.floatingMic) DOM.floatingMic.style.display = 'none';
+            // 모바일에서는 플로팅 마이크 유지, 데스크톱에서만 숨김
+            if (DOM.floatingMicWrap) {
+                if (window.innerWidth >= 768) {
+                    DOM.floatingMicWrap.style.display = 'none';
+                }
+            }
         }
 
         // New search button
@@ -1388,6 +1450,18 @@
                     startListening(DOM.heroInput, DOM.heroMic);
                     updateFloatingMicState();
                 });
+            }
+
+            // 모바일에서 플로팅 마이크를 처음부터 표시
+            if (DOM.floatingMicWrap && window.innerWidth < 768) {
+                DOM.floatingMicWrap.style.display = 'flex';
+                // 첫 방문 시 말풍선 툴팁 3초간 표시
+                const tooltipEl = $('mic-tooltip');
+                if (tooltipEl && !sessionStorage.getItem('noma-mic-tooltip-shown')) {
+                    tooltipEl.style.display = 'block';
+                    sessionStorage.setItem('noma-mic-tooltip-shown', '1');
+                    setTimeout(() => { tooltipEl.style.display = 'none'; }, 3000);
+                }
             }
         } else {
             DOM.heroMic.style.display = 'none';

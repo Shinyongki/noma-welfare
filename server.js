@@ -268,6 +268,24 @@ app.post('/api/chat', async (req, res) => {
             'Cache-Control': 'no-cache'
         });
 
+        // ── 즉시 공감 응답 (filler): Gemini 호출 전에 먼저 전송 ──
+        const lastUserMsg = messages.length > 0 ? messages[messages.length - 1].content : '';
+        let fillerText = '네, 말씀 잘 들었어요. 맞춤 서비스를 찾아보고 있어요...';
+
+        const healthKeywords = ['아프', '아파', '병', '아프다', '다쳐', '다치', '수술', '입원', '퇴원', '치매', '건강', '간호', '간병', '약', '병원', '몸'];
+        const lonelyKeywords = ['외롭', '외로', '혼자', '우울', '힘들', '걱정', '무섭'];
+        const urgentKeywords = ['급해', '긴급', '위험', '사고', '응급', '쓰러', '넘어'];
+
+        if (urgentKeywords.some(k => lastUserMsg.includes(k))) {
+            fillerText = '급하신 상황이시군요. 빠르게 확인해 드릴게요...';
+        } else if (healthKeywords.some(k => lastUserMsg.includes(k))) {
+            fillerText = '아, 많이 불편하시겠어요. 관련 서비스를 찾아보고 있어요...';
+        } else if (lonelyKeywords.some(k => lastUserMsg.includes(k))) {
+            fillerText = '혼자 계시면 걱정되시죠. 도움될 수 있는 서비스를 찾아볼게요...';
+        }
+
+        res.write(`data: ${JSON.stringify({ type: 'filler', text: fillerText })}\n\n`);
+
         const defaultSystemPrompt = `당신은 경상남도사회서비스원의 AI 맞춤형 복지 내비게이터 '노마(Noma)'입니다.
 도민의 어려움을 듣고, 가장 적합한 복지 서비스를 친절하게 안내하는 것이 당신의 유일한 역할입니다.
 
@@ -348,7 +366,7 @@ app.post('/api/chat', async (req, res) => {
 
         for await (const chunk of responseStream) {
             if (chunk.text) {
-                res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
+                res.write(`data: ${JSON.stringify({ type: 'stream', text: chunk.text })}\n\n`);
             }
         }
 
@@ -357,7 +375,7 @@ app.post('/api/chat', async (req, res) => {
 
     } catch (e) {
         console.error("Chat Error:", e.message);
-        res.write(`data: ${JSON.stringify({ error: "AI 응답 중 오류가 발생했습니다." })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'error', error: "AI 응답 중 오류가 발생했습니다." })}\n\n`);
         res.write(`data: [DONE]\n\n`);
         res.end();
     }
