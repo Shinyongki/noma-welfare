@@ -1615,18 +1615,15 @@
                 const text = event.results[0][0].transcript;
                 if (activeInput) {
                     activeInput.value = text;
-                    activeInput.focus();
                     activeInput.dispatchEvent(new Event('input'));
-                    if (voiceAutoSubmit) {
-                        const inputRef = activeInput;
-                        setTimeout(() => {
-                            if (inputRef === DOM.heroInput) {
-                                handleHeroSubmit();
-                            } else if (inputRef === DOM.nomaInput && DOM.nomaInput.value.trim()) {
-                                DOM.nomaForm.dispatchEvent(new Event('submit'));
-                            }
-                        }, 500);
-                    }
+                    const inputRef = activeInput;
+                    setTimeout(() => {
+                        if (inputRef === DOM.heroInput) {
+                            handleHeroSubmit();
+                        } else if (inputRef === DOM.nomaInput && DOM.nomaInput.value.trim()) {
+                            DOM.nomaForm.requestSubmit();
+                        }
+                    }, 300);
                 }
             };
 
