@@ -7,6 +7,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import { EdgeTTS } from '@andresaya/edge-tts';
+import nodemailer from 'nodemailer';
+import * as requestStore from './data/requestStore.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +19,7 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
+const BASE_URL = process.env.BASE_URL || 'http://localhost:' + PORT;
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY });
 
 // ── Welfare Knowledge Base (RAG) Loading ──
@@ -314,23 +317,46 @@ app.post('/api/chat', async (req, res) => {
 - 인사에는 서비스를 검색하거나 "관련 서비스를 찾을 수 없다"고 답하지 마세요. 자연스러운 대화로 응대하세요.
 - 감사 표현("고마워요", "감사합니다")이나 작별 인사("잘 가요", "다음에 또 올게요")에도 자연스럽게 응대하세요.
 
+[정보 수집 프레임워크]
+대화를 통해 아래 정보를 자연스럽게 파악하세요. 설문조사처럼 나열하지 말고, 공감 사이사이에 한 번에 질문 1개씩만 자연스럽게 녹여 넣으세요.
+
+필수 정보 (대화 초반 2~3턴 내 파악):
+- 성함 (예: "어떻게 불러드리면 될까요?")
+- 연령대 (예: "혹시 연세가 어떻게 되실까요?")
+- 거주지 시/군 (예: "경남 어디에 살고 계신가요?")
+
+상황 정보 (대화 중반, 자연스럽게):
+- 독거 여부 (예: "지금 혼자 살고 계신가요?")
+- 장애/질병 유무
+- 수급자 여부
+
+심화 정보 (필요 시):
+- 현재 가장 어려운 점
+- 현재 이용 중인 서비스
+- 긴급도 (일상적 불편 vs 즉각 도움 필요)
+
+규칙:
+- 한 번에 질문은 반드시 1개만 하세요. 여러 질문을 한꺼번에 나열하면 안 됩니다.
+- 공감 → 질문 → 추천 순서를 지키세요.
+- 사용자가 답변을 회피하면 강요하지 말고 자연스럽게 넘어가세요.
+- 이미 파악된 정보는 절대 다시 묻지 마세요.
+
 [넓게 추천 → 좁혀가기 원칙 - 매우 중요]
 첫 질문부터 지식베이스에서 관련 서비스를 적극적으로 추천하세요. 대화가 진행될수록 좁혀나갑니다.
 
 1단계 - 첫 질문 (넓은 추천):
 - 사용자의 첫 질문에서 키워드를 추출하여 관련 서비스를 2~3개 <noma-card>로 바로 추천하세요.
 - 모호한 감정 표현이라도(예: "외로워요", "힘들어요") 관련될 수 있는 서비스가 있다면 함께 보여주세요.
-- 추천과 동시에 더 정확한 안내를 위한 질문을 1~2개 곁들이세요.
-  예: "혹시 연세가 어떻게 되실까요?" / "지금 혼자 살고 계신가요?"
+- 추천과 동시에 [정보 수집 프레임워크]의 필수 정보 중 아직 모르는 항목 1개를 자연스럽게 여쭤보세요.
 
 2단계 - 후속 대화 (좁혀가기):
-- 사용자의 답변(나이, 가구형태, 건강상태, 거주지역)을 바탕으로 가장 적합한 1~2개 서비스로 좁혀서 다시 안내하세요.
+- 사용자의 답변을 바탕으로 가장 적합한 1~2개 서비스로 좁혀서 다시 안내하세요.
+- [정보 수집 프레임워크]에서 아직 파악되지 않은 정보를 1개씩 자연스럽게 수집하세요.
 - 이미 파악된 정보는 다시 묻지 마세요.
 - 정보가 충분하면 최종 추천을 하고, 신청 방법을 구체적으로 안내하세요.
 
 규칙:
 - 첫 질문에서도 지식베이스 검색 결과가 있으면 반드시 서비스를 추천하세요. 질문만 하고 추천을 미루지 마세요.
-- 한 번에 질문은 최대 2개까지만 하세요.
 - 사용자가 답변할 때마다 공감 표현을 곁들이세요.
 - 지식베이스 검색 결과에서 관련도(★)가 높은 서비스를 우선 추천하세요.
 
@@ -346,8 +372,42 @@ app.post('/api/chat', async (req, res) => {
 }
 </noma-card>
 
+[대화형 상담 신청 응답 포맷]
+사용자가 대화 중 신청을 완료하면, 아래 형식으로 출력하세요:
+<noma-apply>
+{
+  "serviceName": "신청할 사업명",
+  "userName": "사용자 성함",
+  "userPhone": "010-0000-0000"
+}
+</noma-apply>
+
+[대화형 상담 신청 흐름]
+사용자가 "신청하고 싶어요", "담당자 연결해 주세요", "상담 신청할게요" 등의 의사를 밝히면 아래 단계를 따르세요.
+
+1단계 - 신청 대상 서비스 확인:
+- 직전 대화에서 추천한 서비스가 있으면 자동 선택하고 확인을 구합니다.
+- 여러 서비스가 추천된 경우, 어떤 서비스를 신청할지 여쭤보세요.
+- 예: "네, 그럼 '노인맞춤돌봄서비스' 상담을 신청해 드릴까요?"
+
+2단계 - 성함 확인 (한 번에 1개만 질문):
+- 이전 대화에서 이미 성함을 파악했다면 다시 묻지 마세요.
+- 예: "상담 신청을 위해 성함을 알려주시겠어요?"
+
+3단계 - 전화번호 확인 (한 번에 1개만 질문):
+- 예: "연락받으실 전화번호도 알려주시겠어요?"
+
+4단계 - 확인 문구 + 태그 출력:
+- 3개 필드(serviceName, userName, userPhone)가 모두 확보되면 확인 문구와 함께 <noma-apply> 태그를 출력합니다.
+- 예: "김영희님, '노인맞춤돌봄서비스' 상담을 010-1234-5678로 신청해 드리겠습니다."
+
+규칙:
+- serviceName, userName, userPhone 3개 필드가 모두 있어야만 <noma-apply>를 출력하세요. 하나라도 없으면 절대 출력하지 마세요.
+- 응답 1개당 <noma-apply>는 최대 1개만 출력하세요.
+- 전화번호는 숫자와 하이픈만 남기고 정리하세요 (예: "공일공 1234 5678" → "010-1234-5678").
+- 한국 전화번호 형식(010-XXXX-XXXX, 055-XXX-XXXX 등)이 아니면 다시 여쭤보세요.
+
 [중요]
-- "담당자 연결" 또는 "상담 신청" 요청 시, 반드시 성함을 먼저 여쭤보세요.
 - 한 번에 너무 많은 정보를 주지 말고, 가장 적합한 1~2개 서비스만 추천하세요.`;
 
         const systemInstructionString = systemPrompt || defaultSystemPrompt;
@@ -437,21 +497,269 @@ app.get('/api/services', (req, res) => {
     res.json(Object.values(grouped));
 });
 
-// ── Service Request API (이메일 발송 시뮬레이션) ──
-app.post('/api/service-request/connect', (req, res) => {
-    const { serviceName, userName, userPhone } = req.body;
-
-    console.log(`\n======================================================`);
-    console.log(`[이메일 발송 시뮬레이션]`);
-    console.log(`수신: ${serviceName} 담당 기관`);
-    console.log(`제목: [신청 접수] 노마 AI 상담 - 신규 상담 요청 건`);
-    console.log(`  - 신청자 성함: ${userName}`);
-    console.log(`  - 연락처: ${userPhone}`);
-    console.log(`  - 유입 경로: Noma AI 복지 내비게이터`);
-    console.log(`======================================================\n`);
-
-    res.json({ success: true, message: "이메일 알림 발송 완료" });
+// ── Service Request API (실제 이메일 발송) ──
+const emailTransporter = nodemailer.createTransport({
+    host: 'smtp.naver.com',
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.SMTP_USER,       // vusky@naver.com
+        pass: process.env.SMTP_PASSWORD,    // 네이버 비밀번호
+    },
 });
+
+// 개발 단계: 받는 주소 하드코딩 (운영 시 기관별 매핑으로 교체)
+const DEV_RECIPIENT = 'shinyongki71@gmail.com';
+
+// ── 대화 요약 생성 (Gemini 비스트리밍 호출) ──
+async function summarizeChatHistory(chatHistory) {
+    if (!chatHistory || chatHistory.length < 2) return null;
+
+    const conversationText = chatHistory
+        .map(m => `${m.role === 'user' ? '이용자' : '노마'}: ${m.content}`)
+        .join('\n');
+
+    const summaryPrompt = `아래는 복지 상담 AI '노마'와 이용자의 대화 내용입니다.
+담당자가 빠르게 파악할 수 있도록 아래 형식으로 요약해주세요.
+파악되지 않은 항목은 "미확인"으로 표시하세요.
+
+[요약 형식]
+- 이용자 기본정보: (성함, 연령대, 거주지, 성별)
+- 생활상황: (독거 여부, 가족 구성 등)
+- 주요 어려움: (이용자가 호소한 문제)
+- 이용 중 서비스: (현재 받고 있는 서비스)
+- 긴급도: (일상적 불편 / 빠른 도움 필요 / 긴급)
+- 추천된 서비스: (대화에서 추천된 서비스명)
+
+[대화 내용]
+${conversationText}`;
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const result = await ai.models.generateContent({
+                model: "gemini-2.0-flash",
+                contents: summaryPrompt,
+                config: {
+                    systemInstruction: "복지 상담 대화를 간결하게 요약하는 전문가입니다. 요약만 출력하세요.",
+                    temperature: 0.1,
+                }
+            });
+            return result.text || null;
+        } catch (e) {
+            const is429 = e.message && e.message.includes('429');
+            if (is429 && attempt < 2) {
+                console.warn(`[요약] 429 rate limit, 3초 후 재시도...`);
+                await new Promise(r => setTimeout(r, 3000));
+                continue;
+            }
+            console.error('[요약 생성 실패]', e.message);
+            return null;
+        }
+    }
+    return null;
+}
+
+app.post('/api/service-request/connect', async (req, res) => {
+    const { serviceName, userName, userPhone, chatHistory } = req.body;
+
+    // 디버그: 수신 데이터 확인
+    console.log('[수신 데이터]', JSON.stringify({ serviceName, userName, userPhone, chatHistoryLength: chatHistory?.length || 0 }));
+
+    // 대화 요약 생성 (실패해도 이메일은 정상 발송)
+    let conversationSummary = null;
+    if (chatHistory && chatHistory.length >= 2) {
+        conversationSummary = await summarizeChatHistory(chatHistory);
+        if (conversationSummary) {
+            console.log('[대화 요약 생성 완료]');
+        }
+    }
+
+    // 요청 ID 생성 및 저장
+    const requestId = crypto.randomUUID();
+    const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+    requestStore.save({
+        id: requestId,
+        serviceName,
+        userName,
+        userPhone,
+        createdAt: now,
+        status: 'open',
+        referrals: [],
+        conversationSummary,
+    });
+
+    const subject = `[상담 신청] ${serviceName} - 노마 AI 복지 내비게이터`;
+    const referralUrl = `${BASE_URL}/referral/${requestId}`;
+    const htmlContent = buildServiceRequestEmailHTML({ serviceName, userName, userPhone, now, referralUrl, conversationSummary });
+
+    try {
+        await emailTransporter.sendMail({
+            from: { name: '노마 AI', address: process.env.SMTP_USER },
+            to: DEV_RECIPIENT,
+            subject,
+            html: { content: Buffer.from(htmlContent, 'utf-8'), contentType: 'text/html; charset=utf-8' },
+        });
+        console.log(`[이메일 발송 완료] ${serviceName} → ${DEV_RECIPIENT} (ID: ${requestId})`);
+        res.json({ success: true, message: "이메일 알림 발송 완료" });
+    } catch (err) {
+        console.error('[이메일 발송 실패]', err.message);
+        res.status(500).json({ success: false, message: "이메일 발송에 실패했습니다." });
+    }
+});
+
+// 상담 신청 이메일 HTML 빌더
+function buildServiceRequestEmailHTML({ serviceName, userName, userPhone, now, referralUrl, conversationSummary }) {
+    // HTML 이스케이프
+    const esc = (str) => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const summarySection = conversationSummary ? [
+        '<div style="margin-top:24px;padding:20px;background:#F3E5F5;border-left:4px solid #7B1FA2;border-radius:4px;">',
+        '<p style="margin:0 0 10px;font-size:14px;color:#7B1FA2;font-weight:bold;">AI 대화 요약</p>',
+        '<p style="margin:0;font-size:14px;color:#333;white-space:pre-line;line-height:1.7;">' + esc(conversationSummary) + '</p>',
+        '</div>',
+    ].join('\n') : '';
+
+    return [
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body>',
+        '<div style="font-family:Malgun Gothic,Apple SD Gothic Neo,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e5e5e5;border-radius:12px;overflow:hidden;">',
+        '<div style="background:linear-gradient(135deg,#98002E,#4A1942);padding:24px 28px;color:white;">',
+        '<h2 style="margin:0;font-size:20px;">노마 AI 복지 내비게이터</h2>',
+        '<p style="margin:8px 0 0;opacity:0.85;font-size:14px;">신규 상담 요청이 접수되었습니다</p>',
+        '</div>',
+        '<div style="padding:28px;">',
+        '<table style="width:100%;border-collapse:collapse;font-size:15px;">',
+        '<tr><td style="padding:10px 0;color:#666;width:110px;">신청 서비스</td><td style="padding:10px 0;font-weight:bold;">' + esc(serviceName) + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:10px 0;color:#666;">신청자 성함</td><td style="padding:10px 0;font-weight:bold;">' + esc(userName) + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:10px 0;color:#666;">연락처</td><td style="padding:10px 0;font-weight:bold;">' + esc(userPhone) + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:10px 0;color:#666;">유입 경로</td><td style="padding:10px 0;">Noma AI 복지 내비게이터</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:10px 0;color:#666;">접수 일시</td><td style="padding:10px 0;">' + now + '</td></tr>',
+        '</table>',
+        summarySection,
+        // 연계 요청 버튼
+        '<div style="margin-top:28px;text-align:center;">',
+        '<a href="' + referralUrl + '" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#1565C0,#0D47A1);color:white;text-decoration:none;border-radius:8px;font-size:15px;font-weight:bold;">타 서비스 연계 요청</a>',
+        '<p style="margin-top:10px;font-size:12px;color:#999;">상담 후 다른 서비스가 더 적합하다고 판단되면 위 버튼을 눌러주세요.</p>',
+        '</div>',
+        '<div style="margin-top:24px;padding:16px;background:#f8f5f2;border-radius:8px;font-size:13px;color:#666;">',
+        '2~3일 내로 위 연락처로 회신 부탁드립니다.',
+        '</div></div></div></body></html>',
+    ].join('\n');
+}
+
+// ── 서비스 연계 요청 시스템 ──
+
+// 연계 폼 페이지 서빙
+app.get('/referral/:requestId', (req, res) => {
+    res.sendFile(path.join(__dirname, 'stitch', 'referral.html'));
+});
+
+// 연계 폼에서 사용할 요청 데이터 + 서비스 목록 반환
+app.get('/api/referral/:requestId', (req, res) => {
+    const request = requestStore.findById(req.params.requestId);
+    if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+
+    // 서비스 목록 (대분류별 그룹화)
+    const grouped = {};
+    welfareKB.forEach(svc => {
+        const cat = svc['대분류'] || '기타';
+        if (!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push({
+            name: svc['사업명'],
+            agency: svc['문의처'],
+        });
+    });
+
+    res.json({ request, services: grouped });
+});
+
+// 연계 이메일 발송
+app.post('/api/referral/:requestId/send', async (req, res) => {
+    const { targetService, reason } = req.body;
+    const request = requestStore.findById(req.params.requestId);
+    if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+
+    // 새 요청 ID (연쇄 연계용)
+    const newRequestId = crypto.randomUUID();
+    const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+
+    // 새 요청으로 저장 (연쇄 연계 가능하도록)
+    requestStore.save({
+        id: newRequestId,
+        serviceName: targetService,
+        userName: request.userName,
+        userPhone: request.userPhone,
+        createdAt: now,
+        status: 'referred',
+        referredFrom: request.id,
+        referrals: [],
+    });
+
+    // 원래 요청에 연계 기록 추가
+    requestStore.addReferral(req.params.requestId, {
+        targetService,
+        reason,
+        newRequestId,
+        sentAt: now,
+    });
+
+    const subject = `[서비스 연계] ${targetService} ← ${request.serviceName} - 노마 AI`;
+    const html = buildReferralEmailHTML({ request, targetService, reason, newRequestId });
+
+    try {
+        await emailTransporter.sendMail({
+            from: { name: '노마 AI', address: process.env.SMTP_USER },
+            to: DEV_RECIPIENT,
+            subject,
+            html: { content: Buffer.from(html, 'utf-8'), contentType: 'text/html; charset=utf-8' },
+        });
+        console.log(`[연계 발송 완료] ${request.serviceName} → ${targetService} (${DEV_RECIPIENT})`);
+        res.json({ success: true, message: '연계 이메일 발송 완료' });
+    } catch (err) {
+        console.error('[연계 발송 실패]', err.message);
+        res.status(500).json({ success: false, message: '연계 이메일 발송에 실패했습니다.' });
+    }
+});
+
+// 연계 이메일 HTML 빌더
+function buildReferralEmailHTML({ request, targetService, reason, newRequestId }) {
+    const referralUrl = `${BASE_URL}/referral/${newRequestId}`;
+    return [
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body>',
+        '<div style="font-family:Malgun Gothic,Apple SD Gothic Neo,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e5e5e5;border-radius:12px;overflow:hidden;">',
+        // 파란색 헤더 (상담 메일의 빨강과 구분)
+        '<div style="background:linear-gradient(135deg,#1565C0,#0D47A1);padding:24px 28px;color:white;">',
+        '<h2 style="margin:0;font-size:20px;">노마 AI 복지 내비게이터</h2>',
+        '<p style="margin:8px 0 0;opacity:0.85;font-size:14px;">타 서비스 연계 요청이 접수되었습니다</p>',
+        '</div>',
+        '<div style="padding:28px;">',
+        // 연계 사유 배너 (주황색)
+        '<div style="margin-bottom:24px;padding:16px;background:#FFF3E0;border-left:4px solid #FF9800;border-radius:4px;">',
+        '<p style="margin:0 0 4px;font-size:13px;color:#E65100;font-weight:bold;">연계 사유</p>',
+        '<p style="margin:0;font-size:14px;color:#333;">' + reason + '</p>',
+        '</div>',
+        // 연계 대상 서비스
+        '<div style="margin-bottom:20px;padding:14px;background:#E3F2FD;border-radius:8px;">',
+        '<p style="margin:0;font-size:13px;color:#1565C0;">연계 대상 서비스</p>',
+        '<p style="margin:6px 0 0;font-size:17px;font-weight:bold;color:#0D47A1;">' + targetService + '</p>',
+        '</div>',
+        // 원래 요청 정보
+        '<p style="font-size:13px;color:#666;margin-bottom:8px;">원래 상담 요청 정보</p>',
+        '<table style="width:100%;border-collapse:collapse;font-size:14px;">',
+        '<tr><td style="padding:8px 0;color:#666;width:110px;">원래 서비스</td><td style="padding:8px 0;font-weight:bold;">' + request.serviceName + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">신청자 성함</td><td style="padding:8px 0;font-weight:bold;">' + request.userName + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">연락처</td><td style="padding:8px 0;font-weight:bold;">' + request.userPhone + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">최초 접수 일시</td><td style="padding:8px 0;">' + request.createdAt + '</td></tr>',
+        '</table>',
+        // 연쇄 연계 버튼
+        '<div style="margin-top:28px;text-align:center;">',
+        '<a href="' + referralUrl + '" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#1565C0,#0D47A1);color:white;text-decoration:none;border-radius:8px;font-size:15px;font-weight:bold;">타 서비스 연계 요청</a>',
+        '<p style="margin-top:10px;font-size:12px;color:#999;">상담 후 다른 서비스가 더 적합하다고 판단되면 위 버튼을 눌러주세요.</p>',
+        '</div>',
+        '<div style="margin-top:24px;padding:16px;background:#f8f5f2;border-radius:8px;font-size:13px;color:#666;">',
+        '2~3일 내로 위 연락처로 회신 부탁드립니다.',
+        '</div></div></div></body></html>',
+    ].join('\n');
+}
 
 // ── Edge TTS API (Microsoft Neural Voice) ──
 async function synthesizeTTS(text, retries = 2) {

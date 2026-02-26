@@ -171,6 +171,119 @@
             justify-content: center;
             box-shadow: 0 2px 6px rgba(0,0,0,0.15);
         }
+        /* ═══ 모바일 시니어 최적화 오버라이드 ═══ */
+        @media (max-width: 767px) {
+            /* 기본 폰트 확대 */
+            body { font-size: 22px; line-height: 1.6; }
+
+            /* 연한 회색 텍스트 제거 → 가독성 강화 */
+            .text-slate-400, .text-slate-500,
+            .text-stone-300, .text-stone-400 {
+                color: #334155 !important;
+            }
+
+            /* 최소 터치 영역 56px */
+            button, a, input, select, textarea {
+                min-height: 56px;
+            }
+
+            /* 스테퍼 자동 펼침 & 쉐브론 숨김 */
+            .step-body {
+                max-height: 500px !important;
+                opacity: 1 !important;
+                padding-bottom: 0.75rem !important;
+            }
+            .step-chevron { display: none !important; }
+            .step-header span.font-semibold { font-size: 18px !important; }
+            .step-body div { font-size: 18px !important; line-height: 1.6 !important; }
+
+            /* 전화 링크 확대 + 초록 배경 반전 */
+            .tel-link {
+                font-size: 22px;
+                width: 100%;
+                justify-content: center;
+                background: #15803d;
+                color: white !important;
+                border-color: #15803d;
+                padding: 0.875rem 1rem;
+            }
+            .tel-link:active { background: #166534; color: white !important; }
+
+            /* 플로팅 마이크 확대 104px */
+            #floating-mic { width: 6.5rem; height: 6.5rem; }
+            #floating-mic .material-symbols-outlined:first-child { font-size: 44px !important; }
+
+            /* AI 요약 텍스트 확대 */
+            #ai-summary-text { font-size: 22px; padding: 1.5rem; }
+            #ai-summary-area .flex-shrink-0 { width: 56px !important; height: 56px !important; }
+            #ai-summary-area .flex-shrink-0 .material-symbols-outlined { font-size: 28px !important; }
+            #ai-summary-area .text-xs { font-size: 16px; }
+
+            /* 카드 서비스명 24px, summary 숨김 */
+            #cards-grid h3 { font-size: 24px; }
+            #cards-grid .text-slate-500.text-\[13px\] { display: none; }
+
+            /* CTA 버튼 확대 20px */
+            .btn-apply {
+                font-size: 20px !important;
+                padding-top: 1.25rem !important;
+                padding-bottom: 1.25rem !important;
+            }
+
+            /* 카드 전화 버튼 */
+            .card-phone-btn {
+                display: flex !important;
+                width: 100%;
+                background: #15803d;
+                color: white;
+                font-weight: 700;
+                font-size: 22px;
+                padding: 1.25rem 1rem;
+                border-radius: 0.75rem;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                text-decoration: none;
+                margin-bottom: 0.75rem;
+                min-height: 64px;
+            }
+            .card-phone-btn:active { background: #166534; }
+
+            /* 면책 텍스트 숨김 */
+            .card-disclaimer { display: none; }
+
+            /* 히어로 칩: 풀너비, 세로 배치, 18px */
+            #hero-chips { flex-direction: column; }
+            .hero-chip { width: 100%; justify-content: center; }
+            .hero-chip span:last-child { font-size: 18px; }
+
+            /* hero badge/subtitle 숨김 */
+            .hero-badge { display: none; }
+            .hero-subtitle { display: none; }
+
+            /* 히어로 음성 CTA 표시 */
+            #hero-voice-cta-wrap { display: flex !important; }
+
+            /* 섹션 타이틀 확대 */
+            #cards-title h2 { font-size: 24px; }
+            #initial-placeholder h2 { font-size: 24px; }
+            #initial-placeholder h3 { font-size: 22px; }
+            #initial-placeholder p { font-size: 18px; }
+
+            /* discover-more 확대 */
+            #discover-more h4 { font-size: 22px; }
+            #discover-more p { font-size: 18px; }
+            #discover-more button, #discover-more a { font-size: 18px; min-height: 56px; }
+
+            /* browse 전체 확대 */
+            #browse-section h2 { font-size: 24px; }
+            .browse-tab { font-size: 18px !important; }
+            #browse-section h4 { font-size: 20px; }
+
+            /* footer 확대 */
+            footer p, footer a { font-size: 16px !important; }
+        }
     </style>
 </head>
 
@@ -229,6 +342,14 @@
                     복잡한 복지 제도, 이제 찾지 말고 편하게 이야기해 주세요.<br/>
                     AI가 귀하에게 필요한 서비스를 분석해 드립니다.
                 </p>
+                <!-- 모바일 음성 중심 CTA (md:hidden + CSS로 display:flex) -->
+                <div id="hero-voice-cta-wrap" class="hidden md:hidden flex-col items-center gap-4 mt-8">
+                    <button id="hero-voice-cta" class="w-32 h-32 rounded-full bg-gradient-to-br from-primary to-deep-purple text-white shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
+                        <span class="material-symbols-outlined" style="font-size:64px">mic</span>
+                    </button>
+                    <p class="text-slate-800 text-xl font-bold mt-2">말씀해 주세요</p>
+                    <p class="text-slate-600 text-base">버튼을 누르고 원하는 서비스를 말씀해 주세요</p>
+                </div>
             </div>
 
             <!-- Search Input -->
@@ -645,7 +766,6 @@
         let chatHistory = [];
         let currentCards = [];
         let modalState = { step: 'name', serviceName: '', name: '', phone: '' };
-        let lastInputWasVoice = false;
         let isSpeaking = false;
         let currentAudio = null;
         let currentUtterance = null;
@@ -660,8 +780,22 @@
                     cards.push(JSON.parse(match[1].trim()));
                 } catch (e) { /* skip malformed */ }
             }
-            const cleanText = text.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
+            const cleanText = text.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim();
             return { cards, summaryText: cleanText };
+        }
+
+        // ── Utility: Parse <noma-apply> block from AI text ──
+        function parseNomaApply(text) {
+            const regex = /<noma-apply>([\s\S]*?)<\/noma-apply>/;
+            const match = regex.exec(text);
+            if (!match) return null;
+            try {
+                const data = JSON.parse(match[1].trim());
+                if (data.serviceName && data.userName && data.userPhone) {
+                    return data;
+                }
+            } catch (e) { /* malformed JSON */ }
+            return null;
         }
 
         // ── Utility: Basic markdown to HTML ──
@@ -726,6 +860,15 @@
                     </div>`;
             }).join('');
 
+            // 전화번호 추출 (모바일 전화하기 버튼용)
+            const phoneMatch = (data.agency || '').match(/0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/);
+            const phoneBtnHTML = phoneMatch
+                ? `<a href="tel:${phoneMatch[0].replace(/[-.\s]/g, '')}" class="card-phone-btn hidden md:!hidden" style="display:none">
+                        <span class="material-symbols-outlined text-2xl">call</span>
+                        전화하기 ${phoneMatch[0]}
+                   </a>`
+                : '';
+
             card.innerHTML = `
                 <div class="absolute top-0 right-0 w-28 h-28 ${theme.bg} rounded-full -mr-8 -mt-8 blur-2xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
                 <div class="flex items-start justify-between mb-3 relative z-10">
@@ -744,11 +887,12 @@
                 </div>
 
                 <div class="mt-auto relative z-10">
-                    <button class="btn-apply w-full bg-primary hover:bg-primary-light active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-sm" data-service="${data.serviceName || ''}">
+                    ${phoneBtnHTML}
+                    <button class="btn-apply w-full bg-primary hover:bg-primary-light active:scale-[0.98] text-white font-bold py-5 md:py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-lg md:text-sm" data-service="${data.serviceName || ''}">
                         이 서비스 상담 신청
                         <span class="material-symbols-outlined text-base">arrow_outward</span>
                     </button>
-                    <p class="text-[10px] text-slate-400 text-center mt-2 leading-snug">버튼을 누르면 담당 기관에 정보가 전달되며,<br/>2~3일 내 전화 연락드립니다.</p>
+                    <p class="card-disclaimer text-[10px] text-slate-400 text-center mt-2 leading-snug">버튼을 누르면 담당 기관에 정보가 전달되며,<br/>2~3일 내 전화 연락드립니다.</p>
                 </div>
             `;
             return card;
@@ -881,7 +1025,7 @@
             return chatHistory.slice(-MAX_HISTORY).map(m => ({
                 role: m.role,
                 content: m.role === 'model'
-                    ? m.content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim()
+                    ? m.content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim()
                     : m.content
             }));
         }
@@ -969,7 +1113,7 @@
                                 // 실시간으로 마크다운 렌더링 (noma-card 태그는 최종 파싱에서 처리)
                                 const streamEl = $('stream-output');
                                 if (streamEl) {
-                                    const displaySoFar = fullResponse.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
+                                    const displaySoFar = fullResponse.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim();
                                     streamEl.innerHTML = md(displaySoFar);
                                 }
                             }
@@ -1046,7 +1190,7 @@
 
                 // 최종 렌더링: 스트리밍 중간 상태를 깔끔한 최종 상태로 교체
                 DOM.cardsSkeleton.classList.add('hidden');
-                const displayText = summaryText || fullResponse.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
+                const displayText = summaryText || fullResponse.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim();
                 if (displayText) {
                     DOM.aiSummaryArea.classList.remove('hidden');
                     DOM.aiSummaryText.innerHTML = md(displayText);
@@ -1076,19 +1220,58 @@
                 // Show discover more
                 DOM.discoverMore.classList.remove('hidden');
 
+                // ── 대화형 상담 신청: <noma-apply> 자동 처리 ──
+                const applyData = parseNomaApply(fullResponse);
+                if (applyData) {
+                    try {
+                        const applyRes = await fetch('/api/service-request/connect', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                serviceName: applyData.serviceName,
+                                userName: applyData.userName,
+                                userPhone: applyData.userPhone,
+                                chatHistory: chatHistory.map(m => ({
+                                    role: m.role,
+                                    content: m.role === 'model'
+                                        ? m.content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim()
+                                        : m.content
+                                })).filter(m => m.content)
+                            })
+                        });
+                        if (!applyRes.ok) throw new Error('API failed');
+                        // 성공 카드
+                        DOM.aiSummaryText.innerHTML += `
+                            <div class="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl animate-fade-up">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="material-symbols-outlined text-emerald-600" style="font-size:20px">check_circle</span>
+                                    <span class="font-bold text-emerald-800 text-sm">상담 신청 완료</span>
+                                </div>
+                                <p class="text-emerald-700 text-sm leading-relaxed">${applyData.userName}님, <b>${applyData.serviceName}</b> 담당 기관에 상담 요청을 보냈습니다.<br/>2~3일 내로 <b>${applyData.userPhone}</b>으로 연락드릴 예정입니다.</p>
+                            </div>`;
+                    } catch (applyErr) {
+                        console.error('Auto apply error:', applyErr);
+                        // 실패 카드
+                        DOM.aiSummaryText.innerHTML += `
+                            <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl animate-fade-up">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="material-symbols-outlined text-red-600" style="font-size:20px">error</span>
+                                    <span class="font-bold text-red-800 text-sm">신청 중 오류가 발생했습니다</span>
+                                </div>
+                                <p class="text-red-700 text-sm leading-relaxed">자동 신청에 실패했습니다. 서비스 카드의 <b>"상담 신청"</b> 버튼을 눌러 직접 신청해 주세요.</p>
+                            </div>`;
+                    }
+                }
+
                 // Smooth scroll to results
                 DOM.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-                // TTS: read AI summary aloud (voice input only)
-                if (fullResponse && lastInputWasVoice) {
-                    lastInputWasVoice = false;
+                // TTS: 항상 음성으로 읽어주기 (시니어 최적화)
+                if (fullResponse) {
                     await speakText(extractSpeakableText(fullResponse));
-                } else {
-                    lastInputWasVoice = false;
                 }
 
             } catch (err) {
-                lastInputWasVoice = false;
                 chatHistory.pop(); // 실패한 사용자 메시지 제거
                 console.error('Search error:', err);
                 DOM.cardsSkeleton.classList.add('hidden');
@@ -1250,7 +1433,13 @@
                         body: JSON.stringify({
                             serviceName: modalState.serviceName,
                             userName: modalState.name,
-                            userPhone: modalState.phone
+                            userPhone: modalState.phone,
+                            chatHistory: chatHistory.map(m => ({
+                                role: m.role,
+                                content: m.role === 'model'
+                                    ? m.content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim()
+                                    : m.content
+                            })).filter(m => m.content)
                         })
                     });
                     if (!res.ok) throw new Error('API failed');
@@ -1323,7 +1512,7 @@
                     if (card.serviceName) cards.push(card);
                 } catch (e) {}
             }
-            let clean = text.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
+            let clean = text.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim();
             clean = clean.replace(/\*\*(.*?)\*\*/g, '$1');
             clean = clean.replace(/\*(.*?)\*/g, '$1');
             clean = clean.replace(/#{1,6}\s/g, '');
@@ -1343,6 +1532,11 @@
                     return line;
                 }).join(' ');
                 clean += '\n' + cardSummary;
+                // 전화번호가 있으면 초록 버튼 안내 추가
+                const hasPhone = cards.some(c => c.agency && /0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/.test(c.agency));
+                if (hasPhone) {
+                    clean += ' 전화 연결을 원하시면, 초록색 전화하기 버튼을 눌러주세요.';
+                }
             }
             return clean.trim();
         }
@@ -1416,7 +1610,6 @@
                 const text = event.results[0][0].transcript;
                 if (activeInput) {
                     const wasHeroInput = activeInput === DOM.heroInput;
-                    lastInputWasVoice = true;
                     activeInput.value = text;
                     activeInput.dispatchEvent(new Event('input'));
                     if (wasHeroInput) {
@@ -1433,6 +1626,12 @@
                 activeInput = null;
                 activeBtn = null;
                 updateFloatingMicState();
+                // 히어로 음성 CTA 버튼 상태 리셋
+                const heroVoiceCta = $('hero-voice-cta');
+                if (heroVoiceCta) {
+                    heroVoiceCta.classList.remove('animate-pulse');
+                    heroVoiceCta.querySelector('.material-symbols-outlined').textContent = 'mic';
+                }
             };
 
             recognition.onerror = event => {
@@ -1441,6 +1640,17 @@
             };
 
             DOM.heroMic.addEventListener('click', e => { e.preventDefault(); startListening(DOM.heroInput, DOM.heroMic); });
+
+            // ── 모바일 히어로 음성 CTA 버튼 ──
+            const heroVoiceCta = $('hero-voice-cta');
+            if (heroVoiceCta) {
+                heroVoiceCta.addEventListener('click', () => {
+                    startListening(DOM.heroInput, DOM.heroMic);
+                    // CTA 버튼 시각 피드백
+                    heroVoiceCta.classList.add('animate-pulse');
+                    heroVoiceCta.querySelector('.material-symbols-outlined').textContent = 'graphic_eq';
+                });
+            }
 
             // ── Floating Mic Button ──
             if (DOM.floatingMic) {

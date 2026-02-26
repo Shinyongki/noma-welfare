@@ -1,0 +1,73 @@
+{
+  "12ae715e-90bf-4f99-b644-9f96d254d4ca": {
+    "id": "12ae715e-90bf-4f99-b644-9f96d254d4ca",
+    "serviceName": "��޵����������",
+    "userName": "�׽�Ʈ",
+    "userPhone": "010-1234-5678",
+    "createdAt": "2026. 2. 26. 오후 10:20:05",
+    "status": "open",
+    "referrals": [
+      {
+        "targetService": "민간 사회복지시설 경영컨설팅",
+        "reason": "컨설팅이 필요해요",
+        "newRequestId": "2f1efa7d-9449-4e9c-97fe-e1077ec9e4f5",
+        "sentAt": "2026. 2. 26. 오후 10:21:24"
+      }
+    ]
+  },
+  "2f1efa7d-9449-4e9c-97fe-e1077ec9e4f5": {
+    "id": "2f1efa7d-9449-4e9c-97fe-e1077ec9e4f5",
+    "serviceName": "민간 사회복지시설 경영컨설팅",
+    "userName": "�׽�Ʈ",
+    "userPhone": "010-1234-5678",
+    "createdAt": "2026. 2. 26. 오후 10:21:24",
+    "status": "referred",
+    "referredFrom": "12ae715e-90bf-4f99-b644-9f96d254d4ca",
+    "referrals": []
+  },
+  "ebbaab1d-8d47-44e4-8472-90bce7287c02": {
+    "id": "ebbaab1d-8d47-44e4-8472-90bce7287c02",
+    "serviceName": "��޵����������",
+    "userName": "�׽�Ʈ",
+    "userPhone": "010-1234-5678",
+    "createdAt": "2026. 2. 26. 오후 10:21:49",
+    "status": "open",
+    "referrals": []
+  },
+  "43f6405e-a09f-46e6-b0e2-9b06c7642d41": {
+    "id": "43f6405e-a09f-46e6-b0e2-9b06c7642d41",
+    "serviceName": "��޵����������",
+    "userName": "�׽�Ʈ",
+    "userPhone": "010-1234-5678",
+    "createdAt": "2026. 2. 26. 오후 10:22:44",
+    "status": "open",
+    "referrals": []
+  },
+  "55e84619-622d-4a65-90a2-fcbbe7086eb6": {
+    "id": "55e84619-622d-4a65-90a2-fcbbe7086eb6",
+    "serviceName": "��޵����������",
+    "userName": "�׽�Ʈ",
+    "userPhone": "010-1234-5678",
+    "createdAt": "2026. 2. 26. 오후 10:24:42",
+    "status": "open",
+    "referrals": []
+  },
+  "0932bdc8-3912-4285-a8ae-eee2af5c456e": {
+    "id": "0932bdc8-3912-4285-a8ae-eee2af5c456e",
+    "serviceName": "김해종합재가센터 통합재가서비스",
+    "userName": "신용기",
+    "userPhone": "01057586517",
+    "createdAt": "2026. 2. 26. 오후 10:28:01",
+    "status": "open",
+    "referrals": []
+  },
+  "96c5dcf5-39e5-4d74-a27c-0fb13b9bf7bd": {
+    "id": "96c5dcf5-39e5-4d74-a27c-0fb13b9bf7bd",
+    "serviceName": "��޵����������",
+    "userName": "�׽�Ʈ�����",
+    "userPhone": "010-1234-5678",
+    "createdAt": "2026. 2. 26. 오후 10:28:19",
+    "status": "open",
+    "referrals": []
+  }
+}
