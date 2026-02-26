@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import { EdgeTTS } from '@andresaya/edge-tts';
+import nodemailer from 'nodemailer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +19,13 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY });
+
+const transporter = process.env.SMTP_HOST ? nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: false,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+}) : null;
 
 // ── Welfare Knowledge Base (RAG) Loading ──
 const KB_FILE = path.join(__dirname, '경상남도사회서비스원_지식베이스.csv');
@@ -392,20 +400,51 @@ app.get('/api/services', (req, res) => {
     res.json(Object.values(grouped));
 });
 
-// ── Service Request API (이메일 발송 시뮬레이션) ──
-app.post('/api/service-request/connect', (req, res) => {
+// ── Service Request API (이메일 발송) ──
+app.post('/api/service-request/connect', async (req, res) => {
     const { serviceName, userName, userPhone } = req.body;
+    if (!serviceName || !userName || !userPhone) {
+        return res.status(400).json({ success: false, message: '필수 정보가 누락되었습니다.' });
+    }
 
-    console.log(`\n======================================================`);
-    console.log(`[이메일 발송 시뮬레이션]`);
-    console.log(`수신: ${serviceName} 담당 기관`);
-    console.log(`제목: [신청 접수] 노마 AI 상담 - 신규 상담 요청 건`);
-    console.log(`  - 신청자 성함: ${userName}`);
-    console.log(`  - 연락처: ${userPhone}`);
-    console.log(`  - 유입 경로: Noma AI 복지 내비게이터`);
-    console.log(`======================================================\n`);
+    // 지식베이스에서 해당 서비스의 문의처 찾기
+    const service = welfareKB.find(s => s['사업명'] === serviceName);
+    const agency = service ? service['문의처'] : '정보 없음';
 
-    res.json({ success: true, message: "이메일 알림 발송 완료" });
+    const subject = `[노마 AI] 신규 상담 신청 - ${serviceName}`;
+    const html = `
+        <h2>노마 AI 복지 내비게이터 - 신규 상담 신청</h2>
+        <table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
+            <tr><td><b>신청 서비스</b></td><td>${serviceName}</td></tr>
+            <tr><td><b>신청자 성함</b></td><td>${userName}</td></tr>
+            <tr><td><b>연락처</b></td><td>${userPhone}</td></tr>
+            <tr><td><b>담당 기관 문의처</b></td><td>${agency}</td></tr>
+            <tr><td><b>신청 일시</b></td><td>${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</td></tr>
+            <tr><td><b>유입 경로</b></td><td>Noma AI 복지 내비게이터</td></tr>
+        </table>
+        <p style="color:#888;margin-top:16px;">이 이메일은 노마 AI 시스템에서 자동 발송되었습니다.</p>
+    `;
+
+    console.log(`[서비스 신청] ${userName}(${userPhone}) → ${serviceName}`);
+
+    if (transporter) {
+        try {
+            await transporter.sendMail({
+                from: `"노마 AI" <${process.env.SMTP_USER}>`,
+                to: process.env.ADMIN_EMAIL,
+                subject,
+                html
+            });
+            console.log(`[이메일 발송 완료] → ${process.env.ADMIN_EMAIL}`);
+        } catch (err) {
+            console.error('[이메일 발송 실패]', err.message);
+            // 이메일 실패해도 신청 자체는 성공 처리 (콘솔 로그는 남음)
+        }
+    } else {
+        console.log('[이메일 미설정] SMTP 환경변수가 없어 이메일 발송을 건너뜁니다.');
+    }
+
+    res.json({ success: true, message: '상담 신청이 접수되었습니다.' });
 });
 
 // ── Edge TTS API (Microsoft Neural Voice) ──
