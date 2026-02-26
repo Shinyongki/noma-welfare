@@ -1415,14 +1415,13 @@
             recognition.onresult = event => {
                 const text = event.results[0][0].transcript;
                 if (activeInput) {
+                    const wasHeroInput = activeInput === DOM.heroInput;
                     lastInputWasVoice = true;
                     activeInput.value = text;
                     activeInput.dispatchEvent(new Event('input'));
-                    setTimeout(() => {
-                        if (activeInput === DOM.heroInput) {
-                            handleHeroSubmit();
-                        }
-                    }, 300);
+                    if (wasHeroInput) {
+                        setTimeout(() => handleHeroSubmit(), 300);
+                    }
                 }
             };
 
