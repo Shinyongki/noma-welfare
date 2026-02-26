@@ -1,0 +1,2001 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>경상남도사회서비스원 AI 맞춤형 복지 내비게이터</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#98002E",
+                        "primary-light": "#B8003E",
+                        "bg-warm": "#F8F5F2",
+                        "bg-section": "#F1ECE7",
+                        "deep-purple": "#4A1942",
+                    },
+                    fontFamily: {
+                        "sans": ["Pretendard Variable", "Pretendard", "-apple-system", "BlinkMacSystemFont", "system-ui", "Roboto", "Noto Sans KR", "Malgun Gothic", "sans-serif"],
+                    },
+                    borderRadius: { "DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "2xl": "2rem", "3xl": "2.5rem", "full": "9999px" },
+                    keyframes: {
+                        'fade-up': { '0%': { opacity: '0', transform: 'translateY(24px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        'fade-in': { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        'slide-down': { '0%': { opacity: '0', transform: 'translateY(-12px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        'pulse-soft': { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.6' } },
+                        'shimmer': { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+                    },
+                    animation: {
+                        'fade-up': 'fade-up 0.5s ease-out forwards',
+                        'fade-up-delay-1': 'fade-up 0.5s ease-out 0.1s forwards',
+                        'fade-up-delay-2': 'fade-up 0.5s ease-out 0.2s forwards',
+                        'fade-up-delay-3': 'fade-up 0.5s ease-out 0.3s forwards',
+                        'fade-in': 'fade-in 0.4s ease-out forwards',
+                        'slide-down': 'slide-down 0.3s ease-out forwards',
+                        'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
+                        'shimmer': 'shimmer 2s linear infinite',
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .skeleton-shimmer {
+            background: linear-gradient(90deg, #f0ebe6 25%, #e8e2db 50%, #f0ebe6 75%);
+            background-size: 200% 100%;
+            animation: shimmer 2s linear infinite;
+        }
+        /* Transition classes */
+        .hero-compact .hero-title { font-size: 1.5rem; line-height: 2rem; }
+        .hero-compact .hero-subtitle { display: none; }
+        .hero-compact .hero-badge { display: none; }
+        #results-section { transition: all 0.5s ease-out; }
+        /* Noma card link styling */
+        .noma-card-detail strong { display: block; margin-bottom: 2px; }
+        /* Journey connector */
+        .journey-connector { position: relative; }
+        .journey-connector::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -2rem;
+            width: 2rem;
+            height: 3px;
+            background: #e5e0db;
+        }
+        .journey-connector:last-child::after { display: none; }
+        @media (max-width: 768px) {
+            .journey-connector::after { display: none; }
+        }
+        /* Pop-out mode */
+        body.is-noma-popout > *:not(#noma-widget):not(script):not(style):not(link) { display: none !important; }
+        body.is-noma-popout { background: white !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+        body.is-noma-popout #noma-widget { position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; }
+        body.is-noma-popout #noma-panel { display: flex !important; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; border: none !important; border-radius: 0 !important; right: auto !important; bottom: auto !important; position: static !important; resize: none !important; }
+        body.is-noma-popout #noma-toggle, body.is-noma-popout #noma-close, body.is-noma-popout #noma-popout { display: none !important; }
+        /* Voice mode */
+        .voice-toggle-active { color: #3b82f6 !important; background: #eff6ff; }
+        @keyframes voice-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .voice-listening-pulse { animation: voice-pulse 1.5s ease-in-out infinite; }
+    </style>
+</head>
+
+<body class="bg-bg-warm min-h-screen flex flex-col font-sans text-slate-900 antialiased selection:bg-primary selection:text-white">
+
+    <!-- ═══════════════════ HEADER ═══════════════════ -->
+    <header class="flex items-center justify-between whitespace-nowrap border-b border-stone-200 bg-white/90 backdrop-blur-sm px-6 lg:px-20 xl:px-40 py-4 sticky top-0 z-50">
+        <a href="/" class="flex items-center gap-3 group">
+            <div class="flex flex-col items-center justify-center">
+                <div class="flex items-end gap-[2px]">
+                    <svg width="22" height="18" viewBox="0 0 24 24" fill="none" class="group-hover:-translate-y-0.5 transition-transform duration-300"><path d="M12 4L3 13H8L12 9L16 13H21L12 4Z" fill="#8dc63f"/></svg>
+                    <svg width="22" height="18" viewBox="0 0 24 24" fill="none" class="group-hover:-translate-y-0.5 transition-transform duration-300 delay-75"><path d="M12 4L3 13H8L12 9L16 13H21L12 4Z" fill="#0092d6"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" class="mb-[2px] group-hover:scale-110 transition-transform duration-300 delay-150"><circle cx="10" cy="10" r="6" stroke="#f49231" stroke-width="4.5"/></svg>
+                </div>
+                <span class="text-[9px] font-black text-slate-400 tracking-[0.3em] mt-0.5 ml-1">PASS</span>
+            </div>
+            <h2 class="text-slate-800 text-lg md:text-xl font-extrabold tracking-tight">경상남도사회서비스원</h2>
+        </a>
+        <nav class="hidden md:flex items-center gap-8">
+            <a class="text-slate-500 hover:text-primary transition-colors text-sm font-medium" href="#" onclick="event.preventDefault();document.getElementById('browse-section')?.scrollIntoView({behavior:'smooth'})">전체 서비스</a>
+            <a class="text-slate-500 hover:text-primary transition-colors text-sm font-medium" href="#">자주 묻는 질문</a>
+            <button id="btn-my-drawer" class="relative text-slate-500 hover:text-primary transition-colors text-sm font-medium flex items-center gap-1" title="내 서랍">
+                <span class="material-symbols-outlined text-xl">bookmark</span>
+                내 서랍
+                <span id="drawer-badge" class="hidden absolute -top-1 -right-2 bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+            </button>
+            <a class="px-5 py-2 bg-primary text-white text-sm font-semibold rounded-full hover:bg-primary-light transition-colors" href="tel:055-230-8200">전화 문의</a>
+        </nav>
+        <button class="md:hidden text-slate-700" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
+            <span class="material-symbols-outlined text-2xl">menu</span>
+        </button>
+    </header>
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="hidden md:hidden fixed inset-0 z-[60] bg-black/40" onclick="this.classList.add('hidden')">
+        <div class="bg-white w-64 h-full p-6 space-y-4" onclick="event.stopPropagation()">
+            <a class="block text-slate-700 font-medium py-2" href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').classList.add('hidden');document.getElementById('browse-section')?.scrollIntoView({behavior:'smooth'})">전체 서비스</a>
+            <a class="block text-slate-700 font-medium py-2" href="#">자주 묻는 질문</a>
+            <button class="block text-slate-700 font-medium py-2 flex items-center gap-2" onclick="document.getElementById('mobile-menu').classList.add('hidden');openMyDrawer()">
+                <span class="material-symbols-outlined text-lg">bookmark</span>내 서랍
+            </button>
+            <a class="block text-primary font-bold py-2" href="tel:055-230-8200">전화 문의</a>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ MAIN ═══════════════════ -->
+    <main class="flex-1 flex flex-col items-center w-full">
+
+        <!-- ── HERO SECTION ── -->
+        <section id="hero-section" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 pt-16 pb-10 transition-all duration-500">
+            <div class="max-w-3xl mx-auto text-center space-y-5">
+                <span class="hero-badge inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold transition-all duration-500">AI 맞춤형 복지 내비게이터</span>
+                <h1 class="hero-title text-slate-900 text-3xl md:text-[2.75rem] font-black leading-tight tracking-tight break-keep transition-all duration-500">
+                    어떤 어려움이 있으신가요?<br/>딱 맞는 지원을 찾아드립니다.
+                </h1>
+                <p class="hero-subtitle text-slate-500 text-base md:text-lg font-medium leading-relaxed max-w-xl mx-auto break-keep transition-all duration-500">
+                    복잡한 복지 제도, 이제 찾지 말고 편하게 이야기해 주세요.<br/>
+                    AI가 귀하에게 필요한 서비스를 분석해 드립니다.
+                </p>
+            </div>
+
+            <!-- Search Input -->
+            <div class="max-w-2xl mx-auto mt-8">
+                <div class="relative group">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/15 to-primary/20 rounded-full blur-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-500"></div>
+                    <div class="relative flex items-center w-full h-16 md:h-[4.5rem] bg-white rounded-full shadow-lg shadow-stone-200/60 ring-1 ring-stone-200/80 transition-all focus-within:ring-2 focus-within:ring-primary/60 focus-within:shadow-xl overflow-hidden">
+                        <button id="hero-mic" class="pl-5 md:pl-7 text-primary/70 hover:text-primary flex items-center justify-center hover:scale-110 transition-all" title="음성으로 입력">
+                            <span class="material-symbols-outlined text-[28px]">mic</span>
+                        </button>
+                        <input id="hero-input"
+                            class="w-full h-full bg-transparent border-none text-slate-800 placeholder:text-slate-400 text-lg md:text-xl px-4 md:px-5 focus:ring-0 focus:outline-none"
+                            placeholder="예: 퇴원 후 당장 돌봐줄 사람이 없어요" />
+                        <button id="hero-submit"
+                            class="mr-2 md:mr-3 size-12 md:size-13 bg-primary rounded-full flex items-center justify-center text-white hover:bg-primary-light active:scale-95 transition-all shadow-md flex-shrink-0">
+                            <span class="material-symbols-outlined text-2xl">arrow_forward</span>
+                        </button>
+                    </div>
+                </div>
+                <!-- Example Chips -->
+                <div id="hero-chips" class="mt-5 flex flex-wrap justify-center gap-2.5">
+                    <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="퇴원 후 당장 돌봐줄 사람이 없어요">
+                        <span class="material-symbols-outlined text-primary/70 text-base">medical_services</span>
+                        <span class="text-slate-600 text-sm font-medium">#퇴원 후 돌봄이 필요해요</span>
+                    </button>
+                    <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="스마트폰으로 건강 관리를 받고 싶어요">
+                        <span class="material-symbols-outlined text-primary/70 text-base">smartphone</span>
+                        <span class="text-slate-600 text-sm font-medium">#스마트 건강관리</span>
+                    </button>
+                    <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="긴급 돌봄이 필요해요">
+                        <span class="material-symbols-outlined text-primary/70 text-base">emergency_home</span>
+                        <span class="text-slate-600 text-sm font-medium">#긴급 돌봄</span>
+                    </button>
+                    <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="혼자 사는 어르신 안전 관리">
+                        <span class="material-symbols-outlined text-primary/70 text-base">favorite</span>
+                        <span class="text-slate-600 text-sm font-medium">#독거 어르신 안전</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── RESULTS SECTION (hidden initially) ── -->
+        <section id="results-section" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 pb-8 hidden">
+            <div class="max-w-5xl mx-auto">
+                <!-- AI Summary Bubble -->
+                <div id="ai-summary-area" class="mb-8 hidden">
+                    <div class="flex items-start gap-3 max-w-3xl">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary to-deep-purple flex items-center justify-center shadow-md">
+                            <span class="material-symbols-outlined text-white text-xl">smart_toy</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-xs font-bold text-primary mb-1.5">노마(Noma) AI 분석 결과</p>
+                            <div id="ai-summary-text" class="bg-white rounded-2xl rounded-tl-md px-5 py-4 shadow-sm border border-stone-200 text-[15px] text-slate-700 leading-relaxed break-keep"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section Title -->
+                <div id="cards-title" class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-2.5">
+                        <span class="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+                        <h2 class="text-xl font-bold text-slate-800">맞춤 추천 서비스</h2>
+                    </div>
+                    <button id="btn-new-search" class="hidden text-sm text-slate-500 hover:text-primary font-medium flex items-center gap-1 transition-colors">
+                        <span class="material-symbols-outlined text-base">refresh</span>
+                        새로 질문하기
+                    </button>
+                </div>
+
+                <!-- Cards Grid -->
+                <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+
+                <!-- Loading Skeletons -->
+                <div id="cards-skeleton" class="hidden grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="bg-white rounded-2xl p-7 border border-stone-100 shadow-sm">
+                        <div class="flex items-start justify-between mb-5"><div class="skeleton-shimmer w-12 h-12 rounded-xl"></div><div class="skeleton-shimmer w-16 h-6 rounded-full"></div></div>
+                        <div class="skeleton-shimmer h-7 w-3/4 rounded mb-3"></div>
+                        <div class="skeleton-shimmer h-4 w-full rounded mb-2"></div>
+                        <div class="skeleton-shimmer h-4 w-5/6 rounded mb-6"></div>
+                        <div class="skeleton-shimmer h-20 w-full rounded-lg mb-6"></div>
+                        <div class="skeleton-shimmer h-12 w-full rounded-xl"></div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-7 border border-stone-100 shadow-sm">
+                        <div class="flex items-start justify-between mb-5"><div class="skeleton-shimmer w-12 h-12 rounded-xl"></div><div class="skeleton-shimmer w-16 h-6 rounded-full"></div></div>
+                        <div class="skeleton-shimmer h-7 w-3/4 rounded mb-3"></div>
+                        <div class="skeleton-shimmer h-4 w-full rounded mb-2"></div>
+                        <div class="skeleton-shimmer h-4 w-5/6 rounded mb-6"></div>
+                        <div class="skeleton-shimmer h-20 w-full rounded-lg mb-6"></div>
+                        <div class="skeleton-shimmer h-12 w-full rounded-xl"></div>
+                    </div>
+                </div>
+
+                <!-- Discover More -->
+                <div id="discover-more" class="hidden mt-8 bg-white border border-stone-200 rounded-2xl p-6 md:p-7 shadow-sm">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="bg-primary/10 p-3 rounded-full text-primary flex-shrink-0">
+                            <span class="material-symbols-outlined text-xl">grid_view</span>
+                        </div>
+                        <div>
+                            <h4 class="text-base font-bold text-slate-800 mb-0.5">찾으시는 서비스가 없으신가요?</h4>
+                            <p class="text-slate-500 text-sm break-keep">아래 방법으로도 도움을 받으실 수 있습니다.</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button id="btn-browse-scroll" class="flex-1 px-5 py-3 bg-white border border-stone-300 text-slate-700 hover:bg-slate-50 font-semibold rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-1.5 text-sm">
+                            <span class="material-symbols-outlined text-base">list_alt</span>
+                            전체 서비스 둘러보기
+                        </button>
+                        <a href="tel:055-230-8200" class="flex-1 px-5 py-3 bg-primary text-white font-semibold rounded-xl shadow-sm hover:bg-primary-light transition-all flex items-center justify-center gap-1.5 text-sm">
+                            <span class="material-symbols-outlined text-base">call</span>
+                            대표전화 055-230-8200
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── INITIAL PLACEHOLDER (shown before search) ── -->
+        <section id="initial-placeholder" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 pb-12">
+            <div class="max-w-5xl mx-auto">
+                <div class="flex items-center gap-2.5 mb-6">
+                    <span class="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+                    <h2 class="text-xl font-bold text-slate-800">이런 서비스를 제공합니다</h2>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <!-- Placeholder Card 1 -->
+                    <div class="bg-white rounded-2xl p-6 border border-stone-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group cursor-pointer" onclick="document.getElementById('hero-input').value='긴급 돌봄이 필요해요';document.getElementById('hero-input').focus()">
+                        <div class="bg-primary/10 p-3 rounded-xl text-primary w-fit mb-4 group-hover:bg-primary/15 transition-colors">
+                            <span class="material-symbols-outlined text-2xl">emergency</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 mb-2">긴급돌봄 지원</h3>
+                        <p class="text-sm text-slate-500 leading-relaxed break-keep">갑작스러운 질병이나 사고로 돌봄이 필요할 때, 72시간 내 긴급 돌봄 서비스를 제공합니다.</p>
+                    </div>
+                    <!-- Placeholder Card 2 -->
+                    <div class="bg-white rounded-2xl p-6 border border-stone-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group cursor-pointer" onclick="document.getElementById('hero-input').value='혼자 사는 어르신 안전 관리';document.getElementById('hero-input').focus()">
+                        <div class="bg-blue-50 p-3 rounded-xl text-blue-600 w-fit mb-4 group-hover:bg-blue-100 transition-colors">
+                            <span class="material-symbols-outlined text-2xl">shield_with_heart</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 mb-2">AI 스마트 돌봄</h3>
+                        <p class="text-sm text-slate-500 leading-relaxed break-keep">AI/IoT 기기를 활용하여 독거 어르신의 건강과 안전을 24시간 모니터링합니다.</p>
+                    </div>
+                    <!-- Placeholder Card 3 -->
+                    <div class="bg-white rounded-2xl p-6 border border-stone-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group cursor-pointer" onclick="document.getElementById('hero-input').value='장애인 보조기기 지원';document.getElementById('hero-input').focus()">
+                        <div class="bg-emerald-50 p-3 rounded-xl text-emerald-600 w-fit mb-4 group-hover:bg-emerald-100 transition-colors">
+                            <span class="material-symbols-outlined text-2xl">accessible_forward</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 mb-2">장애인 지원 서비스</h3>
+                        <p class="text-sm text-slate-500 leading-relaxed break-keep">보조기기 대여, 직업재활, 권익옹호 등 장애인 맞춤형 종합 복지 서비스를 제공합니다.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── BROWSE ALL SERVICES ── -->
+        <section id="browse-section" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 py-16 bg-white">
+            <div class="max-w-5xl mx-auto">
+                <div class="text-center mb-10">
+                    <span class="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">전체 서비스 둘러보기</span>
+                    <h2 class="text-2xl font-bold text-slate-800 mb-2">경상남도사회서비스원이 제공하는 모든 서비스</h2>
+                    <p class="text-sm text-slate-500">카테고리를 선택하여 관심 있는 서비스를 살펴보세요.</p>
+                </div>
+
+                <!-- Category Tabs -->
+                <div id="browse-tabs" class="flex flex-wrap justify-center gap-3 mb-8"></div>
+
+                <!-- Service List -->
+                <div id="browse-list" class="space-y-4"></div>
+
+                <!-- Loading -->
+                <div id="browse-loading" class="text-center py-10">
+                    <span class="material-symbols-outlined text-stone-300 text-4xl animate-pulse-soft">hourglass_empty</span>
+                    <p class="text-slate-400 text-sm mt-2">서비스 목록을 불러오는 중...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── JOURNEY MAP ── -->
+        <section id="journey-section" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 py-16 bg-bg-section/60">
+            <div class="max-w-4xl mx-auto">
+                <div class="text-center mb-10">
+                    <h2 class="text-xl font-bold text-slate-800 mb-2">서비스 이용 절차</h2>
+                    <p class="text-sm text-slate-500">상담 접수부터 서비스 제공까지, 한눈에 확인하세요.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-0 relative">
+                    <!-- Connector line (desktop) -->
+                    <div class="hidden md:block absolute top-10 left-[12.5%] right-[12.5%] h-[3px] bg-stone-200 rounded-full z-0"></div>
+                    <!-- Step 1 -->
+                    <div class="flex flex-col items-center text-center group journey-connector relative z-10">
+                        <div class="w-20 h-20 bg-white border-[3px] border-primary rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300">
+                            <span class="material-symbols-outlined text-primary text-3xl">support_agent</span>
+                        </div>
+                        <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
+                            <p class="text-xs font-bold text-primary mb-0.5">STEP 1</p>
+                            <h4 class="font-bold text-slate-800 text-[15px] mb-1">상담 및 신청</h4>
+                            <p class="text-xs text-slate-500 leading-snug">온라인 또는 전화로<br/>간편하게 신청</p>
+                        </div>
+                    </div>
+                    <!-- Step 2 -->
+                    <div class="flex flex-col items-center text-center group journey-connector relative z-10">
+                        <div class="w-20 h-20 bg-white border-[3px] border-stone-200 group-hover:border-primary/50 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-all duration-300">
+                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl">fact_check</span>
+                        </div>
+                        <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
+                            <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">STEP 2</p>
+                            <h4 class="font-bold text-slate-800 text-[15px] mb-1">자격 확인</h4>
+                            <p class="text-xs text-slate-500 leading-snug">대상 적격 여부<br/>심사 및 결정</p>
+                        </div>
+                    </div>
+                    <!-- Step 3 -->
+                    <div class="flex flex-col items-center text-center group journey-connector relative z-10">
+                        <div class="w-20 h-20 bg-white border-[3px] border-stone-200 group-hover:border-primary/50 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-all duration-300">
+                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl">person_apron</span>
+                        </div>
+                        <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
+                            <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">STEP 3</p>
+                            <h4 class="font-bold text-slate-800 text-[15px] mb-1">전담 인력 배정</h4>
+                            <p class="text-xs text-slate-500 leading-snug">담당자 매칭 및<br/>방문 계획 수립</p>
+                        </div>
+                    </div>
+                    <!-- Step 4 -->
+                    <div class="flex flex-col items-center text-center group relative z-10">
+                        <div class="w-20 h-20 bg-white border-[3px] border-stone-200 group-hover:border-primary/50 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-all duration-300">
+                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl">handshake</span>
+                        </div>
+                        <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
+                            <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">STEP 4</p>
+                            <h4 class="font-bold text-slate-800 text-[15px] mb-1">서비스 제공</h4>
+                            <p class="text-xs text-slate-500 leading-snug">맞춤형 복지<br/>서비스 시작</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ═══════════════════ FOOTER ═══════════════════ -->
+    <footer class="bg-white border-t border-stone-200 py-10 px-6 lg:px-20 xl:px-40">
+        <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div>
+                <h5 class="font-bold text-slate-800 mb-1.5 text-sm">경상남도사회서비스원</h5>
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    경상남도 창원시 성산구 창원대로 524 경남사회적경제혁신타운 본관동 2층<br/>
+                    대표전화: 055-230-8200
+                </p>
+            </div>
+            <div class="flex gap-5">
+                <a class="text-xs text-slate-500 hover:text-primary" href="#">개인정보처리방침</a>
+                <a class="text-xs text-slate-500 hover:text-primary" href="#">이용약관</a>
+                <a class="text-xs text-slate-500 hover:text-primary" href="#">사이트맵</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ═══════════════════ MY DRAWER (내 서랍) PANEL ═══════════════════ -->
+    <div id="drawer-overlay" class="hidden fixed inset-0 z-[150] bg-black/40 backdrop-blur-sm" onclick="closeMyDrawer()"></div>
+    <div id="drawer-panel" class="fixed top-0 right-0 z-[160] w-full max-w-md h-full bg-white shadow-2xl transform translate-x-full transition-transform duration-300 ease-out flex flex-col">
+        <!-- Drawer Header -->
+        <div class="flex items-center justify-between px-6 py-5 border-b border-stone-200 bg-gradient-to-r from-primary/5 to-purple-50">
+            <div class="flex items-center gap-2.5">
+                <span class="material-symbols-outlined text-primary text-2xl">bookmark</span>
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">내 서랍</h2>
+                    <p class="text-xs text-slate-500">관심 있는 서비스를 모아두었어요</p>
+                </div>
+            </div>
+            <button onclick="closeMyDrawer()" class="p-1.5 text-slate-400 hover:text-slate-600 transition-colors rounded-lg hover:bg-stone-100">
+                <span class="material-symbols-outlined text-xl">close</span>
+            </button>
+        </div>
+        <!-- Drawer Body -->
+        <div id="drawer-body" class="flex-1 overflow-y-auto p-5 space-y-4">
+            <!-- Empty state (default) -->
+            <div id="drawer-empty" class="flex flex-col items-center justify-center h-full text-center py-16">
+                <div class="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mb-5">
+                    <span class="material-symbols-outlined text-stone-300 text-4xl">bookmark_border</span>
+                </div>
+                <h3 class="text-lg font-bold text-slate-700 mb-2">아직 담아둔 서비스가 없어요</h3>
+                <p class="text-sm text-slate-500 leading-relaxed max-w-xs break-keep">서비스 카드의 <span class="inline-flex items-center gap-0.5 text-primary font-semibold"><span class="material-symbols-outlined text-sm">bookmark_add</span>담기</span> 버튼을 눌러<br/>관심 서비스를 저장해 보세요.</p>
+            </div>
+            <!-- Saved items rendered here -->
+            <div id="drawer-items" class="hidden space-y-3"></div>
+        </div>
+        <!-- Drawer Footer -->
+        <div id="drawer-footer" class="hidden border-t border-stone-200 p-4">
+            <button id="drawer-clear-all" class="w-full py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center gap-1">
+                <span class="material-symbols-outlined text-base">delete_sweep</span>
+                모두 비우기
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ DRAWER OPT-IN CONSENT MODAL ═══════════════════ -->
+    <div id="consent-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-up">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="material-symbols-outlined text-primary text-3xl">bookmark_add</span>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-3">서비스를 저장할까요?</h3>
+                <p class="text-sm text-slate-600 leading-relaxed break-keep mb-1">
+                    다음에 다시 보실 수 있도록<br/>이 컴퓨터에 <b>익명의 표식</b>을 남겨둘게요.
+                </p>
+                <p class="text-xs text-slate-400 leading-relaxed break-keep">
+                    개인정보는 저장되지 않으며,<br/>언제든 '내 서랍'에서 삭제하실 수 있어요.
+                </p>
+            </div>
+            <div class="px-6 pb-6 flex gap-3">
+                <button id="consent-decline" class="flex-1 py-3 rounded-xl border border-stone-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm">괜찮아요</button>
+                <button id="consent-accept" class="flex-1 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary-light transition-colors text-sm">네, 저장할게요</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ SERVICE REQUEST MODAL ═══════════════════ -->
+    <div id="service-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-up">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-primary to-deep-purple px-6 py-5 text-white">
+                <h3 class="text-lg font-bold">상담 신청하기</h3>
+                <p id="modal-service-name" class="text-white/80 text-sm mt-1"></p>
+            </div>
+            <!-- Modal Body -->
+            <div class="p-6 space-y-5">
+                <div id="modal-step-name">
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">성함을 입력해 주세요</label>
+                    <input id="modal-name-input" type="text" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="홍길동" />
+                </div>
+                <div id="modal-step-phone" class="hidden">
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">연락 받으실 전화번호</label>
+                    <input id="modal-phone-input" type="tel" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="010-1234-5678" />
+                </div>
+                <div id="modal-step-confirm" class="hidden text-center py-4">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="material-symbols-outlined text-emerald-600 text-3xl">check_circle</span>
+                    </div>
+                    <h4 class="text-lg font-bold text-slate-800 mb-2">신청이 완료되었습니다!</h4>
+                    <p id="modal-confirm-text" class="text-sm text-slate-500 leading-relaxed"></p>
+                </div>
+                <div id="modal-step-error" class="hidden text-center py-4">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="material-symbols-outlined text-red-500 text-3xl">error</span>
+                    </div>
+                    <h4 class="text-lg font-bold text-slate-800 mb-2">오류가 발생했습니다</h4>
+                    <p class="text-sm text-slate-500">잠시 후 다시 시도해 주세요. 또는 055-230-8200으로 전화 문의해 주세요.</p>
+                </div>
+            </div>
+            <!-- Modal Footer -->
+            <div class="px-6 pb-6 flex gap-3">
+                <button id="modal-cancel" class="flex-1 py-3 rounded-xl border border-stone-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm">취소</button>
+                <button id="modal-next" class="flex-1 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary-light transition-colors text-sm">다음</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ CHAT WIDGET ═══════════════════ -->
+    <div id="noma-widget" class="fixed bottom-5 right-5 z-[100] font-sans">
+        <button id="noma-toggle" class="w-14 h-14 rounded-full text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center bg-gradient-to-br from-primary to-deep-purple hover:scale-105 active:scale-95">
+            <span class="material-symbols-outlined text-2xl">chat</span>
+        </button>
+        <div id="noma-panel" class="hidden fixed bottom-[88px] right-[20px] z-[110] w-[380px] h-[560px] min-w-[300px] min-h-[400px] max-w-[900px] max-h-[900px] bg-white rounded-2xl shadow-2xl border border-stone-200 flex flex-col overflow-hidden" style="resize: both; overflow: auto;">
+            <!-- Chat Header -->
+            <div class="flex items-center justify-between px-4 py-3 border-b border-stone-100 bg-gradient-to-r from-primary/5 to-purple-50">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-deep-purple flex items-center justify-center shadow-sm">
+                        <span class="material-symbols-outlined text-white !text-lg">smart_toy</span>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800 leading-tight">노마(Noma)</h2>
+                        <span class="text-[10px] text-slate-500">AI 복지 상담원</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <button id="noma-tts-toggle" class="p-1 text-slate-400 hover:text-blue-500 transition-colors rounded" title="음성 읽기">
+                        <span class="material-symbols-outlined !text-xl">volume_up</span>
+                    </button>
+                    <button id="noma-continuous-toggle" class="p-1 text-slate-400 hover:text-blue-500 transition-colors rounded" title="연속 대화 모드">
+                        <span class="material-symbols-outlined !text-xl">record_voice_over</span>
+                    </button>
+                    <button id="noma-popout" class="p-1 text-slate-400 hover:text-blue-500 transition-colors rounded" title="새 창으로 열기">
+                        <span class="material-symbols-outlined !text-xl">open_in_new</span>
+                    </button>
+                    <button id="noma-clear" class="p-1 text-slate-400 hover:text-red-500 transition-colors rounded" title="대화 초기화">
+                        <span class="material-symbols-outlined !text-xl">delete</span>
+                    </button>
+                    <button id="noma-close" class="p-1 text-slate-400 hover:text-slate-600 transition-colors rounded">
+                        <span class="material-symbols-outlined !text-xl">close</span>
+                    </button>
+                </div>
+            </div>
+            <!-- Voice Conversation Indicator -->
+            <div id="noma-voice-indicator" class="hidden px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-500 !text-lg voice-listening-pulse">mic</span>
+                    <span class="text-xs font-semibold text-blue-700">연속 대화 모드</span>
+                </div>
+                <button id="noma-voice-stop" class="text-xs font-semibold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-full transition-colors">중지</button>
+            </div>
+            <!-- Chat Messages -->
+            <div id="noma-messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-stone-50/50 flex flex-col scrollbar-hide">
+                <div class="flex justify-start">
+                    <div class="bg-white rounded-2xl rounded-tl-sm border border-stone-200 px-4 py-3 shadow-sm max-w-[85%]">
+                        <p class="text-sm text-slate-700 leading-relaxed">안녕하세요! 저는 경상남도사회서비스원 AI 복지 상담원 <b>노마(Noma)</b>입니다.<br/>어떤 어려움이 있으신지 편하게 말씀해 주세요. 맞춤 서비스를 찾아 드리겠습니다.</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Chat Input -->
+            <form id="noma-form" class="p-3 border-t border-stone-100 bg-white">
+                <div class="flex items-end gap-2 bg-stone-50 border rounded-xl p-2 border-stone-200 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+                    <textarea id="noma-input" rows="1" class="flex-1 resize-none border-0 bg-transparent px-2 py-1.5 text-sm focus:outline-none placeholder:text-slate-400 min-h-[36px] max-h-[80px] scrollbar-hide" placeholder="어려운 점을 말씀해 주세요..."></textarea>
+                    <button type="button" id="noma-mic" class="bg-white hover:bg-stone-100 text-slate-400 rounded-full w-8 h-8 flex items-center justify-center transition-colors flex-shrink-0" title="음성 입력">
+                        <span class="material-symbols-outlined !text-lg">mic</span>
+                    </button>
+                    <button type="submit" id="noma-send" class="w-8 h-8 rounded-lg flex items-center justify-center bg-primary hover:bg-primary-light text-white flex-shrink-0 transition-colors disabled:opacity-40" disabled>
+                        <span class="material-symbols-outlined !text-sm">send</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ JAVASCRIPT ═══════════════════ -->
+    <script>
+    (() => {
+        // ── DOM References ──
+        const $ = id => document.getElementById(id);
+        const DOM = {
+            heroSection: $('hero-section'),
+            heroInput: $('hero-input'),
+            heroSubmit: $('hero-submit'),
+            heroMic: $('hero-mic'),
+            heroChips: $('hero-chips'),
+            resultsSection: $('results-section'),
+            aiSummaryArea: $('ai-summary-area'),
+            aiSummaryText: $('ai-summary-text'),
+            cardsTitle: $('cards-title'),
+            cardsGrid: $('cards-grid'),
+            cardsSkeleton: $('cards-skeleton'),
+            discoverMore: $('discover-more'),
+            btnNewSearch: $('btn-new-search'),
+            initialPlaceholder: $('initial-placeholder'),
+            // Browse
+            browseTabs: $('browse-tabs'),
+            browseList: $('browse-list'),
+            browseLoading: $('browse-loading'),
+            // Modal
+            serviceModal: $('service-modal'),
+            modalServiceName: $('modal-service-name'),
+            modalStepName: $('modal-step-name'),
+            modalStepPhone: $('modal-step-phone'),
+            modalStepConfirm: $('modal-step-confirm'),
+            modalStepError: $('modal-step-error'),
+            modalNameInput: $('modal-name-input'),
+            modalPhoneInput: $('modal-phone-input'),
+            modalConfirmText: $('modal-confirm-text'),
+            modalCancel: $('modal-cancel'),
+            modalNext: $('modal-next'),
+            // Chat Widget
+            nomaToggle: $('noma-toggle'),
+            nomaPanel: $('noma-panel'),
+            nomaClose: $('noma-close'),
+            nomaClear: $('noma-clear'),
+            nomaPopout: $('noma-popout'),
+            nomaForm: $('noma-form'),
+            nomaInput: $('noma-input'),
+            nomaMessages: $('noma-messages'),
+            nomaSend: $('noma-send'),
+            nomaMic: $('noma-mic'),
+            nomaTtsToggle: $('noma-tts-toggle'),
+            nomaContinuousToggle: $('noma-continuous-toggle'),
+            nomaVoiceIndicator: $('noma-voice-indicator'),
+            nomaVoiceStop: $('noma-voice-stop'),
+        };
+
+        // ── State ──
+        let chatHistory = [];
+        let currentCards = [];
+        let modalState = { step: 'name', serviceName: '', name: '', phone: '' };
+        let serviceRequestState = null; // Conversational info collection state
+        // Voice conversation state
+        let voiceAutoSubmit = true;
+        let continuousVoiceMode = false;
+        let ttsEnabled = false;
+        let isSpeaking = false;
+        let currentUtterance = null;
+        let currentAudio = null;
+        let isListeningContinuous = false;
+        let voiceConversationActive = false;
+
+        // ── Utility: Parse <noma-card> blocks from AI text ──
+        function parseNomaCards(text) {
+            const cards = [];
+            const regex = /<noma-card>([\s\S]*?)<\/noma-card>/g;
+            let match;
+            while ((match = regex.exec(text)) !== null) {
+                try {
+                    cards.push(JSON.parse(match[1].trim()));
+                } catch (e) { /* skip malformed */ }
+            }
+            const cleanText = text.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
+            return { cards, summaryText: cleanText };
+        }
+
+        // ── Utility: Basic markdown to HTML ──
+        function md(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br/>');
+        }
+
+        // ── Card Colors Pool ──
+        const cardThemes = [
+            { bg: 'bg-primary/10', text: 'text-primary', icon: 'emergency', border: 'border-primary/20', reasonBg: 'bg-amber-50', reasonBorder: 'border-amber-100', reasonTitle: 'text-amber-800', reasonText: 'text-amber-900/80' },
+            { bg: 'bg-blue-50', text: 'text-blue-600', icon: 'home_health', border: 'border-blue-200', reasonBg: 'bg-blue-50', reasonBorder: 'border-blue-100', reasonTitle: 'text-blue-800', reasonText: 'text-blue-900/80' },
+            { bg: 'bg-emerald-50', text: 'text-emerald-600', icon: 'smart_toy', border: 'border-emerald-200', reasonBg: 'bg-emerald-50', reasonBorder: 'border-emerald-100', reasonTitle: 'text-emerald-800', reasonText: 'text-emerald-900/80' },
+            { bg: 'bg-violet-50', text: 'text-violet-600', icon: 'volunteer_activism', border: 'border-violet-200', reasonBg: 'bg-violet-50', reasonBorder: 'border-violet-100', reasonTitle: 'text-violet-800', reasonText: 'text-violet-900/80' },
+        ];
+
+        // ── Render a single recommendation card ──
+        function createCardElement(data, index) {
+            const theme = cardThemes[index % cardThemes.length];
+            const delay = index * 100;
+            const card = document.createElement('div');
+            card.className = `bg-white rounded-2xl p-6 md:p-7 shadow-sm border border-stone-100 hover:border-primary/20 flex flex-col h-full transition-all group relative overflow-hidden opacity-0 animate-fade-up`;
+            card.style.animationDelay = `${delay}ms`;
+
+            card.innerHTML = `
+                <div class="absolute top-0 right-0 w-28 h-28 ${theme.bg} rounded-full -mr-8 -mt-8 blur-2xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
+                <div class="flex items-start justify-between mb-4 relative z-10">
+                    <div class="${theme.bg} p-3 rounded-xl ${theme.text}">
+                        <span class="material-symbols-outlined text-2xl">${theme.icon}</span>
+                    </div>
+                    <button class="btn-bookmark p-2 rounded-lg text-stone-300 hover:text-primary hover:bg-primary/5 transition-all" data-service-name="${data.serviceName || ''}" title="내 서랍에 담기">
+                        <span class="material-symbols-outlined text-xl">bookmark_add</span>
+                    </button>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2 relative z-10 break-keep">${data.serviceName || ''}</h3>
+                <p class="text-slate-500 text-sm mb-4 leading-relaxed relative z-10 break-keep">${data.summary || ''}</p>
+
+                <div class="space-y-2 mb-5 relative z-10 text-sm">
+                    ${data.target ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">group</span><div><span class="font-semibold text-slate-700">지원 대상</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${data.target}</p></div></div>` : ''}
+                    ${data.benefits ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">featured_seasonal_and_gifts</span><div><span class="font-semibold text-slate-700">지원 내용</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${data.benefits}</p></div></div>` : ''}
+                    ${data.method ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">edit_document</span><div><span class="font-semibold text-slate-700">신청 방법</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${data.method}</p></div></div>` : ''}
+                </div>
+
+                ${data.agency ? `<p class="text-[11px] text-slate-400 mb-4 relative z-10 flex items-center gap-1"><span class="material-symbols-outlined text-xs">account_balance</span>담당: ${data.agency}</p>` : ''}
+
+                <div class="mt-auto relative z-10">
+                    <button class="btn-apply w-full bg-primary hover:bg-primary-light active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-sm" data-service="${data.serviceName || ''}">
+                        이 사업 상담 신청하기
+                        <span class="material-symbols-outlined text-base">arrow_outward</span>
+                    </button>
+                    <p class="text-[10px] text-slate-400 text-center mt-2 leading-snug">버튼을 누르시면 담당 기관에 이메일로 정보가 전달되며,<br/>2~3일 내로 전화 연락을 드릴 예정입니다.</p>
+                </div>
+            `;
+            return card;
+        }
+
+        // ══════════════════════════════════════════
+        // ── BROWSE ALL SERVICES ──
+        // ══════════════════════════════════════════
+
+        let browseData = [];
+        let browseActiveCategory = null;
+
+        async function loadBrowseServices() {
+            try {
+                const res = await fetch('/api/services');
+                if (!res.ok) throw new Error('API error');
+                browseData = await res.json();
+                DOM.browseLoading.classList.add('hidden');
+                renderBrowseTabs();
+                if (browseData.length > 0) selectBrowseCategory(browseData[0].category);
+            } catch (e) {
+                DOM.browseLoading.innerHTML = '<p class="text-slate-400 text-sm">서비스 목록을 불러올 수 없습니다.</p>';
+            }
+        }
+
+        function renderBrowseTabs() {
+            DOM.browseTabs.innerHTML = browseData.map(cat => `
+                <button class="browse-tab flex items-center gap-2 px-5 py-3 rounded-xl border-2 transition-all text-sm font-semibold" data-cat="${cat.category}"
+                    style="border-color: ${cat.color}20; color: ${cat.color};">
+                    <span class="material-symbols-outlined text-lg">${cat.icon}</span>
+                    ${cat.category}
+                    <span class="text-xs font-normal opacity-70">(${cat.services.length})</span>
+                </button>
+            `).join('');
+
+            DOM.browseTabs.addEventListener('click', e => {
+                const tab = e.target.closest('.browse-tab');
+                if (tab) selectBrowseCategory(tab.dataset.cat);
+            });
+        }
+
+        function selectBrowseCategory(catName) {
+            browseActiveCategory = catName;
+            const cat = browseData.find(c => c.category === catName);
+            if (!cat) return;
+
+            // Update tab active state
+            DOM.browseTabs.querySelectorAll('.browse-tab').forEach(tab => {
+                const isActive = tab.dataset.cat === catName;
+                tab.style.backgroundColor = isActive ? cat.color + '10' : 'white';
+                tab.style.borderColor = isActive ? cat.color : cat.color + '20';
+                tab.style.transform = isActive ? 'scale(1.05)' : '';
+            });
+
+            // Render service list
+            DOM.browseList.innerHTML = `
+                <p class="text-sm text-slate-500 mb-4 px-1">${cat.desc}</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    ${cat.services.map((s, i) => `
+                        <div class="browse-item bg-white border border-stone-200 rounded-xl p-5 hover:border-primary/30 hover:shadow-md transition-all cursor-pointer group opacity-0 animate-fade-up" style="animation-delay:${i * 50}ms" data-idx="${i}">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex-1 min-w-0">
+                                    <h4 class="font-bold text-slate-800 text-[15px] mb-1.5 group-hover:text-primary transition-colors break-keep">${s.name}</h4>
+                                    <p class="text-xs text-slate-500 leading-relaxed line-clamp-2 break-keep">${s.summary}</p>
+                                </div>
+                                <div class="flex items-center gap-1 flex-shrink-0">
+                                    <button class="browse-bookmark p-1 rounded text-stone-300 hover:text-primary transition-colors" data-service-name="${s.name}" data-summary="${(s.summary || '').replace(/"/g, '&quot;')}" data-agency="${(s.agency || '').replace(/"/g, '&quot;')}" title="내 서랍에 담기" onclick="event.stopPropagation()">
+                                        <span class="material-symbols-outlined text-lg">bookmark_add</span>
+                                    </button>
+                                    <span class="material-symbols-outlined text-stone-300 group-hover:text-primary transition-colors mt-1">chevron_right</span>
+                                </div>
+                            </div>
+                            <!-- Expandable Detail -->
+                            <div class="browse-detail hidden mt-4 pt-4 border-t border-stone-100 space-y-3 text-sm">
+                                ${s.target ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">group</span><div><span class="font-semibold text-slate-700">지원 대상</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.target}</p></div></div>` : ''}
+                                ${s.benefits ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">featured_seasonal_and_gifts</span><div><span class="font-semibold text-slate-700">지원 내용</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.benefits}</p></div></div>` : ''}
+                                ${s.method ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">edit_document</span><div><span class="font-semibold text-slate-700">신청 방법</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.method}</p></div></div>` : ''}
+                                ${s.agency ? `<p class="text-[11px] text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-xs">account_balance</span>담당: ${s.agency}</p>` : ''}
+                                <button class="browse-apply w-full bg-primary hover:bg-primary-light text-white font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm mt-2" data-service="${s.name}">
+                                    이 사업 상담 신청하기
+                                    <span class="material-symbols-outlined text-base">arrow_outward</span>
+                                </button>
+                                <p class="text-[10px] text-slate-400 text-center leading-snug">버튼을 누르시면 담당 기관에 이메일로 정보가 전달되며,<br/>2~3일 내로 전화 연락을 드릴 예정입니다.</p>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            // Toggle detail on click
+            DOM.browseList.querySelectorAll('.browse-item').forEach(item => {
+                item.addEventListener('click', e => {
+                    if (e.target.closest('.browse-apply') || e.target.closest('.browse-bookmark')) return;
+                    const detail = item.querySelector('.browse-detail');
+                    const isOpen = !detail.classList.contains('hidden');
+                    // Close all
+                    DOM.browseList.querySelectorAll('.browse-detail').forEach(d => d.classList.add('hidden'));
+                    if (!isOpen) detail.classList.remove('hidden');
+                });
+            });
+
+            // Apply buttons
+            DOM.browseList.addEventListener('click', e => {
+                const btn = e.target.closest('.browse-apply');
+                if (btn) { e.stopPropagation(); openServiceModal(btn.dataset.service); }
+            });
+
+            // Browse bookmark buttons
+            DOM.browseList.querySelectorAll('.browse-bookmark').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    handleBookmark(btn.dataset.serviceName, {
+                        serviceName: btn.dataset.serviceName,
+                        summary: btn.dataset.summary || '',
+                        agency: btn.dataset.agency || ''
+                    });
+                });
+            });
+        }
+
+        loadBrowseServices();
+
+        // ══════════════════════════════════════════
+        // ── HERO SEARCH → INLINE RESULTS FLOW ──
+        // ══════════════════════════════════════════
+
+        async function performSearch(query) {
+            if (!query.trim()) return;
+
+            // Transition to results state
+            DOM.heroSection.classList.add('hero-compact');
+            DOM.heroChips.classList.add('hidden');
+            DOM.initialPlaceholder.classList.add('hidden');
+            DOM.resultsSection.classList.remove('hidden');
+            DOM.aiSummaryArea.classList.add('hidden');
+            DOM.discoverMore.classList.add('hidden');
+            DOM.btnNewSearch.classList.remove('hidden');
+            DOM.cardsGrid.innerHTML = '';
+            DOM.cardsSkeleton.classList.remove('hidden');
+
+            // Add to chat history
+            chatHistory.push({ role: 'user', content: query });
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: chatHistory })
+                });
+
+                if (!response.ok) throw new Error('Network error');
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    for (const line of chunk.split('\n')) {
+                        if (!line.startsWith('data: ')) continue;
+                        const dataStr = line.slice(6).trim();
+                        if (dataStr === '[DONE]') break;
+                        try {
+                            const data = JSON.parse(dataStr);
+                            if (data.text) fullResponse += data.text;
+                        } catch (e) { /* partial chunk */ }
+                    }
+                }
+
+                chatHistory.push({ role: 'model', content: fullResponse });
+                saveHistory();
+
+                // Parse cards and summary
+                const { cards, summaryText } = parseNomaCards(fullResponse);
+                currentCards = cards;
+
+                // Hide skeleton
+                DOM.cardsSkeleton.classList.add('hidden');
+
+                // Show AI summary
+                if (summaryText) {
+                    DOM.aiSummaryArea.classList.remove('hidden');
+                    DOM.aiSummaryText.innerHTML = md(summaryText);
+                }
+
+                // Render cards or handle no-card cases
+                if (cards.length > 0) {
+                    // 추천 서비스 카드가 있는 경우
+                    DOM.cardsTitle.classList.remove('hidden');
+                    DOM.cardsGrid.classList.remove('hidden');
+                    cards.forEach((card, i) => {
+                        DOM.cardsGrid.appendChild(createCardElement(card, i));
+                    });
+                } else if (summaryText) {
+                    // AI 텍스트 답변은 있지만 카드가 없는 경우 (일반 질문)
+                    // → "맞춤 추천 서비스" 섹션 자체를 숨김
+                    DOM.cardsTitle.classList.add('hidden');
+                    DOM.cardsGrid.classList.add('hidden');
+                } else {
+                    // 텍스트도 카드도 없는 경우
+                    DOM.cardsTitle.classList.remove('hidden');
+                    DOM.cardsGrid.classList.remove('hidden');
+                    DOM.cardsGrid.innerHTML = `
+                        <div class="col-span-full text-center py-10 opacity-0 animate-fade-up">
+                            <span class="material-symbols-outlined text-stone-300 text-5xl mb-3">search_off</span>
+                            <p class="text-slate-500 text-sm">관련 서비스를 찾지 못했습니다.<br/>노마에게 더 자세히 물어보시면 도움을 드릴 수 있습니다.</p>
+                        </div>
+                    `;
+                }
+
+                // Show discover more
+                DOM.discoverMore.classList.remove('hidden');
+
+                // Smooth scroll to results
+                DOM.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                // TTS: read AI summary aloud
+                if (fullResponse) {
+                    await speakText(extractSpeakableText(fullResponse));
+                }
+
+            } catch (err) {
+                console.error('Search error:', err);
+                DOM.cardsSkeleton.classList.add('hidden');
+                DOM.cardsGrid.innerHTML = `
+                    <div class="col-span-full text-center py-10">
+                        <span class="material-symbols-outlined text-red-300 text-5xl mb-3">error_outline</span>
+                        <p class="text-slate-500 text-sm">AI 서버에 연결할 수 없습니다.<br/>로컬 서버(localhost:5000)가 실행 중인지 확인해 주세요.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // ── Hero Event Handlers ──
+        function handleHeroSubmit() {
+            const query = DOM.heroInput.value.trim();
+            if (!query) return;
+            performSearch(query);
+        }
+
+        DOM.heroSubmit.addEventListener('click', handleHeroSubmit);
+        DOM.heroInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') { e.preventDefault(); handleHeroSubmit(); }
+        });
+
+        document.querySelectorAll('.hero-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const msg = chip.getAttribute('data-msg');
+                DOM.heroInput.value = msg;
+                handleHeroSubmit();
+            });
+        });
+
+        // ── Reset to Home ──
+        function resetToHome() {
+            // 히어로 섹션 복원
+            DOM.heroSection.classList.remove('hero-compact');
+            DOM.heroChips.classList.remove('hidden');
+            DOM.resultsSection.classList.add('hidden');
+            DOM.initialPlaceholder.classList.remove('hidden');
+            DOM.heroInput.value = '';
+            currentCards = [];
+
+            // 모달 닫기
+            DOM.serviceModal.classList.add('hidden');
+
+            // 챗봇 패널 닫기
+            DOM.nomaPanel.classList.add('hidden');
+            DOM.nomaToggle.classList.remove('scale-0');
+
+            // 대화 내역 초기화
+            clearChatData();
+
+            // 최상단 스크롤
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // New search button
+        DOM.btnNewSearch.addEventListener('click', resetToHome);
+
+        // Browse scroll from discover section
+        const btnBrowseScroll = $('btn-browse-scroll');
+        if (btnBrowseScroll) {
+            btnBrowseScroll.addEventListener('click', () => {
+                document.getElementById('browse-section')?.scrollIntoView({ behavior: 'smooth' });
+            });
+        }
+
+        // ── Card Click → Service Request Modal ──
+        DOM.cardsGrid.addEventListener('click', e => {
+            const btn = e.target.closest('.btn-apply');
+            if (!btn) return;
+            openServiceModal(btn.dataset.service);
+        });
+
+        // ══════════════════════════════════════
+        // ── SERVICE REQUEST MODAL ──
+        // ══════════════════════════════════════
+
+        function openServiceModal(serviceName) {
+            modalState = { step: 'name', serviceName, name: '', phone: '' };
+            DOM.modalServiceName.textContent = serviceName;
+            DOM.modalStepName.classList.remove('hidden');
+            DOM.modalStepPhone.classList.add('hidden');
+            DOM.modalStepConfirm.classList.add('hidden');
+            DOM.modalStepError.classList.add('hidden');
+            DOM.modalNext.textContent = '다음';
+            DOM.modalNext.classList.remove('hidden');
+            DOM.modalCancel.textContent = '취소';
+            DOM.modalCancel.classList.remove('hidden');
+            DOM.modalNameInput.value = '';
+            DOM.modalPhoneInput.value = '';
+            DOM.serviceModal.classList.remove('hidden');
+            setTimeout(() => DOM.modalNameInput.focus(), 100);
+        }
+
+        DOM.modalCancel.addEventListener('click', () => {
+            if (modalState.step === 'confirm') {
+                // 신청 완료 상태에서 닫기 → 첫 화면 복귀
+                resetToHome();
+            } else {
+                DOM.serviceModal.classList.add('hidden');
+            }
+        });
+
+        DOM.serviceModal.addEventListener('click', e => {
+            if (e.target === DOM.serviceModal) DOM.serviceModal.classList.add('hidden');
+        });
+
+        DOM.modalNext.addEventListener('click', async () => {
+            if (modalState.step === 'name') {
+                const name = DOM.modalNameInput.value.trim();
+                if (!name) { DOM.modalNameInput.focus(); return; }
+                modalState.name = name;
+                modalState.step = 'phone';
+                DOM.modalStepName.classList.add('hidden');
+                DOM.modalStepPhone.classList.remove('hidden');
+                DOM.modalNext.textContent = '신청 완료';
+                setTimeout(() => DOM.modalPhoneInput.focus(), 100);
+            } else if (modalState.step === 'phone') {
+                const phone = DOM.modalPhoneInput.value.trim();
+                if (!phone) { DOM.modalPhoneInput.focus(); return; }
+                modalState.phone = phone;
+                DOM.modalNext.textContent = '처리 중...';
+                DOM.modalNext.disabled = true;
+
+                try {
+                    const res = await fetch('/api/service-request/connect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            serviceName: modalState.serviceName,
+                            userName: modalState.name,
+                            userPhone: modalState.phone
+                        })
+                    });
+                    if (!res.ok) throw new Error('API failed');
+
+                    modalState.step = 'confirm';
+                    DOM.modalStepPhone.classList.add('hidden');
+                    DOM.modalStepConfirm.classList.remove('hidden');
+                    DOM.modalConfirmText.innerHTML = `<b>${modalState.name}</b>님, <b>${modalState.serviceName}</b> 담당 기관에 상담 요청을 보냈습니다.<br/>2~3일 내로 <b>${modalState.phone}</b>으로 연락드릴 예정입니다.<br/><span class="text-[10px] text-slate-400 mt-2 inline-block">잠시 후 처음 화면으로 돌아갑니다...</span>`;
+                    DOM.modalNext.classList.add('hidden');
+                    DOM.modalCancel.textContent = '닫기';
+
+                    // 4초 후 자동 복귀
+                    setTimeout(resetToHome, 4000);
+                } catch (err) {
+                    modalState.step = 'error';
+                    DOM.modalStepPhone.classList.add('hidden');
+                    DOM.modalStepError.classList.remove('hidden');
+                    DOM.modalNext.classList.add('hidden');
+                    DOM.modalCancel.textContent = '닫기';
+                } finally {
+                    DOM.modalNext.disabled = false;
+                }
+            }
+        });
+
+        // Enter key in modal inputs
+        DOM.modalNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') DOM.modalNext.click(); });
+        DOM.modalPhoneInput.addEventListener('keydown', e => { if (e.key === 'Enter') DOM.modalNext.click(); });
+
+        // ══════════════════════════════════════
+        // ── CHAT WIDGET ──
+        // ══════════════════════════════════════
+
+        // Toggle panel
+        DOM.nomaToggle.addEventListener('click', () => {
+            DOM.nomaPanel.classList.remove('hidden');
+            DOM.nomaToggle.classList.add('scale-0');
+            DOM.nomaInput.focus();
+            if (!DOM.nomaPanel.style.top) {
+                const rect = DOM.nomaPanel.getBoundingClientRect();
+                DOM.nomaPanel.style.top = rect.top + 'px';
+                DOM.nomaPanel.style.left = rect.left + 'px';
+                DOM.nomaPanel.style.bottom = 'auto';
+                DOM.nomaPanel.style.right = 'auto';
+            }
+        });
+
+        DOM.nomaClose.addEventListener('click', () => {
+            DOM.nomaPanel.classList.add('hidden');
+            DOM.nomaToggle.classList.remove('scale-0');
+        });
+
+        // Draggable panel
+        const chatHeader = DOM.nomaPanel.querySelector('.border-b');
+        let isDragging = false, dragStartX, dragStartY, dragInitLeft, dragInitTop;
+        chatHeader.style.cursor = 'grab';
+
+        chatHeader.addEventListener('mousedown', e => {
+            if (e.target.closest('button')) return;
+            isDragging = true;
+            chatHeader.style.cursor = 'grabbing';
+            dragStartX = e.clientX; dragStartY = e.clientY;
+            const cs = getComputedStyle(DOM.nomaPanel);
+            dragInitLeft = parseInt(cs.left) || 0;
+            dragInitTop = parseInt(cs.top) || 0;
+            DOM.nomaPanel.style.transition = 'none';
+        });
+        document.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            e.preventDefault();
+            DOM.nomaPanel.style.left = `${dragInitLeft + e.clientX - dragStartX}px`;
+            DOM.nomaPanel.style.top = `${dragInitTop + e.clientY - dragStartY}px`;
+        });
+        document.addEventListener('mouseup', () => {
+            if (isDragging) { isDragging = false; chatHeader.style.cursor = 'grab'; DOM.nomaPanel.style.transition = ''; }
+        });
+
+        // Clear chat
+        DOM.nomaClear.addEventListener('click', () => {
+            if (!confirm('모든 대화 기록을 지우고 새로 시작할까요?')) return;
+            clearChatData();
+        });
+
+        // Pop-out
+        DOM.nomaPopout.addEventListener('click', () => {
+            window.open(location.href.split('?')[0] + '?nomaPopout=true', 'NomaChat', 'width=420,height=700,menubar=no,toolbar=no,location=no,status=no,resizable=yes');
+            DOM.nomaPanel.classList.add('hidden');
+            DOM.nomaToggle.classList.remove('scale-0');
+        });
+
+        // Pop-out mode check
+        if (new URLSearchParams(location.search).get('nomaPopout') === 'true') {
+            document.body.classList.add('is-noma-popout');
+            document.title = '노마(Noma) AI - 경상남도사회서비스원';
+        }
+
+        // Auto-resize textarea
+        DOM.nomaInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+            DOM.nomaSend.disabled = !this.value.trim();
+        });
+
+        DOM.nomaInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (DOM.nomaInput.value.trim()) DOM.nomaForm.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        // ── Card formatting for chat messages ──
+        function formatChatMessage(text) {
+            const cardRegex = /<noma-card>([\s\S]*?)<\/noma-card>/g;
+            const cards = [];
+
+            let html = text.replace(cardRegex, (_, json) => {
+                try {
+                    cards.push(JSON.parse(json.trim()));
+                    return `___CARD_${cards.length - 1}___`;
+                } catch (e) { return _; }
+            });
+
+            html = md(html);
+
+            cards.forEach((data, i) => {
+                const cardHtml = `
+                    <div class="mt-2 mb-2 p-4 bg-white border border-stone-200 rounded-xl shadow-sm text-sm text-slate-700 max-w-full">
+                        <h3 class="font-bold text-base text-primary mb-1">${data.serviceName || ''}</h3>
+                        <p class="text-xs text-slate-500 mb-3">${data.summary || ''}</p>
+                        <details class="group mb-3">
+                            <summary class="cursor-pointer text-xs font-semibold text-slate-600 bg-stone-100 p-2 rounded flex justify-between items-center hover:bg-stone-200 transition-colors">
+                                <span>자세히 보기</span>
+                                <span class="transition-transform group-open:rotate-180">&#9662;</span>
+                            </summary>
+                            <div class="p-3 text-xs space-y-2 border-x border-b border-stone-100 rounded-b bg-stone-50 leading-relaxed">
+                                ${data.target ? `<div><strong class="text-slate-600">지원 대상</strong> ${data.target}</div>` : ''}
+                                ${data.method ? `<div><strong class="text-slate-600">신청 방법</strong> ${data.method}</div>` : ''}
+                                ${data.benefits ? `<div><strong class="text-slate-600">주요 혜택</strong> ${data.benefits}</div>` : ''}
+                            </div>
+                        </details>
+                        ${data.agency ? `<p class="text-[10px] text-slate-400 mb-2">담당: ${data.agency}</p>` : ''}
+                        <div class="flex gap-2">
+                            <button class="btn-chat-apply flex-1 bg-primary/10 hover:bg-primary/20 text-primary font-bold py-2 px-4 rounded-lg transition-colors text-xs flex items-center justify-center gap-1" data-service="${data.serviceName || ''}">
+                                <span class="material-symbols-outlined !text-sm">outgoing_mail</span>
+                                담당자 연결
+                            </button>
+                            <button class="btn-chat-bookmark bg-stone-100 hover:bg-primary/10 text-stone-400 hover:text-primary py-2 px-3 rounded-lg transition-colors text-xs flex items-center justify-center" data-service-name="${data.serviceName || ''}" data-summary="${(data.summary || '').replace(/"/g, '&quot;')}" data-agency="${(data.agency || '').replace(/"/g, '&quot;')}">
+                                <span class="material-symbols-outlined !text-sm">bookmark_add</span>
+                            </button>
+                        </div>
+                        <p class="text-[9px] text-slate-400 text-center mt-1 leading-snug">버튼을 누르시면 담당 기관에 정보가 전달됩니다.</p>
+                    </div>
+                `;
+                html = html.replace(`___CARD_${i}___`, cardHtml);
+            });
+
+            return html;
+        }
+
+        // ── Append chat message ──
+        function appendChatMessage(role, text, skipScroll = false) {
+            const isUser = role === 'user';
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+
+            const bubble = document.createElement('div');
+            bubble.className = isUser
+                ? 'bg-primary text-white rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[85%] shadow-sm text-sm whitespace-pre-wrap'
+                : 'bg-white text-slate-700 rounded-2xl rounded-tl-sm border border-stone-200 px-4 py-3 shadow-sm max-w-[85%] text-sm whitespace-pre-wrap';
+
+            if (role === 'model') {
+                bubble.innerHTML = formatChatMessage(text);
+            } else {
+                bubble.textContent = text;
+            }
+
+            wrapper.appendChild(bubble);
+            DOM.nomaMessages.appendChild(wrapper);
+            if (!skipScroll) DOM.nomaMessages.scrollTop = DOM.nomaMessages.scrollHeight;
+            return bubble;
+        }
+
+        // ── Chat submit ──
+        DOM.nomaForm.addEventListener('submit', async e => {
+            e.preventDefault();
+            const text = DOM.nomaInput.value.trim();
+            if (!text) return;
+
+            // Conversational service request mode: intercept input
+            if (serviceRequestState) {
+                appendChatMessage('user', text);
+                DOM.nomaInput.value = '';
+                DOM.nomaInput.style.height = 'auto';
+                DOM.nomaSend.disabled = true;
+                handleConversationalInput(text);
+                return;
+            }
+
+            appendChatMessage('user', text);
+            chatHistory.push({ role: 'user', content: text });
+            saveHistory();
+
+            DOM.nomaInput.value = '';
+            DOM.nomaInput.style.height = 'auto';
+            DOM.nomaInput.disabled = true;
+            DOM.nomaSend.disabled = true;
+
+            const aiBubble = appendChatMessage('model', '');
+            aiBubble.innerHTML = '<span class="inline-block animate-pulse-soft text-slate-400 text-sm">분석 중...</span>';
+
+            let fullResponse = '';
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: chatHistory })
+                });
+                if (!res.ok) throw new Error('Network error');
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value, { stream: true });
+                    for (const line of chunk.split('\n')) {
+                        if (!line.startsWith('data: ')) continue;
+                        const dataStr = line.slice(6).trim();
+                        if (dataStr === '[DONE]') break;
+                        try {
+                            const d = JSON.parse(dataStr);
+                            if (d.text) {
+                                fullResponse += d.text;
+                                aiBubble.innerHTML = formatChatMessage(fullResponse);
+                                DOM.nomaMessages.scrollTop = DOM.nomaMessages.scrollHeight;
+                            }
+                        } catch (e) { /* partial */ }
+                    }
+                }
+
+                chatHistory.push({ role: 'model', content: fullResponse });
+                saveHistory();
+
+            } catch (err) {
+                aiBubble.innerHTML = '<span class="text-red-500 text-sm">오류: 서버 연결에 실패했습니다. localhost:5000이 실행 중인지 확인해 주세요.</span>';
+            } finally {
+                DOM.nomaInput.disabled = false;
+                DOM.nomaInput.focus();
+            }
+
+            // TTS: read AI response aloud
+            if (fullResponse) {
+                await speakText(extractSpeakableText(fullResponse));
+            }
+            // Continuous voice: restart listening after TTS completes
+            if (continuousVoiceMode && voiceConversationActive) {
+                startContinuousListening();
+            }
+        });
+
+        // ══════════════════════════════════════
+        // ── CONVERSATIONAL SERVICE REQUEST ──
+        // ══════════════════════════════════════
+
+        function normalizePhone(text) {
+            const koreanDigits = {
+                '공': '0', '영': '0', '빵': '0',
+                '하나': '1', '일': '1',
+                '둘': '2', '이': '2',
+                '셋': '3', '삼': '3',
+                '넷': '4', '사': '4',
+                '다섯': '5', '오': '5',
+                '여섯': '6', '육': '6',
+                '일곱': '7', '칠': '7',
+                '여덟': '8', '팔': '8',
+                '아홉': '9', '구': '9',
+            };
+            let normalized = text;
+            // Replace longer words first to avoid partial matches
+            Object.entries(koreanDigits)
+                .sort((a, b) => b[0].length - a[0].length)
+                .forEach(([word, digit]) => {
+                    normalized = normalized.replace(new RegExp(word, 'g'), digit);
+                });
+            return normalized.replace(/[^0-9]/g, '');
+        }
+
+        function formatPhoneNumber(digits) {
+            if (digits.length === 11) return `${digits.slice(0,3)}-${digits.slice(3,7)}-${digits.slice(7)}`;
+            if (digits.length === 10) return `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`;
+            return digits;
+        }
+
+        function startConversationalRequest(serviceName) {
+            serviceRequestState = { step: 'awaiting_name', serviceName, name: '', phone: '' };
+            appendChatMessage('model', `네, **${serviceName}** 담당 기관에 연결해 드리겠습니다.\n\n먼저 성함을 여쭤봐도 될까요?`);
+        }
+
+        function handleConversationalInput(text) {
+            if (!serviceRequestState) return false;
+
+            if (serviceRequestState.step === 'awaiting_name') {
+                // Extract name: strip common suffixes
+                let name = text.trim()
+                    .replace(/(입니다|이에요|예요|이요|요|이야|야|이라고\s*합니다|라고\s*합니다)\.?$/g, '')
+                    .replace(/^(제?\s*이름은?\s*)/g, '')
+                    .replace(/^(저는?\s*)/g, '')
+                    .trim();
+                if (!name) name = text.trim();
+                serviceRequestState.name = name;
+                serviceRequestState.step = 'awaiting_phone';
+                appendChatMessage('model', `**${name}**님, 반갑습니다!\n\n연락받으실 전화번호를 말씀해 주시겠어요?\n(예: 공일공 일이삼사 오육칠팔)`);
+                return true;
+            }
+
+            if (serviceRequestState.step === 'awaiting_phone') {
+                const digits = normalizePhone(text);
+                if (digits.length < 9 || digits.length > 11) {
+                    appendChatMessage('model', `전화번호가 올바르지 않은 것 같아요. 다시 한 번 말씀해 주시겠어요?\n(예: 010-1234-5678 또는 공일공 일이삼사 오육칠팔)`);
+                    return true;
+                }
+                serviceRequestState.phone = digits;
+                serviceRequestState.step = 'awaiting_confirm';
+                const formatted = formatPhoneNumber(digits);
+                appendChatMessage('model', `확인하겠습니다.\n\n**${serviceRequestState.name}**님, **${formatted}**으로 연락드리면 될까요?\n\n"네" 또는 "아니요"로 답해 주세요.`);
+                return true;
+            }
+
+            if (serviceRequestState.step === 'awaiting_confirm') {
+                const t = text.trim();
+                const positive = /^(네|예|맞|응|그래|맞아|맞습니다|맞아요|넵|넹|확인|ㅇ|ㅇㅇ|yes|ok|좋아)/i.test(t);
+                const negative = /^(아니|아뇨|틀|다시|수정|변경|no|nope)/i.test(t);
+
+                if (positive) {
+                    const { serviceName, name, phone } = serviceRequestState;
+                    serviceRequestState = null;
+                    submitConversationalRequest(serviceName, name, phone);
+                    return true;
+                } else if (negative) {
+                    serviceRequestState.step = 'awaiting_name';
+                    serviceRequestState.name = '';
+                    serviceRequestState.phone = '';
+                    appendChatMessage('model', `알겠습니다. 다시 처음부터 진행할게요.\n\n성함을 말씀해 주시겠어요?`);
+                    return true;
+                } else {
+                    appendChatMessage('model', `"네" 또는 "아니요"로 답해 주세요.`);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        async function submitConversationalRequest(serviceName, name, phone) {
+            const formatted = formatPhoneNumber(phone);
+            const bubble = appendChatMessage('model', '');
+            bubble.innerHTML = '<span class="inline-block animate-pulse-soft text-slate-400 text-sm">신청 처리 중...</span>';
+
+            try {
+                const res = await fetch('/api/service-request/connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ serviceName, userName: name, userPhone: phone })
+                });
+                if (!res.ok) throw new Error('API failed');
+
+                bubble.innerHTML = `
+                    <div class="text-center py-3">
+                        <div class="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <span class="material-symbols-outlined text-emerald-600 text-2xl">check_circle</span>
+                        </div>
+                        <p class="font-bold text-slate-800 mb-1 text-sm">상담 신청이 완료되었습니다!</p>
+                        <p class="text-xs text-slate-500 leading-relaxed">
+                            <b>${name}</b>님, <b>${serviceName}</b> 담당 기관에<br/>
+                            상담 요청을 보냈습니다.<br/>
+                            <b>${formatted}</b>으로 2~3일 내 연락드릴 예정입니다.
+                        </p>
+                        <p class="text-[10px] text-slate-400 mt-3">잠시 후 처음 화면으로 돌아갑니다...</p>
+                    </div>
+                `;
+                DOM.nomaMessages.scrollTop = DOM.nomaMessages.scrollHeight;
+
+                // 4초 후 첫 화면 복귀
+                setTimeout(resetToHome, 4000);
+            } catch (err) {
+                bubble.innerHTML = `
+                    <p class="text-sm text-red-500">
+                        신청 처리 중 오류가 발생했습니다.<br/>
+                        잠시 후 다시 시도하시거나, <b>055-230-8200</b>으로 전화 문의해 주세요.
+                    </p>
+                `;
+            }
+        }
+
+        // Chat card apply button → conversational flow
+        DOM.nomaMessages.addEventListener('click', e => {
+            const btn = e.target.closest('.btn-chat-apply');
+            if (!btn) return;
+            startConversationalRequest(btn.dataset.service);
+        });
+
+        // ══════════════════════════════════════
+        // ── SPEECH RECOGNITION + TTS + CONTINUOUS VOICE ──
+        // ══════════════════════════════════════
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let activeInput = null;
+        let activeBtn = null;
+
+        let isRecognitionRunning = false;
+
+        function startListening(inputEl, btnEl) {
+            if (!recognition) return;
+            if (isRecognitionRunning) {
+                recognition.abort();
+                setTimeout(() => startListening(inputEl, btnEl), 150);
+                return;
+            }
+            activeInput = inputEl;
+            activeBtn = btnEl;
+            recognition.start();
+            isRecognitionRunning = true;
+            btnEl.classList.add('animate-pulse', '!text-red-500');
+            const icon = btnEl.querySelector('.material-symbols-outlined');
+            if (icon) icon.textContent = 'mic_active';
+        }
+
+        // ── TTS (Text-to-Speech) ──
+        function extractSpeakableText(text) {
+            const cardRegex = /<noma-card>([\s\S]*?)<\/noma-card>/g;
+            const cards = [];
+            let m;
+            while ((m = cardRegex.exec(text)) !== null) {
+                try {
+                    const card = JSON.parse(m[1].trim());
+                    if (card.serviceName) cards.push(card.serviceName);
+                } catch (e) {}
+            }
+            let clean = text.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
+            clean = clean.replace(/\*\*(.*?)\*\*/g, '$1');
+            clean = clean.replace(/\*(.*?)\*/g, '$1');
+            clean = clean.replace(/#{1,6}\s/g, '');
+            clean = clean.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+            clean = clean.replace(/`([^`]+)`/g, '$1');
+            if (cards.length > 0) {
+                const ordinals = ['첫', '두', '세', '네', '다섯'];
+                const cardSummary = cards.map((name, i) =>
+                    `${ordinals[i] || (i + 1)} 번째 추천 서비스는 ${name}입니다.`
+                ).join(' ');
+                clean += '\n' + cardSummary;
+            }
+            return clean.trim();
+        }
+
+        function speakText(text) {
+            return new Promise(async resolve => {
+                if (!text) { resolve(); return; }
+                stopSpeaking();
+                isSpeaking = true;
+
+                // Try Edge TTS (server-side)
+                try {
+                    const res = await fetch('/api/tts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text }),
+                    });
+                    if (!res.ok) throw new Error('TTS API error');
+                    const data = await res.json();
+                    if (data.audioContent) {
+                        const audio = new Audio('data:audio/mpeg;base64,' + data.audioContent);
+                        currentAudio = audio;
+                        audio.onended = () => { isSpeaking = false; currentAudio = null; resolve(); };
+                        audio.onerror = (e) => { console.error('Audio playback error:', e); isSpeaking = false; currentAudio = null; resolve(); };
+                        await audio.play().catch(e => { console.error('Audio play failed:', e); throw e; });
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Edge TTS failed, falling back to Web Speech API:', e.message);
+                }
+
+                // Fallback: Web Speech API
+                if (!window.speechSynthesis) { isSpeaking = false; resolve(); return; }
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ko-KR';
+                utterance.rate = 0.9;
+                currentUtterance = utterance;
+                utterance.onend = () => { isSpeaking = false; currentUtterance = null; resolve(); };
+                utterance.onerror = () => { isSpeaking = false; currentUtterance = null; resolve(); };
+                speechSynthesis.speak(utterance);
+            });
+        }
+
+        function stopSpeaking() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+            }
+            if (window.speechSynthesis && speechSynthesis.speaking) speechSynthesis.cancel();
+            isSpeaking = false;
+            currentUtterance = null;
+        }
+
+        // ── Continuous Voice Mode ──
+        function startContinuousListening() {
+            if (!recognition || isSpeaking) return;
+            isListeningContinuous = true;
+            voiceConversationActive = true;
+            updateVoiceIndicator();
+            startListening(DOM.nomaInput, DOM.nomaMic);
+        }
+
+        function stopContinuousMode() {
+            continuousVoiceMode = false;
+            voiceConversationActive = false;
+            isListeningContinuous = false;
+            stopSpeaking();
+            if (recognition && isRecognitionRunning) {
+                try { recognition.abort(); } catch (e) {}
+            }
+            updateVoiceIndicator();
+            updateVoiceToggleButtons();
+        }
+
+        function updateVoiceIndicator() {
+            if (continuousVoiceMode && voiceConversationActive) {
+                DOM.nomaVoiceIndicator.classList.remove('hidden');
+            } else {
+                DOM.nomaVoiceIndicator.classList.add('hidden');
+            }
+        }
+
+        function updateVoiceToggleButtons() {
+            if (ttsEnabled) {
+                DOM.nomaTtsToggle.classList.add('voice-toggle-active');
+            } else {
+                DOM.nomaTtsToggle.classList.remove('voice-toggle-active');
+            }
+            if (continuousVoiceMode) {
+                DOM.nomaContinuousToggle.classList.add('voice-toggle-active');
+            } else {
+                DOM.nomaContinuousToggle.classList.remove('voice-toggle-active');
+            }
+        }
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ko-KR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onresult = event => {
+                const text = event.results[0][0].transcript;
+                if (activeInput) {
+                    activeInput.value = text;
+                    activeInput.focus();
+                    activeInput.dispatchEvent(new Event('input'));
+                    if (voiceAutoSubmit) {
+                        const inputRef = activeInput;
+                        setTimeout(() => {
+                            if (inputRef === DOM.heroInput) {
+                                handleHeroSubmit();
+                            } else if (inputRef === DOM.nomaInput && DOM.nomaInput.value.trim()) {
+                                DOM.nomaForm.dispatchEvent(new Event('submit'));
+                            }
+                        }, 500);
+                    }
+                }
+            };
+
+            recognition.onend = () => {
+                isRecognitionRunning = false;
+                [DOM.heroMic, DOM.nomaMic].forEach(btn => {
+                    btn.classList.remove('animate-pulse', '!text-red-500');
+                    const icon = btn.querySelector('.material-symbols-outlined');
+                    if (icon) icon.textContent = 'mic';
+                });
+                activeInput = null;
+                activeBtn = null;
+                // Continuous mode: restart after silence timeout
+                if (continuousVoiceMode && voiceConversationActive && !isSpeaking) {
+                    setTimeout(() => {
+                        if (continuousVoiceMode && voiceConversationActive && !isSpeaking) {
+                            startContinuousListening();
+                        }
+                    }, 300);
+                }
+            };
+
+            recognition.onerror = event => {
+                console.warn('Speech recognition error:', event.error);
+                isRecognitionRunning = false;
+                if (event.error === 'no-speech' || event.error === 'aborted') {
+                    // Silence or aborted: let onend handle restart
+                } else if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    stopContinuousMode();
+                } else if (event.error === 'network') {
+                    if (continuousVoiceMode) {
+                        setTimeout(() => {
+                            if (continuousVoiceMode && voiceConversationActive) startContinuousListening();
+                        }, 1000);
+                    }
+                }
+            };
+
+            DOM.heroMic.addEventListener('click', e => { e.preventDefault(); startListening(DOM.heroInput, DOM.heroMic); });
+            DOM.nomaMic.addEventListener('click', () => {
+                if (continuousVoiceMode) { stopContinuousMode(); return; }
+                startListening(DOM.nomaInput, DOM.nomaMic);
+            });
+        } else {
+            [DOM.heroMic, DOM.nomaMic].forEach(btn => btn.style.display = 'none');
+        }
+
+        // ── Voice Toggle Button Events ──
+        DOM.nomaTtsToggle.addEventListener('click', () => {
+            ttsEnabled = !ttsEnabled;
+            updateVoiceToggleButtons();
+            if (!ttsEnabled) stopSpeaking();
+        });
+
+        DOM.nomaContinuousToggle.addEventListener('click', () => {
+            if (continuousVoiceMode) {
+                stopContinuousMode();
+            } else {
+                continuousVoiceMode = true;
+                ttsEnabled = true; // TTS auto-enabled with continuous mode
+                updateVoiceToggleButtons();
+                // Open chat panel if closed
+                if (DOM.nomaPanel.classList.contains('hidden')) {
+                    DOM.nomaPanel.classList.remove('hidden');
+                    DOM.nomaToggle.classList.add('scale-0');
+                }
+                startContinuousListening();
+            }
+        });
+
+        DOM.nomaVoiceStop.addEventListener('click', () => stopContinuousMode());
+
+        // Input focus → pause continuous listening (manual typing)
+        DOM.nomaInput.addEventListener('focus', () => {
+            if (continuousVoiceMode && isListeningContinuous && isRecognitionRunning) {
+                try { recognition.abort(); } catch (e) {}
+                isListeningContinuous = false;
+            }
+        });
+
+        // ══════════════════════════════════════
+        // ── SESSION STORAGE + AUTO EXPIRY ──
+        // ══════════════════════════════════════
+
+        const CHAT_STORAGE_KEY = 'nomaChatHistory';
+        const CHAT_TIMESTAMP_KEY = 'nomaChatLastActive';
+        const CHAT_EXPIRY_MS = 5 * 60 * 1000; // 5분
+        let inactivityTimer = null;
+
+        function saveHistory() {
+            try {
+                sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatHistory));
+                sessionStorage.setItem(CHAT_TIMESTAMP_KEY, Date.now().toString());
+                resetInactivityTimer();
+            } catch (e) {}
+        }
+
+        function loadHistory() {
+            try {
+                const savedTime = sessionStorage.getItem(CHAT_TIMESTAMP_KEY);
+                if (savedTime && (Date.now() - parseInt(savedTime)) > CHAT_EXPIRY_MS) {
+                    // 5분 초과 → 만료 처리
+                    clearChatData();
+                    return;
+                }
+                const saved = sessionStorage.getItem(CHAT_STORAGE_KEY);
+                if (saved) {
+                    chatHistory = JSON.parse(saved);
+                    chatHistory.forEach(msg => {
+                        appendChatMessage(msg.role === 'user' ? 'user' : 'model', msg.content, true);
+                    });
+                    resetInactivityTimer();
+                }
+            } catch (e) {}
+        }
+
+        function clearChatData() {
+            sessionStorage.removeItem(CHAT_STORAGE_KEY);
+            sessionStorage.removeItem(CHAT_TIMESTAMP_KEY);
+            chatHistory = [];
+            serviceRequestState = null;
+            const msgs = DOM.nomaMessages;
+            while (msgs.children.length > 1) msgs.removeChild(msgs.lastChild);
+            if (inactivityTimer) clearTimeout(inactivityTimer);
+            // Stop voice features on clear
+            stopContinuousMode();
+        }
+
+        function resetInactivityTimer() {
+            if (inactivityTimer) clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+                clearChatData();
+                // 만료 안내 메시지 표시
+                appendChatMessage('model', '일정 시간 동안 대화가 없어 이전 내용이 초기화되었습니다.\n새로운 질문을 편하게 말씀해 주세요!');
+            }, CHAT_EXPIRY_MS);
+        }
+
+        // ══════════════════════════════════════
+        // ── MY DRAWER (내 서랍) ──
+        // ══════════════════════════════════════
+
+        const DRAWER_CONSENT_KEY = 'nomaDrawerConsent';
+        const DRAWER_DATA_KEY = 'nomaDrawerItems';
+        let drawerItems = [];
+        let pendingBookmark = null; // temp store while consent is pending
+
+        function hasDrawerConsent() {
+            return localStorage.getItem(DRAWER_CONSENT_KEY) === 'true';
+        }
+
+        function loadDrawerItems() {
+            try {
+                const saved = localStorage.getItem(DRAWER_DATA_KEY);
+                if (saved) drawerItems = JSON.parse(saved);
+            } catch (e) { drawerItems = []; }
+            updateDrawerBadge();
+        }
+
+        function saveDrawerItems() {
+            try { localStorage.setItem(DRAWER_DATA_KEY, JSON.stringify(drawerItems)); } catch (e) {}
+            updateDrawerBadge();
+        }
+
+        function updateDrawerBadge() {
+            const badge = $('drawer-badge');
+            if (drawerItems.length > 0) {
+                badge.textContent = drawerItems.length > 9 ? '9+' : drawerItems.length;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function addToDrawer(serviceData) {
+            // Check for duplicates
+            if (drawerItems.some(item => item.serviceName === serviceData.serviceName)) {
+                showToast('이미 내 서랍에 담겨있는 서비스예요.');
+                return;
+            }
+            drawerItems.push({
+                serviceName: serviceData.serviceName,
+                summary: serviceData.summary || '',
+                agency: serviceData.agency || '',
+                savedAt: new Date().toISOString()
+            });
+            saveDrawerItems();
+            showToast('내 서랍에 담았어요!');
+            // Update bookmark button state
+            updateBookmarkButtons();
+        }
+
+        function removeFromDrawer(serviceName) {
+            drawerItems = drawerItems.filter(item => item.serviceName !== serviceName);
+            saveDrawerItems();
+            renderDrawerItems();
+            updateBookmarkButtons();
+        }
+
+        function renderDrawerItems() {
+            const emptyEl = $('drawer-empty');
+            const itemsEl = $('drawer-items');
+            const footerEl = $('drawer-footer');
+
+            if (drawerItems.length === 0) {
+                emptyEl.classList.remove('hidden');
+                itemsEl.classList.add('hidden');
+                footerEl.classList.add('hidden');
+                return;
+            }
+
+            emptyEl.classList.add('hidden');
+            itemsEl.classList.remove('hidden');
+            footerEl.classList.remove('hidden');
+
+            itemsEl.innerHTML = drawerItems.map((item, i) => `
+                <div class="bg-white border border-stone-200 rounded-xl p-4 hover:border-primary/30 transition-all group animate-fade-up" style="animation-delay:${i * 50}ms">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-slate-800 text-sm mb-1 break-keep">${item.serviceName}</h4>
+                            <p class="text-xs text-slate-500 leading-relaxed break-keep line-clamp-2">${item.summary}</p>
+                            ${item.agency ? `<p class="text-[10px] text-slate-400 mt-1.5 flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]">account_balance</span>${item.agency}</p>` : ''}
+                        </div>
+                        <div class="flex flex-col gap-1 flex-shrink-0">
+                            <button class="drawer-item-apply p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors" data-service="${item.serviceName}" title="상담 신청">
+                                <span class="material-symbols-outlined text-lg">outgoing_mail</span>
+                            </button>
+                            <button class="drawer-item-remove p-1.5 rounded-lg text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors" data-service="${item.serviceName}" title="서랍에서 빼기">
+                                <span class="material-symbols-outlined text-lg">bookmark_remove</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Bind events
+            itemsEl.querySelectorAll('.drawer-item-remove').forEach(btn => {
+                btn.addEventListener('click', () => removeFromDrawer(btn.dataset.service));
+            });
+            itemsEl.querySelectorAll('.drawer-item-apply').forEach(btn => {
+                btn.addEventListener('click', () => { closeMyDrawer(); openServiceModal(btn.dataset.service); });
+            });
+        }
+
+        function updateBookmarkButtons() {
+            document.querySelectorAll('.btn-bookmark').forEach(btn => {
+                const name = btn.dataset.serviceName;
+                const isSaved = drawerItems.some(item => item.serviceName === name);
+                const icon = btn.querySelector('.material-symbols-outlined');
+                if (isSaved) {
+                    icon.textContent = 'bookmark_added';
+                    btn.classList.add('!text-primary');
+                    btn.title = '내 서랍에 담긴 서비스';
+                } else {
+                    icon.textContent = 'bookmark_add';
+                    btn.classList.remove('!text-primary');
+                    btn.title = '내 서랍에 담기';
+                }
+            });
+        }
+
+        // Toast notification
+        function showToast(message) {
+            const existing = document.querySelector('.noma-toast');
+            if (existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.className = 'noma-toast fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] bg-slate-800 text-white text-sm font-medium px-5 py-3 rounded-full shadow-lg animate-fade-up';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 2000);
+        }
+
+        // Open/Close drawer
+        function openMyDrawer() {
+            renderDrawerItems();
+            $('drawer-overlay').classList.remove('hidden');
+            requestAnimationFrame(() => {
+                $('drawer-panel').style.transform = 'translateX(0)';
+            });
+        }
+        window.openMyDrawer = openMyDrawer; // expose for mobile menu
+
+        function closeMyDrawer() {
+            $('drawer-panel').style.transform = 'translateX(100%)';
+            setTimeout(() => $('drawer-overlay').classList.add('hidden'), 300);
+        }
+        window.closeMyDrawer = closeMyDrawer;
+
+        // Drawer button in header
+        $('btn-my-drawer').addEventListener('click', openMyDrawer);
+
+        // Clear all
+        $('drawer-clear-all').addEventListener('click', () => {
+            if (!confirm('내 서랍의 모든 서비스를 비울까요?')) return;
+            drawerItems = [];
+            saveDrawerItems();
+            renderDrawerItems();
+            updateBookmarkButtons();
+        });
+
+        // Bookmark button handler (main page cards)
+        function handleBookmark(serviceName, serviceData) {
+            if (!hasDrawerConsent()) {
+                pendingBookmark = serviceData;
+                $('consent-modal').classList.remove('hidden');
+                return;
+            }
+            if (drawerItems.some(item => item.serviceName === serviceName)) {
+                removeFromDrawer(serviceName);
+                showToast('내 서랍에서 뺐어요.');
+            } else {
+                addToDrawer(serviceData);
+            }
+        }
+
+        // Card bookmark buttons on main page
+        DOM.cardsGrid.addEventListener('click', e => {
+            const btn = e.target.closest('.btn-bookmark');
+            if (!btn) return;
+            const serviceName = btn.dataset.serviceName;
+            const card = currentCards.find(c => c.serviceName === serviceName);
+            handleBookmark(serviceName, card || { serviceName });
+        });
+
+        // Chat bookmark buttons
+        DOM.nomaMessages.addEventListener('click', e => {
+            const btn = e.target.closest('.btn-chat-bookmark');
+            if (!btn) return;
+            handleBookmark(btn.dataset.serviceName, {
+                serviceName: btn.dataset.serviceName,
+                summary: btn.dataset.summary || '',
+                agency: btn.dataset.agency || ''
+            });
+        });
+
+        // Consent modal handlers
+        $('consent-accept').addEventListener('click', () => {
+            localStorage.setItem(DRAWER_CONSENT_KEY, 'true');
+            $('consent-modal').classList.add('hidden');
+            if (pendingBookmark) {
+                addToDrawer(pendingBookmark);
+                pendingBookmark = null;
+            }
+        });
+
+        $('consent-decline').addEventListener('click', () => {
+            $('consent-modal').classList.add('hidden');
+            pendingBookmark = null;
+        });
+
+        $('consent-modal').addEventListener('click', e => {
+            if (e.target === $('consent-modal')) {
+                $('consent-modal').classList.add('hidden');
+                pendingBookmark = null;
+            }
+        });
+
+        // ── Init ──
+        window.addEventListener('DOMContentLoaded', () => {
+            loadHistory();
+            loadDrawerItems();
+            setTimeout(() => { DOM.nomaMessages.scrollTop = DOM.nomaMessages.scrollHeight; }, 100);
+        });
+
+        // 사용자 활동 감지 → 무활동 타이머 리셋
+        ['click', 'keydown', 'touchstart'].forEach(evt => {
+            DOM.nomaPanel.addEventListener(evt, () => {
+                if (chatHistory.length > 0) {
+                    sessionStorage.setItem(CHAT_TIMESTAMP_KEY, Date.now().toString());
+                    resetInactivityTimer();
+                }
+            });
+        });
+
+    })();
+    </script>
+</body>
+</html>
