@@ -85,6 +85,44 @@
         .voice-toggle-active { color: #3b82f6 !important; background: #eff6ff; }
         @keyframes voice-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         .voice-listening-pulse { animation: voice-pulse 1.5s ease-in-out infinite; }
+        /* Floating mic button */
+        #floating-mic {
+            position: fixed;
+            bottom: 2rem;
+            right: 1.5rem;
+            z-index: 999;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #98002E, #4A1942);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 20px rgba(152, 0, 46, 0.4);
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        #floating-mic:active { transform: scale(0.92); }
+        #floating-mic.listening {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 4px 24px rgba(239, 68, 68, 0.5);
+            animation: voice-pulse 1.5s ease-in-out infinite;
+        }
+        #floating-mic .mic-status {
+            position: absolute;
+            bottom: -6px;
+            right: -6px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
     </style>
 </head>
 
@@ -378,6 +416,14 @@
         </section>
     </main>
 
+    <!-- ═══════════════════ FLOATING MIC BUTTON ═══════════════════ -->
+    <button id="floating-mic" title="음성으로 대화하기">
+        <span class="material-symbols-outlined" style="font-size:32px">mic</span>
+        <span class="mic-status">
+            <span class="material-symbols-outlined" style="font-size:14px;color:#98002E">volume_off</span>
+        </span>
+    </button>
+
     <!-- ═══════════════════ FOOTER ═══════════════════ -->
     <footer class="bg-white border-t border-stone-200 py-10 px-6 lg:px-20 xl:px-40">
         <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -610,6 +656,7 @@
             nomaMessages: $('noma-messages'),
             nomaSend: $('noma-send'),
             nomaMic: $('noma-mic'),
+            floatingMic: $('floating-mic'),
             nomaTtsToggle: $('noma-tts-toggle'),
             nomaContinuousToggle: $('noma-continuous-toggle'),
             nomaVoiceIndicator: $('noma-voice-indicator'),
@@ -630,6 +677,7 @@
         let currentAudio = null;
         let isListeningContinuous = false;
         let voiceConversationActive = false;
+        let lastInputWasVoice = false; // Track if current query came from voice input
 
         // ── Utility: Parse <noma-card> blocks from AI text ──
         function parseNomaCards(text) {
@@ -828,6 +876,8 @@
             // Transition to results state
             DOM.heroSection.classList.add('hero-compact');
             DOM.heroChips.classList.add('hidden');
+            // Show floating mic on mobile
+            if (DOM.floatingMic && SpeechRecognition) DOM.floatingMic.style.display = 'flex';
             DOM.initialPlaceholder.classList.add('hidden');
             DOM.resultsSection.classList.remove('hidden');
             DOM.aiSummaryArea.classList.add('hidden');
@@ -850,6 +900,7 @@
 
                 const responseText = await response.text();
                 let fullResponse = '';
+                let apiError = '';
                 for (const line of responseText.split('\n')) {
                     if (!line.startsWith('data: ')) continue;
                     const dataStr = line.slice(6).trim();
@@ -857,7 +908,19 @@
                     try {
                         const data = JSON.parse(dataStr);
                         if (data.text) fullResponse += data.text;
+                        if (data.error) apiError = data.error;
                     } catch (e) { /* partial chunk */ }
+                }
+
+                // API 오류 시 사용자에게 안내
+                if (!fullResponse && apiError) {
+                    DOM.cardsSkeleton.classList.add('hidden');
+                    DOM.cardsTitle.classList.add('hidden');
+                    DOM.cardsGrid.classList.add('hidden');
+                    DOM.aiSummaryArea.classList.remove('hidden');
+                    DOM.aiSummaryText.innerHTML = `<p>죄송합니다. 일시적으로 AI 서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.</p>`;
+                    DOM.discoverMore.classList.remove('hidden');
+                    return;
                 }
 
                 chatHistory.push({ role: 'model', content: fullResponse });
@@ -908,12 +971,16 @@
                 // Smooth scroll to results
                 DOM.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-                // TTS: read AI summary aloud
-                if (fullResponse) {
+                // TTS: read AI summary aloud (voice input or TTS enabled)
+                if (fullResponse && (lastInputWasVoice || ttsEnabled)) {
+                    lastInputWasVoice = false;
                     await speakText(extractSpeakableText(fullResponse));
+                } else {
+                    lastInputWasVoice = false;
                 }
 
             } catch (err) {
+                lastInputWasVoice = false;
                 console.error('Search error:', err);
                 DOM.cardsSkeleton.classList.add('hidden');
                 DOM.cardsGrid.innerHTML = `
@@ -967,6 +1034,9 @@
 
             // 최상단 스크롤
             window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Hide floating mic
+            if (DOM.floatingMic) DOM.floatingMic.style.display = 'none';
         }
 
         // New search button
@@ -1297,9 +1367,12 @@
                 DOM.nomaInput.focus();
             }
 
-            // TTS: read AI response aloud
-            if (fullResponse) {
+            // TTS: read AI response aloud (voice input or TTS enabled)
+            if (fullResponse && (lastInputWasVoice || ttsEnabled)) {
+                lastInputWasVoice = false;
                 await speakText(extractSpeakableText(fullResponse));
+            } else {
+                lastInputWasVoice = false;
             }
             // Continuous voice: restart listening after TTS completes
             if (continuousVoiceMode && voiceConversationActive) {
@@ -1474,9 +1547,11 @@
                 btnEl.classList.add('animate-pulse', '!text-red-500');
                 const icon = btnEl.querySelector('.material-symbols-outlined');
                 if (icon) icon.textContent = 'graphic_eq';
+                updateFloatingMicState();
             } catch (e) {
                 console.error('Speech recognition start failed:', e);
                 isRecognitionRunning = false;
+                updateFloatingMicState();
             }
         }
 
@@ -1512,17 +1587,25 @@
                 if (!text) { resolve(); return; }
                 stopSpeaking();
                 isSpeaking = true;
+                updateFloatingMicState();
+
+                // Truncate very long text for TTS (keep under 500 chars)
+                const ttsText = text.length > 500 ? text.slice(0, 500) + '...' : text;
 
                 // Try Edge TTS (server-side)
                 try {
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 15000);
                     const res = await fetch('/api/tts', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text }),
+                        body: JSON.stringify({ text: ttsText }),
+                        signal: controller.signal,
                     });
-                    if (!res.ok) throw new Error('TTS API error');
+                    clearTimeout(timeout);
+                    if (!res.ok) throw new Error('TTS API error ' + res.status);
                     const data = await res.json();
-                    if (data.audioContent) {
+                    if (data.audioContent && data.audioContent.length > 100) {
                         const audio = new Audio('data:audio/mpeg;base64,' + data.audioContent);
                         currentAudio = audio;
                         audio.onended = () => { isSpeaking = false; currentAudio = null; resolve(); };
@@ -1530,13 +1613,14 @@
                         await audio.play().catch(e => { console.error('Audio play failed:', e); throw e; });
                         return;
                     }
+                    throw new Error('Empty audio content');
                 } catch (e) {
-                    console.warn('Edge TTS failed, falling back to Web Speech API:', e.message);
+                    console.warn('Edge TTS failed, using Web Speech API:', e.message);
                 }
 
                 // Fallback: Web Speech API
                 if (!window.speechSynthesis) { isSpeaking = false; resolve(); return; }
-                const utterance = new SpeechSynthesisUtterance(text);
+                const utterance = new SpeechSynthesisUtterance(ttsText);
                 utterance.lang = 'ko-KR';
                 utterance.rate = 0.9;
                 currentUtterance = utterance;
@@ -1555,6 +1639,7 @@
             if (window.speechSynthesis && speechSynthesis.speaking) speechSynthesis.cancel();
             isSpeaking = false;
             currentUtterance = null;
+            updateFloatingMicState();
         }
 
         // ── Continuous Voice Mode ──
@@ -1608,6 +1693,7 @@
             recognition.onresult = event => {
                 const text = event.results[0][0].transcript;
                 if (activeInput) {
+                    lastInputWasVoice = true;
                     activeInput.value = text;
                     activeInput.dispatchEvent(new Event('input'));
                     const inputRef = activeInput;
@@ -1630,6 +1716,7 @@
                 });
                 activeInput = null;
                 activeBtn = null;
+                updateFloatingMicState();
                 // Continuous mode: restart after silence timeout
                 if (continuousVoiceMode && voiceConversationActive && !isSpeaking) {
                     setTimeout(() => {
@@ -1661,8 +1748,43 @@
                 if (continuousVoiceMode) { stopContinuousMode(); return; }
                 startListening(DOM.nomaInput, DOM.nomaMic);
             });
+
+            // ── Floating Mic Button ──
+            if (DOM.floatingMic) {
+                DOM.floatingMic.addEventListener('click', () => {
+                    // If Noma is speaking, stop speech first
+                    if (isSpeaking) stopSpeaking();
+                    // Start voice input targeting hero input
+                    startListening(DOM.heroInput, DOM.heroMic);
+                    updateFloatingMicState();
+                });
+            }
         } else {
             [DOM.heroMic, DOM.nomaMic].forEach(btn => btn.style.display = 'none');
+        }
+
+        // Update floating mic visual state
+        function updateFloatingMicState() {
+            if (!DOM.floatingMic) return;
+            const icon = DOM.floatingMic.querySelector('.material-symbols-outlined:first-child');
+            const statusIcon = DOM.floatingMic.querySelector('.mic-status .material-symbols-outlined');
+            if (isRecognitionRunning) {
+                DOM.floatingMic.classList.add('listening');
+                if (icon) icon.textContent = 'graphic_eq';
+            } else {
+                DOM.floatingMic.classList.remove('listening');
+                if (icon) icon.textContent = 'mic';
+            }
+            // Status badge: show stop icon when Noma is speaking
+            if (statusIcon) {
+                if (isSpeaking) {
+                    statusIcon.textContent = 'stop_circle';
+                    statusIcon.style.color = '#ef4444';
+                } else {
+                    statusIcon.textContent = 'volume_off';
+                    statusIcon.style.color = '#98002E';
+                }
+            }
         }
 
         // ── Voice Toggle Button Events ──
