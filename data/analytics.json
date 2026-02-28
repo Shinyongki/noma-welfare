@@ -1,0 +1,9 @@
+{
+  "2026-02-28": {
+    "chat_request": 5,
+    "rag_match": 3,
+    "tts_request": 5,
+    "rag_no_match": 2,
+    "service_apply": 1
+  }
+}

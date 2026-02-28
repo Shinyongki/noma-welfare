@@ -1,10 +1,11 @@
 {
   "12ae715e-90bf-4f99-b644-9f96d254d4ca": {
     "id": "12ae715e-90bf-4f99-b644-9f96d254d4ca",
-    "serviceName": "��޵����������",
-    "userName": "�׽�Ʈ",
+    "serviceName": "노인맞춤돌봄서비스",
+    "userName": "김영희",
     "userPhone": "010-1234-5678",
     "createdAt": "2026. 2. 26. 오후 10:20:05",
+    "createdAtISO": "2026-02-26T13:20:05.000Z",
     "status": "open",
     "referrals": [
       {
@@ -13,61 +14,87 @@
         "newRequestId": "2f1efa7d-9449-4e9c-97fe-e1077ec9e4f5",
         "sentAt": "2026. 2. 26. 오후 10:21:24"
       }
-    ]
+    ],
+    "conversationSummary": "- 이용자 기본정보: (김영희, 75세, 김해시, 여성)\n- 생활상황: (독거, 자녀는 타지역 거주)\n- 주요 어려움: (혼자 생활하며 건강 악화로 일상생활 어려움)\n- 이용 중 서비스: (없음)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (노인맞춤돌봄서비스)"
   },
   "2f1efa7d-9449-4e9c-97fe-e1077ec9e4f5": {
     "id": "2f1efa7d-9449-4e9c-97fe-e1077ec9e4f5",
     "serviceName": "민간 사회복지시설 경영컨설팅",
-    "userName": "�׽�Ʈ",
+    "userName": "김영희",
     "userPhone": "010-1234-5678",
     "createdAt": "2026. 2. 26. 오후 10:21:24",
+    "createdAtISO": "2026-02-26T13:21:24.000Z",
     "status": "referred",
     "referredFrom": "12ae715e-90bf-4f99-b644-9f96d254d4ca",
     "referrals": []
   },
   "ebbaab1d-8d47-44e4-8472-90bce7287c02": {
     "id": "ebbaab1d-8d47-44e4-8472-90bce7287c02",
-    "serviceName": "��޵����������",
-    "userName": "�׽�Ʈ",
-    "userPhone": "010-1234-5678",
+    "serviceName": "응급안전안심서비스",
+    "userName": "박순자",
+    "userPhone": "010-9876-5432",
     "createdAt": "2026. 2. 26. 오후 10:21:49",
-    "status": "open",
-    "referrals": []
+    "createdAtISO": "2026-02-26T13:21:49.000Z",
+    "status": "confirmed",
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: (박순자, 80세, 창원시, 여성)\n- 생활상황: (독거, 만성질환 보유)\n- 주요 어려움: (낙상 위험, 응급상황 대처 불안)\n- 이용 중 서비스: (미확인)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (응급안전안심서비스)"
   },
   "43f6405e-a09f-46e6-b0e2-9b06c7642d41": {
     "id": "43f6405e-a09f-46e6-b0e2-9b06c7642d41",
-    "serviceName": "��޵����������",
-    "userName": "�׽�Ʈ",
-    "userPhone": "010-1234-5678",
+    "serviceName": "노인맞춤돌봄서비스",
+    "userName": "이철수",
+    "userPhone": "010-5555-1234",
     "createdAt": "2026. 2. 26. 오후 10:22:44",
-    "status": "open",
-    "referrals": []
+    "createdAtISO": "2026-02-26T13:22:44.000Z",
+    "status": "referred",
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: (이철수, 72세, 진주시, 남성)\n- 생활상황: (배우자와 2인 가구)\n- 주요 어려움: (배우자 간병 부담)\n- 이용 중 서비스: (없음)\n- 긴급도: (일상적 불편)\n- 추천된 서비스: (노인맞춤돌봄서비스)",
+    "updatedAt": "2026-02-28T03:32:19.817Z"
   },
   "55e84619-622d-4a65-90a2-fcbbe7086eb6": {
     "id": "55e84619-622d-4a65-90a2-fcbbe7086eb6",
-    "serviceName": "��޵����������",
-    "userName": "�׽�Ʈ",
-    "userPhone": "010-1234-5678",
-    "createdAt": "2026. 2. 26. 오후 10:24:42",
-    "status": "open",
-    "referrals": []
+    "serviceName": "노인맞춤돌봄서비스",
+    "userName": "정미숙",
+    "userPhone": "010-3333-4444",
+    "createdAt": "2026. 2. 24. 오전 09:15:00",
+    "createdAtISO": "2026-02-24T00:15:00.000Z",
+    "status": "closed",
+    "updatedAt": "2026-02-26T05:00:00.000Z",
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: (정미숙, 68세, 통영시, 여성)\n- 생활상황: (독거)\n- 주요 어려움: (퇴원 후 일상 돌봄 필요)\n- 이용 중 서비스: (없음)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (노인맞춤돌봄서비스)"
   },
   "0932bdc8-3912-4285-a8ae-eee2af5c456e": {
     "id": "0932bdc8-3912-4285-a8ae-eee2af5c456e",
     "serviceName": "김해종합재가센터 통합재가서비스",
     "userName": "신용기",
-    "userPhone": "01057586517",
+    "userPhone": "010-5758-6517",
     "createdAt": "2026. 2. 26. 오후 10:28:01",
-    "status": "open",
-    "referrals": []
+    "createdAtISO": "2026-02-26T13:28:01.000Z",
+    "status": "confirmed",
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: (신용기, 미확인, 김해시, 미확인)\n- 생활상황: (미확인)\n- 주요 어려움: (재가 돌봄 서비스 필요)\n- 이용 중 서비스: (미확인)\n- 긴급도: (일상적 불편)\n- 추천된 서비스: (김해종합재가센터 통합재가서비스)",
+    "updatedAt": "2026-02-28T03:24:00.718Z"
   },
   "96c5dcf5-39e5-4d74-a27c-0fb13b9bf7bd": {
     "id": "96c5dcf5-39e5-4d74-a27c-0fb13b9bf7bd",
-    "serviceName": "��޵����������",
-    "userName": "�׽�Ʈ�����",
-    "userPhone": "010-1234-5678",
-    "createdAt": "2026. 2. 26. 오후 10:28:19",
+    "serviceName": "장애인활동지원사교육",
+    "userName": "최지현",
+    "userPhone": "010-7777-8888",
+    "createdAt": "2026. 2. 25. 오후 02:30:00",
+    "createdAtISO": "2026-02-25T05:30:00.000Z",
+    "status": "connected",
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: (최지현, 45세, 창원시, 여성)\n- 생활상황: (장애 자녀 돌봄)\n- 주요 어려움: (활동지원사 교육 정보 필요)\n- 이용 중 서비스: (장애인활동지원)\n- 긴급도: (일상적 불편)\n- 추천된 서비스: (장애인활동지원사교육)"
+  },
+  "fe98cdd6-7982-4f4d-91c7-f04113697cc2": {
+    "id": "fe98cdd6-7982-4f4d-91c7-f04113697cc2",
+    "serviceName": "노인맞춤돌봄서비스",
+    "userName": "신용기",
+    "userPhone": "010-5758-6517",
+    "createdAt": "2026. 2. 28. 오후 12:01:56",
+    "createdAtISO": "2026-02-28T03:01:56.896Z",
     "status": "open",
-    "referrals": []
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: (신용기, 미확인, 미확인, 미확인)\n- 생활상황: (퇴원 후 돌봐줄 사람이 없어 돌봄 부재)\n- 주요 어려움: (퇴원 후 돌봄 공백)\n- 이용 중 서비스: (미확인)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (노인맞춤돌봄서비스)"
   }
 }

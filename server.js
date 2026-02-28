@@ -9,6 +9,7 @@ import { GoogleGenAI } from '@google/genai';
 import { EdgeTTS } from '@andresaya/edge-tts';
 import nodemailer from 'nodemailer';
 import * as requestStore from './data/requestStore.mjs';
+import * as analyticsStore from './data/analyticsStore.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -182,6 +183,7 @@ loadWelfareKB();
 // 정적 파일 서빙 및 메인 화면 라우트
 app.use(express.static(path.join(__dirname, 'stitch')));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'code.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'admin.html')));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.use('/.well-known', (req, res) => res.status(200).end());
 
@@ -253,6 +255,12 @@ app.post('/api/chat', async (req, res) => {
     const filteredServices = scoredServices.filter(s => s.score >= topScore * 0.3);
 
     console.log(`[RAG] 검색어: [${searchTerms.join(', ')}]${expandedTerms.length > 0 ? ' 확장: [' + expandedTerms.join(', ') + ']' : ''}${subTermsArray.length > 0 ? ' 서브텀: [' + subTermsArray.join(', ') + ']' : ''} → ${filteredServices.length}건 매칭${filteredServices.length > 0 ? ': ' + filteredServices.map(s => `${s.service['사업명']}(${s.score})`).join(', ') : ''}`);
+
+    // Analytics tracking
+    analyticsStore.track('chat_request');
+    if (pageContext?.voice) analyticsStore.track('chat_voice');
+    if (filteredServices.length > 0) analyticsStore.track('rag_match');
+    else analyticsStore.track('rag_no_match');
 
     let ragContext = "";
     if (filteredServices.length > 0) {
@@ -378,7 +386,11 @@ app.post('/api/chat', async (req, res) => {
 {
   "serviceName": "신청할 사업명",
   "userName": "사용자 성함",
-  "userPhone": "010-0000-0000"
+  "userPhone": "010-0000-0000",
+  "userAge": "연령대",
+  "userArea": "거주지역",
+  "livingCondition": "가구 구성",
+  "mainConcern": "주요 상황"
 }
 </noma-apply>
 
@@ -394,15 +406,30 @@ app.post('/api/chat', async (req, res) => {
 - 이전 대화에서 이미 성함을 파악했다면 다시 묻지 마세요.
 - 예: "상담 신청을 위해 성함을 알려주시겠어요?"
 
-3단계 - 전화번호 확인 (한 번에 1개만 질문):
+3단계 - 연령대 확인 (한 번에 1개만 질문):
+- 이전 대화에서 이미 파악했다면 스킵하세요.
+- 예: "혹시 연세가 어떻게 되시나요?"
+
+4단계 - 거주지역 확인 (한 번에 1개만 질문):
+- 이전 대화에서 이미 파악했다면 스킵하세요.
+- 예: "어디 지역에 살고 계세요?"
+
+5단계 - 가구 구성 확인 (한 번에 1개만 질문):
+- 이전 대화에서 이미 파악했다면 스킵하세요.
+- 예: "혼자 살고 계신가요, 아니면 가족과 함께 계신가요?"
+
+6단계 - 전화번호 확인 (한 번에 1개만 질문):
 - 예: "연락받으실 전화번호도 알려주시겠어요?"
 
-4단계 - 확인 문구 + 태그 출력:
-- 3개 필드(serviceName, userName, userPhone)가 모두 확보되면 확인 문구와 함께 <noma-apply> 태그를 출력합니다.
+7단계 - 확인 문구 + 태그 출력:
+- 필수 3개 필드(serviceName, userName, userPhone)가 모두 확보되면 확인 문구와 함께 <noma-apply> 태그를 출력합니다.
 - 예: "김영희님, '노인맞춤돌봄서비스' 상담을 010-1234-5678로 신청해 드리겠습니다."
 
 규칙:
 - serviceName, userName, userPhone 3개 필드가 모두 있어야만 <noma-apply>를 출력하세요. 하나라도 없으면 절대 출력하지 마세요.
+- userAge, userArea, livingCondition, mainConcern은 선택 필드입니다. 대화에서 파악되지 않았으면 "미확인"으로 넣으세요.
+- 대화 중 이미 파악된 정보는 다시 묻지 마세요. 예: 사용자가 "혼자 살아요"라고 했으면 가구 구성을 다시 묻지 않고 "독거"로 기록하세요.
+- mainConcern은 대화 초반에 사용자가 설명한 어려움을 짧게 정리하세요 (예: "퇴원 후 돌봄 필요", "경제적 어려움").
 - 응답 1개당 <noma-apply>는 최대 1개만 출력하세요.
 - 전화번호는 숫자와 하이픈만 남기고 정리하세요 (예: "공일공 1234 5678" → "010-1234-5678").
 - 한국 전화번호 형식(010-XXXX-XXXX, 055-XXX-XXXX 등)이 아니면 다시 여쭤보세요.
@@ -421,7 +448,7 @@ app.post('/api/chat', async (req, res) => {
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
                 const responseStream = await ai.models.generateContentStream({
-                    model: "gemini-2.0-flash",
+                    model: "gemini-2.5-flash",
                     contents: userPrompt,
                     config: {
                         systemInstruction: systemInstructionString,
@@ -537,7 +564,7 @@ ${conversationText}`;
     for (let attempt = 1; attempt <= 2; attempt++) {
         try {
             const result = await ai.models.generateContent({
-                model: "gemini-2.0-flash",
+                model: "gemini-2.5-flash",
                 contents: summaryPrompt,
                 config: {
                     systemInstruction: "복지 상담 대화를 간결하게 요약하는 전문가입니다. 요약만 출력하세요.",
@@ -575,6 +602,7 @@ app.post('/api/service-request/connect', async (req, res) => {
     }
 
     // 요청 ID 생성 및 저장
+    analyticsStore.track('service_apply');
     const requestId = crypto.randomUUID();
     const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
     requestStore.save({
@@ -583,14 +611,16 @@ app.post('/api/service-request/connect', async (req, res) => {
         userName,
         userPhone,
         createdAt: now,
+        createdAtISO: new Date().toISOString(),
         status: 'open',
         referrals: [],
         conversationSummary,
     });
 
     const subject = `[상담 신청] ${serviceName} - 노마 AI 복지 내비게이터`;
+    const caseUrl = `${BASE_URL}/case/${requestId}`;
     const referralUrl = `${BASE_URL}/referral/${requestId}`;
-    const htmlContent = buildServiceRequestEmailHTML({ serviceName, userName, userPhone, now, referralUrl, conversationSummary });
+    const htmlContent = buildServiceRequestEmailHTML({ serviceName, userName, userPhone, now, caseUrl, referralUrl, conversationSummary });
 
     try {
         await emailTransporter.sendMail({
@@ -608,7 +638,7 @@ app.post('/api/service-request/connect', async (req, res) => {
 });
 
 // 상담 신청 이메일 HTML 빌더
-function buildServiceRequestEmailHTML({ serviceName, userName, userPhone, now, referralUrl, conversationSummary }) {
+function buildServiceRequestEmailHTML({ serviceName, userName, userPhone, now, caseUrl, referralUrl, conversationSummary }) {
     // HTML 이스케이프
     const esc = (str) => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -635,10 +665,14 @@ function buildServiceRequestEmailHTML({ serviceName, userName, userPhone, now, r
         '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:10px 0;color:#666;">접수 일시</td><td style="padding:10px 0;">' + now + '</td></tr>',
         '</table>',
         summarySection,
-        // 연계 요청 버튼
+        // 상담 처리 버튼 (메인 CTA)
         '<div style="margin-top:28px;text-align:center;">',
-        '<a href="' + referralUrl + '" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#1565C0,#0D47A1);color:white;text-decoration:none;border-radius:8px;font-size:15px;font-weight:bold;">타 서비스 연계 요청</a>',
-        '<p style="margin-top:10px;font-size:12px;color:#999;">상담 후 다른 서비스가 더 적합하다고 판단되면 위 버튼을 눌러주세요.</p>',
+        '<a href="' + caseUrl + '" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#2E7D32,#1B5E20);color:white;text-decoration:none;border-radius:8px;font-size:15px;font-weight:bold;">상담 처리하기</a>',
+        '<p style="margin-top:10px;font-size:12px;color:#999;">대상자에게 연락하고 처리 상태를 업데이트해 주세요.</p>',
+        '</div>',
+        // 연계 요청 버튼 (보조)
+        '<div style="margin-top:12px;text-align:center;">',
+        '<a href="' + referralUrl + '" style="display:inline-block;padding:12px 28px;border:2px solid #1565C0;color:#1565C0;text-decoration:none;border-radius:8px;font-size:14px;font-weight:bold;">타 서비스 연계 요청</a>',
         '</div>',
         '<div style="margin-top:24px;padding:16px;background:#f8f5f2;border-radius:8px;font-size:13px;color:#666;">',
         '2~3일 내로 위 연락처로 회신 부탁드립니다.',
@@ -647,6 +681,11 @@ function buildServiceRequestEmailHTML({ serviceName, userName, userPhone, now, r
 }
 
 // ── 서비스 연계 요청 시스템 ──
+
+// 담당자 처리 페이지 서빙
+app.get('/case/:requestId', (req, res) => {
+    res.sendFile(path.join(__dirname, 'stitch', 'case.html'));
+});
 
 // 연계 폼 페이지 서빙
 app.get('/referral/:requestId', (req, res) => {
@@ -679,6 +718,7 @@ app.post('/api/referral/:requestId/send', async (req, res) => {
     if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
     // 새 요청 ID (연쇄 연계용)
+    analyticsStore.track('referral_sent');
     const newRequestId = crypto.randomUUID();
     const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
@@ -689,6 +729,7 @@ app.post('/api/referral/:requestId/send', async (req, res) => {
         userName: request.userName,
         userPhone: request.userPhone,
         createdAt: now,
+        createdAtISO: new Date().toISOString(),
         status: 'referred',
         referredFrom: request.id,
         referrals: [],
@@ -722,6 +763,7 @@ app.post('/api/referral/:requestId/send', async (req, res) => {
 
 // 연계 이메일 HTML 빌더
 function buildReferralEmailHTML({ request, targetService, reason, newRequestId }) {
+    const caseUrl = `${BASE_URL}/case/${newRequestId}`;
     const referralUrl = `${BASE_URL}/referral/${newRequestId}`;
     return [
         '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body>',
@@ -750,10 +792,14 @@ function buildReferralEmailHTML({ request, targetService, reason, newRequestId }
         '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">연락처</td><td style="padding:8px 0;font-weight:bold;">' + request.userPhone + '</td></tr>',
         '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">최초 접수 일시</td><td style="padding:8px 0;">' + request.createdAt + '</td></tr>',
         '</table>',
-        // 연쇄 연계 버튼
+        // 상담 처리 버튼 (메인 CTA)
         '<div style="margin-top:28px;text-align:center;">',
-        '<a href="' + referralUrl + '" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#1565C0,#0D47A1);color:white;text-decoration:none;border-radius:8px;font-size:15px;font-weight:bold;">타 서비스 연계 요청</a>',
-        '<p style="margin-top:10px;font-size:12px;color:#999;">상담 후 다른 서비스가 더 적합하다고 판단되면 위 버튼을 눌러주세요.</p>',
+        '<a href="' + caseUrl + '" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#2E7D32,#1B5E20);color:white;text-decoration:none;border-radius:8px;font-size:15px;font-weight:bold;">상담 처리하기</a>',
+        '<p style="margin-top:10px;font-size:12px;color:#999;">대상자에게 연락하고 처리 상태를 업데이트해 주세요.</p>',
+        '</div>',
+        // 연쇄 연계 버튼 (보조)
+        '<div style="margin-top:12px;text-align:center;">',
+        '<a href="' + referralUrl + '" style="display:inline-block;padding:12px 28px;border:2px solid #1565C0;color:#1565C0;text-decoration:none;border-radius:8px;font-size:14px;font-weight:bold;">타 서비스 연계 요청</a>',
         '</div>',
         '<div style="margin-top:24px;padding:16px;background:#f8f5f2;border-radius:8px;font-size:13px;color:#666;">',
         '2~3일 내로 위 연락처로 회신 부탁드립니다.',
@@ -780,6 +826,7 @@ async function synthesizeTTS(text, retries = 2) {
 app.post('/api/tts', async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'text required' });
+    analyticsStore.track('tts_request');
 
     try {
         const audioBase64 = await synthesizeTTS(text);
@@ -792,6 +839,340 @@ app.post('/api/tts', async (req, res) => {
         console.error('[TTS] Error:', e.message);
         res.status(500).json({ error: 'TTS request failed' });
     }
+});
+
+// ── Case API Routes (담당자 처리 페이지용) ──
+
+// 상세 조회 + 연계 체인
+app.get('/api/case/:requestId', (req, res) => {
+    const request = requestStore.findById(req.params.requestId);
+    if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+    const chain = requestStore.getReferralChain(req.params.requestId);
+    res.json({ ...request, chain });
+});
+
+// 상태 변경 (전진만 허용)
+app.patch('/api/case/:requestId/status', (req, res) => {
+    const { status } = req.body;
+    const STEPS = ['open', 'confirmed', 'contacted', 'connected', 'closed'];
+    const request = requestStore.findById(req.params.requestId);
+    if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+
+    const currentIdx = STEPS.indexOf(request.status);
+    const targetIdx = STEPS.indexOf(status);
+    if (targetIdx === -1) return res.status(400).json({ error: '유효하지 않은 상태입니다.' });
+    if (targetIdx <= currentIdx) return res.status(400).json({ error: '이전 단계로 되돌릴 수 없습니다.' });
+
+    const updated = requestStore.updateStatus(req.params.requestId, status);
+    res.json(updated);
+});
+
+// 메모 추가 (author: '담당자')
+app.post('/api/case/:requestId/notes', (req, res) => {
+    const { note } = req.body;
+    if (!note || !note.trim()) return res.status(400).json({ error: '메모 내용을 입력하세요.' });
+    const updated = requestStore.addNote(req.params.requestId, note.trim(), '담당자');
+    if (!updated) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+    res.json(updated);
+});
+
+// ── 부서간 협업 API ──
+
+// 부서 이름 조회 헬퍼
+function getDeptName(id) {
+    const dept = requestStore.DEPARTMENTS.find(d => d.id === id);
+    return dept ? dept.name : id;
+}
+
+// 협업 이메일 HTML 빌더
+function buildCollaborationEmailHTML({ request, collab, fromDeptName, toDeptName, typeName, caseUrl }) {
+    const esc = (str) => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const typeColors = { consultation: '#FF9800', joint: '#1565C0', transfer: '#7B1FA2' };
+    const typeColor = typeColors[collab.type] || '#666';
+
+    return [
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body>',
+        '<div style="font-family:Malgun Gothic,Apple SD Gothic Neo,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e5e5e5;border-radius:12px;overflow:hidden;">',
+        // 인디고 헤더 (협업 전용)
+        '<div style="background:linear-gradient(135deg,#3949AB,#1A237E);padding:24px 28px;color:white;">',
+        '<h2 style="margin:0;font-size:20px;">부서간 협업 요청</h2>',
+        '<p style="margin:8px 0 0;opacity:0.85;font-size:14px;">경상남도사회서비스원 노마 AI</p>',
+        '</div>',
+        '<div style="padding:28px;">',
+        // 협업 유형 + 방향 배너
+        '<div style="margin-bottom:20px;padding:16px;background:#E8EAF6;border-left:4px solid ' + typeColor + ';border-radius:4px;">',
+        '<p style="margin:0 0 8px;font-size:13px;color:' + typeColor + ';font-weight:bold;">' + esc(typeName) + '</p>',
+        '<p style="margin:0;font-size:18px;font-weight:bold;color:#1A237E;">' + esc(fromDeptName) + ' → ' + esc(toDeptName) + '</p>',
+        '</div>',
+        // 협업 사유
+        '<div style="margin-bottom:20px;padding:14px;background:#FFF3E0;border-radius:8px;">',
+        '<p style="margin:0 0 4px;font-size:13px;color:#E65100;font-weight:bold;">협업 사유</p>',
+        '<p style="margin:0;font-size:14px;color:#333;">' + esc(collab.reason) + '</p>',
+        '</div>',
+        // 원래 상담 정보
+        '<p style="font-size:13px;color:#666;margin-bottom:8px;">관련 상담 요청 정보</p>',
+        '<table style="width:100%;border-collapse:collapse;font-size:14px;">',
+        '<tr><td style="padding:8px 0;color:#666;width:110px;">서비스명</td><td style="padding:8px 0;font-weight:bold;">' + esc(request.serviceName) + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">신청자 성함</td><td style="padding:8px 0;font-weight:bold;">' + esc(request.userName) + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">연락처</td><td style="padding:8px 0;font-weight:bold;">' + esc(request.userPhone) + '</td></tr>',
+        '</table>',
+        // CTA 버튼
+        '<div style="margin-top:28px;text-align:center;">',
+        '<a href="' + caseUrl + '" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#3949AB,#1A237E);color:white;text-decoration:none;border-radius:8px;font-size:15px;font-weight:bold;">상담 처리 페이지에서 확인</a>',
+        '</div>',
+        '<div style="margin-top:20px;padding:14px;background:#f8f5f2;border-radius:8px;font-size:13px;color:#666;">',
+        '상담 처리 페이지에서 협업 요청을 수락하거나 반려할 수 있습니다.',
+        '</div></div></div></body></html>',
+    ].join('\n');
+}
+
+const COLLAB_TYPE_NAMES = { consultation: '자문 요청', joint: '공동 처리', transfer: '이관 요청' };
+
+// 부서 목록
+app.get('/api/departments', (req, res) => {
+    res.json(requestStore.DEPARTMENTS);
+});
+
+// 협업 요청 생성 (+ 이메일 알림)
+app.post('/api/case/:requestId/collaboration', async (req, res) => {
+    const { fromDept, toDept, reason, type } = req.body;
+    if (!fromDept || !toDept || !reason) {
+        return res.status(400).json({ error: '요청 부서, 대상 부서, 사유를 모두 입력하세요.' });
+    }
+    if (fromDept === toDept) {
+        return res.status(400).json({ error: '같은 부서에는 협업 요청할 수 없습니다.' });
+    }
+    const collab = requestStore.addCollaboration(req.params.requestId, { fromDept, toDept, reason, type });
+    if (!collab) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+
+    const fromDeptName = getDeptName(fromDept);
+    const toDeptName = getDeptName(toDept);
+    const typeName = COLLAB_TYPE_NAMES[type] || '자문 요청';
+    console.log(`[협업 요청] ${fromDeptName} → ${toDeptName}: ${reason}`);
+
+    // 이메일 알림 (비동기, 실패해도 응답에 영향 없음)
+    const request = requestStore.findById(req.params.requestId);
+    if (request) {
+        const caseUrl = `${BASE_URL}/case/${req.params.requestId}`;
+        const subject = `[협업 요청] ${typeName} - ${fromDeptName} → ${toDeptName}`;
+        const html = buildCollaborationEmailHTML({ request, collab, fromDeptName, toDeptName, typeName, caseUrl });
+        emailTransporter.sendMail({
+            from: { name: '노마 AI', address: process.env.SMTP_USER },
+            to: DEV_RECIPIENT,
+            subject,
+            html: { content: Buffer.from(html, 'utf-8'), contentType: 'text/html; charset=utf-8' },
+        }).then(() => {
+            console.log(`[협업 이메일 발송 완료] ${fromDeptName} → ${toDeptName}`);
+        }).catch(err => {
+            console.error('[협업 이메일 발송 실패]', err.message);
+        });
+    }
+
+    res.json(collab);
+});
+
+// 협업 상태 변경 (+ 이메일 알림)
+app.patch('/api/case/:requestId/collaboration/:collabId', (req, res) => {
+    const { status } = req.body;
+    const validStatuses = ['accepted', 'completed', 'declined'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: '유효하지 않은 상태입니다.' });
+    }
+    const collab = requestStore.updateCollaboration(req.params.requestId, req.params.collabId, { status });
+    if (!collab) return res.status(404).json({ error: '협업 요청을 찾을 수 없습니다.' });
+
+    // 상태 변경 이메일 알림 (비동기, 실패해도 응답에 영향 없음)
+    const statusLabels = { accepted: '수락됨', completed: '완료됨', declined: '반려됨' };
+    const fromDeptName = getDeptName(collab.fromDept);
+    const toDeptName = getDeptName(collab.toDept);
+    const statusLabel = statusLabels[status] || status;
+    const caseUrl = `${BASE_URL}/case/${req.params.requestId}`;
+    const subject = `[협업 ${statusLabel}] ${toDeptName} → ${fromDeptName}`;
+
+    try { emailTransporter.sendMail({
+        from: { name: '노마 AI', address: process.env.SMTP_USER },
+        to: DEV_RECIPIENT,
+        subject,
+        html: { content: Buffer.from(
+            `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>` +
+            `<div style="font-family:Malgun Gothic,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e5e5e5;border-radius:12px;overflow:hidden;">` +
+            `<div style="background:linear-gradient(135deg,#3949AB,#1A237E);padding:24px 28px;color:white;">` +
+            `<h2 style="margin:0;font-size:20px;">협업 상태 변경 알림</h2>` +
+            `<p style="margin:8px 0 0;opacity:0.85;font-size:14px;">경상남도사회서비스원 노마 AI</p></div>` +
+            `<div style="padding:28px;">` +
+            `<div style="text-align:center;margin-bottom:24px;">` +
+            `<span style="display:inline-block;padding:8px 20px;border-radius:9999px;font-size:16px;font-weight:bold;` +
+            `${status === 'accepted' ? 'background:#E3F2FD;color:#1565C0' : status === 'completed' ? 'background:#E8F5E9;color:#2E7D32' : 'background:#FFEBEE;color:#C62828'}">` +
+            `${statusLabel}</span></div>` +
+            `<table style="width:100%;border-collapse:collapse;font-size:14px;">` +
+            `<tr><td style="padding:8px 0;color:#666;width:110px;">요청 부서</td><td style="padding:8px 0;font-weight:bold;">${fromDeptName}</td></tr>` +
+            `<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">대상 부서</td><td style="padding:8px 0;font-weight:bold;">${toDeptName}</td></tr>` +
+            `<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">협업 사유</td><td style="padding:8px 0;">${collab.reason}</td></tr>` +
+            `</table>` +
+            `<div style="margin-top:24px;text-align:center;">` +
+            `<a href="${caseUrl}" style="display:inline-block;padding:12px 28px;background:#3949AB;color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:bold;">상담 처리 페이지 열기</a>` +
+            `</div></div></div></body></html>`
+        , 'utf-8'), contentType: 'text/html; charset=utf-8' },
+    }).then(() => {
+        console.log(`[협업 상태 변경 알림] ${statusLabel}: ${fromDeptName} ↔ ${toDeptName}`);
+    }).catch(err => {
+        console.error('[협업 상태 알림 실패]', err.message);
+    }); } catch (e) { console.error('[협업 상태 알림 오류]', e.message); }
+
+    res.json(collab);
+});
+
+// 협업 메모 추가
+app.post('/api/case/:requestId/collaboration/:collabId/notes', (req, res) => {
+    const { text, author, dept } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: '메모 내용을 입력하세요.' });
+    const collab = requestStore.addCollaborationNote(
+        req.params.requestId, req.params.collabId,
+        text.trim(), author || '담당자', dept || ''
+    );
+    if (!collab) return res.status(404).json({ error: '협업 요청을 찾을 수 없습니다.' });
+    res.json(collab);
+});
+
+// ── Admin API Routes ──
+
+// A-07: 현황판 통계 + A-08 기간별 + A-11 처리시간
+app.get('/api/admin/stats', (req, res) => {
+    const stats = requestStore.getStats();
+    const all = requestStore.listAll();
+
+    // A-08: 기간별 접수 추이 (최근 14일)
+    const daily = {};
+    const now = new Date();
+    for (let i = 13; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        daily[d.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })] = 0;
+    }
+    all.forEach(r => {
+        const ts = r.createdAtISO ? new Date(r.createdAtISO) : new Date(requestStore.parseKoDate(r.createdAt));
+        const key = ts.toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+        if (daily[key] !== undefined) daily[key]++;
+    });
+
+    // A-11: 평균 처리 시간
+    let totalTime = 0, closedCount = 0;
+    let openToConfirm = 0, ocCount = 0;
+    let confirmToClose = 0, ccCount = 0;
+    all.forEach(r => {
+        const created = r.createdAtISO ? new Date(r.createdAtISO).getTime() : requestStore.parseKoDate(r.createdAt);
+        if (r.status === 'closed' && r.updatedAt) {
+            const elapsed = new Date(r.updatedAt).getTime() - created;
+            if (elapsed > 0) { totalTime += elapsed; closedCount++; }
+        }
+    });
+    const avgDays = closedCount > 0 ? (totalTime / closedCount / 86400000).toFixed(1) : null;
+
+    // A-06: 미처리 요청 (3일 이상 open)
+    const threeDaysAgo = now.getTime() - 3 * 86400000;
+    const overdue = all.filter(r => {
+        if (r.status !== 'open') return false;
+        const created = r.createdAtISO ? new Date(r.createdAtISO).getTime() : requestStore.parseKoDate(r.createdAt);
+        return created > 0 && created < threeDaysAgo;
+    });
+
+    res.json({ ...stats, daily, avgDays, overdue });
+});
+
+// A-01: 상담 요청 목록 (필터/검색/정렬/페이지네이션)
+app.get('/api/admin/requests', (req, res) => {
+    let all = requestStore.listAll();
+    const { status, search, page = 1, limit = 20, sort = 'newest' } = req.query;
+
+    if (status && status !== 'all') {
+        all = all.filter(r => r.status === status);
+    }
+    if (search) {
+        const q = search.toLowerCase();
+        all = all.filter(r =>
+            (r.userName || '').toLowerCase().includes(q) ||
+            (r.userPhone || '').includes(q) ||
+            (r.serviceName || '').toLowerCase().includes(q)
+        );
+    }
+    if (sort === 'oldest') all.reverse();
+
+    const total = all.length;
+    const pageNum = Math.max(1, parseInt(page));
+    const lim = Math.max(1, Math.min(100, parseInt(limit)));
+    const totalPages = Math.ceil(total / lim);
+    const items = all.slice((pageNum - 1) * lim, pageNum * lim);
+
+    res.json({ items, total, page: pageNum, totalPages });
+});
+
+// A-02: 상담 요청 상세 + A-05 연계 체인
+app.get('/api/admin/requests/:id', (req, res) => {
+    const request = requestStore.findById(req.params.id);
+    if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+    const chain = requestStore.getReferralChain(req.params.id);
+    res.json({ ...request, chain });
+});
+
+// A-03: 상태 변경
+app.patch('/api/admin/requests/:id/status', (req, res) => {
+    const { status } = req.body;
+    const valid = ['open', 'confirmed', 'contacted', 'connected', 'closed', 'referred'];
+    if (!valid.includes(status)) return res.status(400).json({ error: '유효하지 않은 상태입니다.' });
+    const updated = requestStore.updateStatus(req.params.id, status);
+    if (!updated) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+    res.json(updated);
+});
+
+// A-04: 메모 추가
+app.post('/api/admin/requests/:id/notes', (req, res) => {
+    const { note } = req.body;
+    if (!note || !note.trim()) return res.status(400).json({ error: '메모 내용을 입력하세요.' });
+    const updated = requestStore.addNote(req.params.id, note.trim());
+    if (!updated) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+    res.json(updated);
+});
+
+// 전체 활성 협업 목록
+app.get('/api/admin/collaborations', (req, res) => {
+    res.json(requestStore.getActiveCollaborations());
+});
+
+// A-09 + A-10: 서비스 인기도 + 카테고리 분포
+app.get('/api/admin/analytics', (req, res) => {
+    const all = requestStore.listAll();
+    const serviceCount = {};
+    all.forEach(r => {
+        const svc = r.serviceName || '기타';
+        serviceCount[svc] = (serviceCount[svc] || 0) + 1;
+    });
+
+    // 카테고리 매핑 (지식베이스 기반)
+    const categoryCount = {};
+    all.forEach(r => {
+        const svcName = r.serviceName || '';
+        const kbEntry = welfareKB.find(k => k['사업명'] === svcName);
+        const cat = kbEntry ? (kbEntry['대분류'] || '기타') : '기타';
+        categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+    });
+
+    const serviceRanking = Object.entries(serviceCount)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count);
+
+    res.json({ serviceRanking, categoryCount });
+});
+
+// KPI 통계
+app.get('/api/admin/kpi', (req, res) => {
+    const days = parseInt(req.query.days) || 7;
+    res.json(analyticsStore.getKPI(days));
+});
+
+// 일별 이벤트 추이
+app.get('/api/admin/trends', (req, res) => {
+    const days = parseInt(req.query.days) || 7;
+    res.json(analyticsStore.getRange(days));
 });
 
 app.listen(PORT, () => {

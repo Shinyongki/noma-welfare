@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>관리자 대시보드 - 경상남도사회서비스원</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#98002E",
+                        "primary-light": "#B8003E",
+                        "bg-warm": "#F8F5F2",
+                        "bg-section": "#F1ECE7",
+                        "deep-purple": "#4A1942",
+                    },
+                    fontFamily: {
+                        "sans": ["Pretendard Variable", "Pretendard", "-apple-system", "BlinkMacSystemFont", "system-ui", "Roboto", "Noto Sans KR", "Malgun Gothic", "sans-serif"],
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .tab-active { border-bottom: 3px solid #98002E; color: #98002E; font-weight: 600; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
+        .modal-overlay { background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); }
+    </style>
+</head>
+
+<body class="bg-bg-warm min-h-screen font-sans text-slate-800">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-deep-purple flex items-center justify-center">
+                    <span class="material-symbols-outlined text-white text-xl" style="font-variation-settings:'FILL' 1">dashboard</span>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-800 leading-tight">관리자 대시보드</h1>
+                    <p class="text-xs text-slate-400 leading-none">경상남도사회서비스원</p>
+                </div>
+            </div>
+            <a href="/" class="flex items-center gap-1 text-sm text-slate-500 hover:text-primary transition-colors">
+                <span class="material-symbols-outlined text-lg">home</span>
+                메인으로
+            </a>
+        </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex gap-0">
+            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn tab-active px-5 py-3 text-sm transition-colors hover:text-primary flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-lg">monitoring</span>현황판
+            </button>
+            <button onclick="switchTab('requests')" id="tab-requests" class="tab-btn px-5 py-3 text-sm text-slate-500 transition-colors hover:text-primary flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-lg">list_alt</span>상담 요청
+            </button>
+            <button onclick="switchTab('analytics')" id="tab-analytics" class="tab-btn px-5 py-3 text-sm text-slate-500 transition-colors hover:text-primary flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-lg">analytics</span>분석
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+
+        <!-- Tab 1: Dashboard -->
+        <section id="panel-dashboard">
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-symbols-outlined text-primary text-xl">inbox</span>
+                        <span class="text-sm text-slate-500">총 접수</span>
+                    </div>
+                    <p id="kpi-total" class="text-3xl font-bold text-slate-800">-</p>
+                </div>
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-symbols-outlined text-amber-500 text-xl">today</span>
+                        <span class="text-sm text-slate-500">오늘 접수</span>
+                    </div>
+                    <p id="kpi-today" class="text-3xl font-bold text-slate-800">-</p>
+                </div>
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-symbols-outlined text-blue-500 text-xl">pending_actions</span>
+                        <span class="text-sm text-slate-500">미처리(open)</span>
+                    </div>
+                    <p id="kpi-open" class="text-3xl font-bold text-slate-800">-</p>
+                </div>
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-symbols-outlined text-green-600 text-xl">schedule</span>
+                        <span class="text-sm text-slate-500">평균 처리일</span>
+                    </div>
+                    <p id="kpi-avg-days" class="text-3xl font-bold text-slate-800">-</p>
+                </div>
+            </div>
+
+            <!-- Status Cards -->
+            <div class="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
+                    <span class="badge bg-blue-100 text-blue-600 mb-2">접수</span>
+                    <p id="st-open" class="text-2xl font-bold mt-1">-</p>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
+                    <span class="badge bg-amber-100 text-amber-600 mb-2">확인</span>
+                    <p id="st-confirmed" class="text-2xl font-bold mt-1">-</p>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
+                    <span class="badge bg-purple-100 text-purple-600 mb-2">연락</span>
+                    <p id="st-contacted" class="text-2xl font-bold mt-1">-</p>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
+                    <span class="badge bg-teal-100 text-teal-600 mb-2">연결</span>
+                    <p id="st-connected" class="text-2xl font-bold mt-1">-</p>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
+                    <span class="badge bg-green-100 text-green-700 mb-2">완료</span>
+                    <p id="st-closed" class="text-2xl font-bold mt-1">-</p>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
+                    <span class="badge bg-indigo-100 text-indigo-600 mb-2">연계</span>
+                    <p id="st-referred" class="text-2xl font-bold mt-1">-</p>
+                </div>
+            </div>
+
+            <!-- Chart + Overdue / KPI row -->
+            <div class="grid lg:grid-cols-3 gap-6 mb-6">
+                <!-- 14-day trend chart -->
+                <div class="lg:col-span-2 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                    <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-lg text-primary">bar_chart</span>
+                        14일 접수 추이
+                    </h3>
+                    <div style="height:260px"><canvas id="chart-daily"></canvas></div>
+                </div>
+                <!-- Overdue alerts -->
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                    <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-lg text-red-500">warning</span>
+                        미처리 알림 (3일+)
+                    </h3>
+                    <div id="overdue-list" class="space-y-2 max-h-[240px] overflow-y-auto text-sm">
+                        <p class="text-slate-400">로딩 중...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 부서간 협업 현황 -->
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100 mb-6">
+                <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-lg text-indigo-500">group_work</span>
+                    부서간 협업 현황
+                    <span id="collab-count" class="ml-1 px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-600">-</span>
+                </h3>
+                <div id="collab-dashboard-list" class="space-y-2 max-h-[320px] overflow-y-auto">
+                    <p class="text-slate-400 text-sm py-4 text-center">로딩 중...</p>
+                </div>
+            </div>
+
+            <!-- System KPI -->
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-lg text-deep-purple">speed</span>
+                    시스템 KPI (7일)
+                </h3>
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4" id="system-kpi">
+                    <p class="text-slate-400 text-sm col-span-full">로딩 중...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 2: Requests -->
+        <section id="panel-requests" class="hidden">
+            <!-- Filter Bar -->
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 mb-4 flex flex-wrap gap-3 items-center">
+                <select id="filter-status" onchange="loadRequests()" class="rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary">
+                    <option value="all">전체 상태</option>
+                    <option value="open">접수</option>
+                    <option value="confirmed">확인</option>
+                    <option value="contacted">연락</option>
+                    <option value="connected">연결</option>
+                    <option value="closed">완료</option>
+                    <option value="referred">연계</option>
+                </select>
+                <div class="flex-1 min-w-[200px]">
+                    <input id="filter-search" type="text" placeholder="이름, 전화, 서비스명 검색..." onkeyup="debounceSearch()" class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary" />
+                </div>
+                <button onclick="toggleSort()" id="sort-btn" class="flex items-center gap-1 text-sm text-slate-600 hover:text-primary px-3 py-2 rounded-lg border border-slate-300">
+                    <span class="material-symbols-outlined text-lg">swap_vert</span>
+                    <span id="sort-label">최신순</span>
+                </button>
+            </div>
+
+            <!-- Request Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
+                            <tr>
+                                <th class="px-4 py-3 text-left">ID</th>
+                                <th class="px-4 py-3 text-left">이름</th>
+                                <th class="px-4 py-3 text-left hidden sm:table-cell">전화</th>
+                                <th class="px-4 py-3 text-left">서비스명</th>
+                                <th class="px-4 py-3 text-left">상태</th>
+                                <th class="px-4 py-3 text-left hidden md:table-cell">접수일</th>
+                                <th class="px-4 py-3 text-center">상세</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requests-tbody" class="divide-y divide-slate-100">
+                            <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">로딩 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Pagination -->
+                <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100 text-sm">
+                    <span id="page-info" class="text-slate-500"></span>
+                    <div class="flex gap-1" id="page-buttons"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 3: Analytics -->
+        <section id="panel-analytics" class="hidden">
+            <div class="grid lg:grid-cols-2 gap-6 mb-6">
+                <!-- Service Ranking -->
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                    <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-lg text-primary">leaderboard</span>
+                        서비스 인기 랭킹
+                    </h3>
+                    <div style="height:300px"><canvas id="chart-service"></canvas></div>
+                </div>
+                <!-- Category Distribution -->
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                    <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-lg text-deep-purple">donut_large</span>
+                        카테고리 분포
+                    </h3>
+                    <div style="height:300px" class="flex items-center justify-center"><canvas id="chart-category"></canvas></div>
+                </div>
+            </div>
+            <!-- Event Trends -->
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-lg text-blue-500">show_chart</span>
+                    이벤트 추이 (7일)
+                </h3>
+                <div style="height:280px"><canvas id="chart-trends"></canvas></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-overlay absolute inset-0" onclick="closeModal()"></div>
+        <div class="absolute inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl overflow-y-auto">
+            <div class="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between z-10">
+                <h2 class="text-lg font-bold text-slate-800">요청 상세</h2>
+                <button onclick="closeModal()" class="p-1 hover:bg-slate-100 rounded-lg">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div id="modal-body" class="p-6">
+                <p class="text-slate-400">로딩 중...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ── State ──
+    let currentTab = 'dashboard';
+    let currentSort = 'newest';
+    let currentPage = 1;
+    let searchTimer = null;
+    let charts = {};
+
+    // ── Status helpers ──
+    const STATUS_MAP = {
+        open:      { label: '접수', bg: 'bg-blue-100',   text: 'text-blue-600' },
+        confirmed: { label: '확인', bg: 'bg-amber-100',  text: 'text-amber-600' },
+        contacted: { label: '연락', bg: 'bg-purple-100', text: 'text-purple-600' },
+        connected: { label: '연결', bg: 'bg-teal-100',   text: 'text-teal-600' },
+        closed:    { label: '완료', bg: 'bg-green-100',  text: 'text-green-700' },
+        referred:  { label: '연계', bg: 'bg-indigo-100', text: 'text-indigo-600' },
+    };
+
+    function statusBadge(status) {
+        const s = STATUS_MAP[status] || { label: status, bg: 'bg-slate-100', text: 'text-slate-600' };
+        return `<span class="badge ${s.bg} ${s.text}">${s.label}</span>`;
+    }
+
+    function shortId(id) { return id ? id.slice(0, 8) : '-'; }
+
+    function formatDate(r) {
+        if (r.createdAtISO) {
+            const d = new Date(r.createdAtISO);
+            return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        }
+        return r.createdAt || '-';
+    }
+
+    // ── Tab switching ──
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('tab-active');
+            b.classList.add('text-slate-500');
+        });
+        const btn = document.getElementById('tab-' + tab);
+        btn.classList.add('tab-active');
+        btn.classList.remove('text-slate-500');
+
+        document.getElementById('panel-dashboard').classList.toggle('hidden', tab !== 'dashboard');
+        document.getElementById('panel-requests').classList.toggle('hidden', tab !== 'requests');
+        document.getElementById('panel-analytics').classList.toggle('hidden', tab !== 'analytics');
+
+        if (tab === 'dashboard') loadDashboard();
+        else if (tab === 'requests') loadRequests();
+        else if (tab === 'analytics') loadAnalytics();
+    }
+
+    // ── API helpers ──
+    async function api(url) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        return res.json();
+    }
+
+    // ── Dashboard ──
+    // 부서 이름 매핑
+    let deptMap = {};
+    async function loadDeptMap() {
+        try {
+            const depts = await api('/api/departments');
+            depts.forEach(d => { deptMap[d.id] = d.name; });
+        } catch { /* ignore */ }
+    }
+    function getDeptName(id) { return deptMap[id] || id; }
+
+    const COLLAB_STATUS_MAP = {
+        requested: { label: '요청됨', bg: 'bg-amber-100', text: 'text-amber-600' },
+        accepted:  { label: '진행중', bg: 'bg-blue-100', text: 'text-blue-600' },
+        completed: { label: '완료', bg: 'bg-green-100', text: 'text-green-700' },
+        declined:  { label: '반려', bg: 'bg-red-100', text: 'text-red-600' },
+    };
+    const COLLAB_TYPE_MAP = {
+        consultation: '자문', joint: '공동처리', transfer: '이관',
+    };
+
+    async function loadDashboard() {
+        try {
+            const [stats, kpi, collabs] = await Promise.all([api('/api/admin/stats'), api('/api/admin/kpi?days=7'), api('/api/admin/collaborations')]);
+
+            document.getElementById('kpi-total').textContent = stats.total;
+            document.getElementById('kpi-today').textContent = stats.today;
+            document.getElementById('kpi-open').textContent = stats.open;
+            document.getElementById('kpi-avg-days').textContent = stats.avgDays ? stats.avgDays + '일' : '-';
+
+            document.getElementById('st-open').textContent = stats.open;
+            document.getElementById('st-confirmed').textContent = stats.confirmed;
+            document.getElementById('st-contacted').textContent = stats.contacted;
+            document.getElementById('st-connected').textContent = stats.connected;
+            document.getElementById('st-closed').textContent = stats.closed;
+            document.getElementById('st-referred').textContent = stats.referred;
+
+            // Daily chart
+            const labels = Object.keys(stats.daily).map(d => d.slice(5)); // MM-DD
+            const values = Object.values(stats.daily);
+            renderBarChart('chart-daily', labels, values, '접수 건수', '#98002E');
+
+            // Overdue list
+            const overdueEl = document.getElementById('overdue-list');
+            if (stats.overdue && stats.overdue.length > 0) {
+                overdueEl.innerHTML = stats.overdue.map(r => {
+                    const days = Math.floor((Date.now() - new Date(r.createdAtISO || 0).getTime()) / 86400000);
+                    return `<div class="flex items-center justify-between p-2.5 bg-red-50 rounded-lg cursor-pointer hover:bg-red-100 transition-colors" onclick="openDetail('${r.id}')">
+                        <div>
+                            <span class="font-medium text-slate-700">${r.userName || '-'}</span>
+                            <span class="text-slate-400 ml-1.5">${r.serviceName || ''}</span>
+                        </div>
+                        <span class="text-xs text-red-500 font-semibold">${days}일 경과</span>
+                    </div>`;
+                }).join('');
+            } else {
+                overdueEl.innerHTML = '<p class="text-slate-400 text-sm py-4 text-center">미처리 알림 없음</p>';
+            }
+
+            // 협업 현황
+            const collabEl = document.getElementById('collab-dashboard-list');
+            document.getElementById('collab-count').textContent = collabs.length;
+            if (collabs.length > 0) {
+                collabEl.innerHTML = collabs.map(c => {
+                    const st = COLLAB_STATUS_MAP[c.status] || COLLAB_STATUS_MAP.requested;
+                    const typeName = COLLAB_TYPE_MAP[c.type] || '자문';
+                    return `
+                    <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 hover:bg-indigo-50 transition-colors cursor-pointer" onclick="openDetail('${c.requestId}')">
+                        <div class="flex-shrink-0">
+                            <span class="badge ${st.bg} ${st.text}">${st.label}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 text-sm">
+                                <span class="font-semibold text-indigo-700">${getDeptName(c.fromDept)}</span>
+                                <span class="material-symbols-outlined text-slate-400 text-sm">arrow_forward</span>
+                                <span class="font-semibold text-green-700">${getDeptName(c.toDept)}</span>
+                                <span class="text-xs text-slate-400 ml-1">(${typeName})</span>
+                            </div>
+                            <p class="text-xs text-slate-500 truncate mt-0.5">${c.userName || '-'} · ${c.serviceName || '-'} · ${c.reason || ''}</p>
+                        </div>
+                        <div class="text-xs text-slate-400 flex-shrink-0">${new Date(c.createdAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'})}</div>
+                    </div>`;
+                }).join('');
+            } else {
+                collabEl.innerHTML = '<p class="text-slate-400 text-sm py-4 text-center">활성 협업 요청 없음</p>';
+            }
+
+            // System KPI
+            const kpiEl = document.getElementById('system-kpi');
+            kpiEl.innerHTML = `
+                <div class="text-center p-3 rounded-lg bg-slate-50">
+                    <p class="text-2xl font-bold text-primary">${kpi.ragMatchRate}%</p>
+                    <p class="text-xs text-slate-500 mt-1">RAG 매칭률</p>
+                </div>
+                <div class="text-center p-3 rounded-lg bg-slate-50">
+                    <p class="text-2xl font-bold text-green-600">${kpi.conversionRate}%</p>
+                    <p class="text-xs text-slate-500 mt-1">신청 전환율</p>
+                </div>
+                <div class="text-center p-3 rounded-lg bg-slate-50">
+                    <p class="text-2xl font-bold text-blue-500">${kpi.voiceRate}%</p>
+                    <p class="text-xs text-slate-500 mt-1">음성 비율</p>
+                </div>
+                <div class="text-center p-3 rounded-lg bg-slate-50">
+                    <p class="text-2xl font-bold text-purple-500">${kpi.ttsRate}%</p>
+                    <p class="text-xs text-slate-500 mt-1">TTS 비율</p>
+                </div>
+                <div class="text-center p-3 rounded-lg bg-slate-50">
+                    <p class="text-2xl font-bold text-slate-700">${kpi.chatRequest}</p>
+                    <p class="text-xs text-slate-500 mt-1">총 채팅 수</p>
+                </div>
+            `;
+        } catch (e) {
+            console.error('Dashboard load error:', e);
+        }
+    }
+
+    // ── Requests ──
+    async function loadRequests() {
+        const status = document.getElementById('filter-status').value;
+        const search = document.getElementById('filter-search').value;
+
+        try {
+            const data = await api(`/api/admin/requests?status=${status}&search=${encodeURIComponent(search)}&page=${currentPage}&limit=20&sort=${currentSort}`);
+            const tbody = document.getElementById('requests-tbody');
+
+            if (data.items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">결과 없음</td></tr>';
+            } else {
+                tbody.innerHTML = data.items.map(r => `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-4 py-3 font-mono text-xs text-slate-400">${shortId(r.id)}</td>
+                        <td class="px-4 py-3 font-medium">${r.userName || '-'}</td>
+                        <td class="px-4 py-3 hidden sm:table-cell text-slate-500">${r.userPhone || '-'}</td>
+                        <td class="px-4 py-3 max-w-[200px] truncate">${r.serviceName || '-'}</td>
+                        <td class="px-4 py-3">${statusBadge(r.status)}</td>
+                        <td class="px-4 py-3 hidden md:table-cell text-slate-500 text-xs">${formatDate(r)}</td>
+                        <td class="px-4 py-3 text-center">
+                            <button onclick="openDetail('${r.id}')" class="p-1.5 hover:bg-primary/10 rounded-lg text-primary transition-colors">
+                                <span class="material-symbols-outlined text-lg">open_in_new</span>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // Pagination
+            document.getElementById('page-info').textContent = `${data.total}건 중 ${(data.page-1)*20+1}-${Math.min(data.page*20, data.total)}`;
+            const pageBox = document.getElementById('page-buttons');
+            let btns = '';
+            if (data.page > 1) btns += `<button onclick="goPage(${data.page-1})" class="px-3 py-1 rounded border border-slate-300 hover:bg-slate-100">이전</button>`;
+            for (let i = 1; i <= data.totalPages; i++) {
+                const active = i === data.page ? 'bg-primary text-white border-primary' : 'border-slate-300 hover:bg-slate-100';
+                btns += `<button onclick="goPage(${i})" class="px-3 py-1 rounded border ${active}">${i}</button>`;
+            }
+            if (data.page < data.totalPages) btns += `<button onclick="goPage(${data.page+1})" class="px-3 py-1 rounded border border-slate-300 hover:bg-slate-100">다음</button>`;
+            pageBox.innerHTML = btns;
+        } catch (e) {
+            console.error('Requests load error:', e);
+        }
+    }
+
+    function goPage(p) { currentPage = p; loadRequests(); }
+    function debounceSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(() => { currentPage = 1; loadRequests(); }, 300); }
+    function toggleSort() {
+        currentSort = currentSort === 'newest' ? 'oldest' : 'newest';
+        document.getElementById('sort-label').textContent = currentSort === 'newest' ? '최신순' : '오래된순';
+        currentPage = 1;
+        loadRequests();
+    }
+
+    // ── Detail Modal ──
+    async function openDetail(id) {
+        document.getElementById('detail-modal').classList.remove('hidden');
+        document.getElementById('modal-body').innerHTML = '<p class="text-slate-400 py-8 text-center">로딩 중...</p>';
+
+        try {
+            const data = await api(`/api/admin/requests/${id}`);
+            renderDetail(data);
+        } catch (e) {
+            document.getElementById('modal-body').innerHTML = '<p class="text-red-500">데이터를 불러올 수 없습니다.</p>';
+        }
+    }
+
+    function closeModal() { document.getElementById('detail-modal').classList.add('hidden'); }
+
+    function renderDetail(data) {
+        const el = document.getElementById('modal-body');
+        const chain = data.chain || [];
+        const notes = data.notes || [];
+
+        el.innerHTML = `
+            <!-- Basic Info -->
+            <div class="space-y-3 mb-6">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-slate-400 font-mono">${data.id}</span>
+                    ${statusBadge(data.status)}
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div><span class="text-slate-400 block text-xs mb-0.5">이름</span><span class="font-medium">${data.userName || '-'}</span></div>
+                    <div><span class="text-slate-400 block text-xs mb-0.5">전화</span><span class="font-medium">${data.userPhone || '-'}</span></div>
+                    <div class="col-span-2"><span class="text-slate-400 block text-xs mb-0.5">서비스명</span><span class="font-medium">${data.serviceName || '-'}</span></div>
+                    <div><span class="text-slate-400 block text-xs mb-0.5">접수일</span><span>${data.createdAt || '-'}</span></div>
+                    <div><span class="text-slate-400 block text-xs mb-0.5">최종 수정</span><span>${data.updatedAt ? new Date(data.updatedAt).toLocaleString('ko-KR') : '-'}</span></div>
+                </div>
+            </div>
+
+            <!-- Conversation Summary -->
+            ${data.conversationSummary ? `
+            <div class="mb-6 p-4 bg-purple-50 border border-purple-100 rounded-lg">
+                <h4 class="text-xs font-semibold text-purple-700 mb-2 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm">smart_toy</span>AI 대화 요약
+                </h4>
+                <p class="text-sm text-slate-700 whitespace-pre-line leading-relaxed">${escapeHtml(data.conversationSummary)}</p>
+            </div>` : ''}
+
+            <!-- Referral Chain -->
+            ${chain.length > 1 ? `
+            <div class="mb-6">
+                <h4 class="text-xs font-semibold text-slate-500 mb-3 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm">link</span>연계 체인
+                </h4>
+                <div class="space-y-2">
+                    ${chain.map(c => `
+                        <div class="flex items-center gap-2 text-sm p-2 rounded-lg ${c.current ? 'bg-primary/5 border border-primary/20' : 'bg-slate-50'}">
+                            ${statusBadge(c.status)}
+                            <span class="${c.current ? 'font-semibold text-primary' : 'text-slate-600'}">${c.serviceName}</span>
+                            ${c.reason ? `<span class="text-xs text-slate-400 ml-auto">${c.reason}</span>` : ''}
+                        </div>
+                    `).join('<div class="flex justify-center"><span class="material-symbols-outlined text-slate-300 text-sm">arrow_downward</span></div>')}
+                </div>
+            </div>` : ''}
+
+            <!-- 부서간 협업 -->
+            ${(data.collaborations && data.collaborations.length > 0) ? `
+            <div class="mb-6">
+                <h4 class="text-xs font-semibold text-slate-500 mb-2 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm">group_work</span>협업 (${data.collaborations.length})
+                </h4>
+                <div class="space-y-2">
+                    ${data.collaborations.map(c => {
+                        const st = COLLAB_STATUS_MAP[c.status] || { label: c.status, bg: 'bg-slate-100', text: 'text-slate-600' };
+                        const typeName = COLLAB_TYPE_MAP[c.type] || '자문';
+                        const isActive = c.status === 'requested' || c.status === 'accepted';
+                        return `<div class="p-3 ${isActive ? 'bg-indigo-50 border border-indigo-200' : 'bg-slate-50 border border-slate-100'} rounded-lg text-sm">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="badge ${st.bg} ${st.text}">${st.label}</span>
+                                <span class="text-xs text-slate-400">${typeName}</span>
+                                <span class="text-xs text-slate-400 ml-auto">${new Date(c.createdAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 text-sm mb-1">
+                                <span class="font-semibold text-indigo-700">${getDeptName(c.fromDept)}</span>
+                                <span class="material-symbols-outlined text-slate-400 text-sm">arrow_forward</span>
+                                <span class="font-semibold text-green-700">${getDeptName(c.toDept)}</span>
+                            </div>
+                            <p class="text-xs text-slate-600">${escapeHtml(c.reason)}</p>
+                            ${c.notes && c.notes.length > 0 ? '<div class="mt-1.5 pt-1.5 border-t border-indigo-100 space-y-1">' + c.notes.map(n => `<div class="flex gap-1.5 text-xs"><span class="font-semibold text-indigo-600">${escapeHtml(n.dept || n.author)}</span><span class="text-slate-600">${escapeHtml(n.text)}</span><span class="text-slate-300 ml-auto">${new Date(n.createdAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span></div>`).join('') + '</div>' : ''}
+                            ${isActive ? `<div class="mt-2 pt-2 border-t border-indigo-100 flex flex-wrap gap-1.5">
+                                ${c.status === 'requested' ? `<button onclick="updateAdminCollab('${data.id}','${c.id}','accepted')" class="px-2.5 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700">수락</button><button onclick="updateAdminCollab('${data.id}','${c.id}','declined')" class="px-2.5 py-1 bg-white border border-red-300 text-red-600 rounded text-xs font-semibold hover:bg-red-50">반려</button>` : ''}
+                                ${c.status === 'accepted' ? `<button onclick="updateAdminCollab('${data.id}','${c.id}','completed')" class="px-2.5 py-1 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700">완료</button>` : ''}
+                                <div class="flex-1"></div>
+                                <div class="flex gap-1">
+                                    <input id="admin-cnote-${c.id}" type="text" placeholder="메모..." class="border border-slate-300 rounded px-2 py-1 text-xs w-28 focus:ring-primary focus:border-primary" onkeydown="if(event.key==='Enter')addAdminCollabNote('${data.id}','${c.id}')" />
+                                    <button onclick="addAdminCollabNote('${data.id}','${c.id}')" class="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700">추가</button>
+                                </div>
+                            </div>` : ''}
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>` : ''}
+
+            <!-- 담당자 처리 페이지 링크 -->
+            <div class="mb-4">
+                <a href="/case/${data.id}" target="_blank" class="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg text-sm font-semibold text-green-700 hover:bg-green-100 transition-colors">
+                    <span class="material-symbols-outlined text-lg">open_in_new</span>
+                    담당자 처리 페이지 열기
+                </a>
+            </div>
+
+            <!-- Status Change -->
+            <div class="mb-6">
+                <h4 class="text-xs font-semibold text-slate-500 mb-2">상태 변경</h4>
+                <p class="text-xs text-amber-600 mb-2 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm">warning</span>
+                    관리자 오버라이드 - 일반적으로 담당자 처리 페이지에서 상태를 변경합니다.
+                </p>
+                <div class="flex flex-wrap gap-1.5">
+                    ${Object.entries(STATUS_MAP).map(([key, val]) => `
+                        <button onclick="changeStatus('${data.id}', '${key}')" class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${data.status === key ? val.bg + ' ' + val.text + ' border-current' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400'}">
+                            ${val.label}
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-4">
+                <h4 class="text-xs font-semibold text-slate-500 mb-2 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm">sticky_note_2</span>메모 (${notes.length})
+                </h4>
+                <div class="space-y-2 mb-3 max-h-[200px] overflow-y-auto">
+                    ${notes.length > 0 ? notes.map(n => {
+                        const author = n.author || '관리자';
+                        const authorBadge = author === '담당자'
+                            ? '<span class="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700">담당자</span>'
+                            : '<span class="inline-block px-1.5 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700">관리자</span>';
+                        return `<div class="p-3 bg-amber-50 rounded-lg text-sm">
+                            <div class="flex items-center gap-1.5 mb-1">${authorBadge}<span class="text-xs text-slate-400">${new Date(n.createdAt).toLocaleString('ko-KR')}</span></div>
+                            <p class="text-slate-700">${escapeHtml(n.text)}</p>
+                        </div>`;
+                    }).join('') : '<p class="text-sm text-slate-400">메모 없음</p>'}
+                </div>
+                <div class="flex gap-2">
+                    <input id="note-input" type="text" placeholder="메모 입력..." class="flex-1 rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary" onkeydown="if(event.key==='Enter')addNote('${data.id}')" />
+                    <button onclick="addNote('${data.id}')" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light transition-colors">추가</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    async function changeStatus(id, status) {
+        try {
+            await fetch(`/api/admin/requests/${id}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status }),
+            });
+            openDetail(id);
+            if (currentTab === 'requests') loadRequests();
+            if (currentTab === 'dashboard') loadDashboard();
+        } catch (e) {
+            alert('상태 변경 실패');
+        }
+    }
+
+    async function addNote(id) {
+        const input = document.getElementById('note-input');
+        const note = input.value.trim();
+        if (!note) return;
+        try {
+            await fetch(`/api/admin/requests/${id}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ note }),
+            });
+            openDetail(id);
+        } catch (e) {
+            alert('메모 추가 실패');
+        }
+    }
+
+    // ── 협업 관리 (관리자) ──
+    async function updateAdminCollab(requestId, collabId, status) {
+        try {
+            await fetch(`/api/case/${requestId}/collaboration/${collabId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status }),
+            });
+            openDetail(requestId);
+            if (currentTab === 'dashboard') loadDashboard();
+        } catch (e) {
+            alert('협업 상태 변경 실패');
+        }
+    }
+
+    async function addAdminCollabNote(requestId, collabId) {
+        const input = document.getElementById('admin-cnote-' + collabId);
+        const text = input.value.trim();
+        if (!text) return;
+        try {
+            await fetch(`/api/case/${requestId}/collaboration/${collabId}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, author: '관리자', dept: '관리자' }),
+            });
+            input.value = '';
+            openDetail(requestId);
+        } catch (e) {
+            alert('메모 추가 실패');
+        }
+    }
+
+    // ── Analytics ──
+    async function loadAnalytics() {
+        try {
+            const [analytics, trends] = await Promise.all([api('/api/admin/analytics'), api('/api/admin/trends?days=7')]);
+
+            // Service Ranking (horizontal bar)
+            const ranking = analytics.serviceRanking.slice(0, 10);
+            renderHorizontalBarChart('chart-service', ranking.map(r => r.name.length > 12 ? r.name.slice(0, 12) + '..' : r.name), ranking.map(r => r.count));
+
+            // Category Distribution (doughnut)
+            const catLabels = Object.keys(analytics.categoryCount);
+            const catValues = Object.values(analytics.categoryCount);
+            renderDoughnutChart('chart-category', catLabels, catValues);
+
+            // Event Trends (line)
+            const trendLabels = trends.map(t => t.date.slice(5));
+            renderLineChart('chart-trends', trendLabels, trends);
+        } catch (e) {
+            console.error('Analytics load error:', e);
+        }
+    }
+
+    // ── Chart renderers ──
+    function destroyChart(id) {
+        if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+    }
+
+    function renderBarChart(id, labels, data, label, color) {
+        destroyChart(id);
+        charts[id] = new Chart(document.getElementById(id), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{ label, data, backgroundColor: color + '20', borderColor: color, borderWidth: 2, borderRadius: 4 }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } },
+                    x: { grid: { display: false } },
+                },
+            },
+        });
+    }
+
+    function renderHorizontalBarChart(id, labels, data) {
+        destroyChart(id);
+        charts[id] = new Chart(document.getElementById(id), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{ data, backgroundColor: '#98002E20', borderColor: '#98002E', borderWidth: 2, borderRadius: 4 }],
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { beginAtZero: true, ticks: { precision: 0 } },
+                    y: { grid: { display: false } },
+                },
+            },
+        });
+    }
+
+    function renderDoughnutChart(id, labels, data) {
+        destroyChart(id);
+        const colors = ['#98002E', '#4A1942', '#1565C0', '#2E7D32', '#FF9800', '#607D8B'];
+        charts[id] = new Chart(document.getElementById(id), {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{ data, backgroundColor: colors.slice(0, labels.length), borderWidth: 0 }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { padding: 16, font: { size: 12 } } },
+                },
+            },
+        });
+    }
+
+    function renderLineChart(id, labels, trends) {
+        destroyChart(id);
+        const eventTypes = [
+            { key: 'chat_request', label: '채팅', color: '#98002E' },
+            { key: 'rag_match', label: 'RAG 매칭', color: '#2E7D32' },
+            { key: 'service_apply', label: '신청', color: '#1565C0' },
+            { key: 'tts_request', label: 'TTS', color: '#FF9800' },
+        ];
+        const datasets = eventTypes.map(e => ({
+            label: e.label,
+            data: trends.map(t => t[e.key] || 0),
+            borderColor: e.color,
+            backgroundColor: e.color + '10',
+            tension: 0.3,
+            fill: false,
+            pointRadius: 3,
+            borderWidth: 2,
+        }));
+        charts[id] = new Chart(document.getElementById(id), {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { padding: 16, font: { size: 12 } } } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } },
+                    x: { grid: { display: false } },
+                },
+            },
+        });
+    }
+
+    // ── Init ──
+    loadDeptMap();
+    loadDashboard();
+    </script>
+</body>
+</html>
