@@ -3,3 +3,6 @@ node_modules/
 *.pem
 *.log
 noma-code-tasks.json
+*.bak
+*.tmp
+*.corrupt.*

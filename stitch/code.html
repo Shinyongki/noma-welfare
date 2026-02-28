@@ -318,11 +318,11 @@
         </a>
         <div class="flex items-center gap-3">
             <a class="px-5 py-2 bg-green-600 text-white text-sm font-semibold rounded-full hover:bg-green-700 transition-colors flex items-center gap-1.5" href="tel:055-230-8200">
-                <span class="material-symbols-outlined text-base">call</span>
+                <span class="material-symbols-outlined text-base" aria-hidden="true">call</span>
                 전화 문의
             </a>
             <button class="text-slate-700" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
-                <span class="material-symbols-outlined text-2xl">menu</span>
+                <span class="material-symbols-outlined text-2xl" aria-hidden="true">menu</span>
             </button>
         </div>
     </header>
@@ -332,7 +332,7 @@
             <a class="block text-slate-700 font-medium py-2" href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').classList.add('hidden');revealBelowFoldSections();setTimeout(()=>document.getElementById('browse-section')?.scrollIntoView({behavior:'smooth'}),100)">전체 서비스</a>
             <a class="block text-slate-700 font-medium py-2" href="#">자주 묻는 질문</a>
             <button id="btn-my-drawer" class="relative block text-slate-700 font-medium py-2 flex items-center gap-2" onclick="document.getElementById('mobile-menu').classList.add('hidden');openMyDrawer()">
-                <span class="material-symbols-outlined text-lg">bookmark</span>내 서랍
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">bookmark</span>내 서랍
                 <span id="drawer-badge" class="hidden absolute -top-1 -right-2 bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
             </button>
             <a class="block text-primary font-bold py-2" href="tel:055-230-8200">전화 문의</a>
@@ -357,7 +357,7 @@
                     <!-- 음성 중심 CTA (모든 화면에서 기본 표시) -->
                     <div id="hero-voice-cta-wrap" class="flex flex-col items-center gap-4 mt-8">
                         <button id="hero-voice-cta" class="mic-breathe w-32 h-32 rounded-full bg-gradient-to-br from-primary to-deep-purple text-white shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
-                            <span class="material-symbols-outlined" style="font-size:64px">mic</span>
+                            <span class="material-symbols-outlined style=" aria-hidden="true"font-size:64px">mic</span>
                         </button>
                         <p class="text-slate-800 text-xl font-bold mt-2">말씀해 주세요</p>
                         <p class="text-slate-600 text-base">버튼을 누르고 원하는 서비스를 말씀해 주세요</p>
@@ -372,7 +372,7 @@
                         <div class="relative flex items-center w-full h-16 md:h-[3.5rem] bg-white rounded-full shadow-lg shadow-stone-200/60 ring-1 ring-stone-200/80 transition-all focus-within:ring-2 focus-within:ring-primary/60 focus-within:shadow-xl overflow-hidden">
                             <button id="hero-mic" class="pl-4 md:pl-7 text-primary hover:text-primary-light flex flex-col items-center justify-center hover:scale-110 transition-all gap-0.5" title="음성으로 입력">
                                 <span class="w-11 h-11 md:w-auto md:h-auto rounded-full bg-primary/10 md:bg-transparent flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-[30px] md:text-[28px]">mic</span>
+                                    <span class="material-symbols-outlined text-[30px] md:text-[28px]" aria-hidden="true">mic</span>
                                 </span>
                                 <span class="text-[10px] font-bold text-primary md:hidden leading-none">말하기</span>
                             </button>
@@ -381,18 +381,18 @@
                                 placeholder="예: 퇴원 후 당장 돌봐줄 사람이 없어요" />
                             <button id="hero-submit"
                                 class="mr-2 md:mr-3 size-12 md:size-11 bg-primary rounded-full flex items-center justify-center text-white hover:bg-primary-light active:scale-95 transition-all shadow-md flex-shrink-0">
-                                <span class="material-symbols-outlined text-2xl">arrow_forward</span>
+                                <span class="material-symbols-outlined text-2xl" aria-hidden="true">arrow_forward</span>
                             </button>
                         </div>
                     </div>
                     <!-- Example Chips (2개만) -->
                     <div id="hero-chips" class="mt-5 flex flex-wrap justify-center gap-2.5">
                         <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="퇴원 후 당장 돌봐줄 사람이 없어요">
-                            <span class="material-symbols-outlined text-primary/70 text-base">medical_services</span>
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">medical_services</span>
                             <span class="text-slate-600 text-sm font-medium">#퇴원 후 돌봄이 필요해요</span>
                         </button>
                         <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="긴급 돌봄이 필요해요">
-                            <span class="material-symbols-outlined text-primary/70 text-base">emergency_home</span>
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">emergency_home</span>
                             <span class="text-slate-600 text-sm font-medium">#긴급 돌봄</span>
                         </button>
                     </div>
@@ -407,7 +407,7 @@
                 <div id="ai-summary-area" class="mb-8 hidden">
                     <div class="flex items-start gap-3 max-w-3xl">
                         <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary to-deep-purple flex items-center justify-center shadow-md">
-                            <span class="material-symbols-outlined text-white text-xl">smart_toy</span>
+                            <span class="material-symbols-outlined text-white text-xl" aria-hidden="true">smart_toy</span>
                         </div>
                         <div class="flex-1">
                             <p class="text-xs font-bold text-primary mb-1.5">노마(Noma) AI 분석 결과</p>
@@ -419,11 +419,11 @@
                 <!-- Section Title -->
                 <div id="cards-title" class="flex items-center justify-between mb-6">
                     <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+                        <span class="material-symbols-outlined text-primary text-xl" aria-hidden="true">auto_awesome</span>
                         <h2 class="text-xl font-bold text-slate-800">맞춤 추천 서비스</h2>
                     </div>
                     <button id="btn-new-search" class="hidden text-sm text-slate-500 hover:text-primary font-medium flex items-center gap-1 transition-colors">
-                        <span class="material-symbols-outlined text-base">refresh</span>
+                        <span class="material-symbols-outlined text-base" aria-hidden="true">refresh</span>
                         새로 질문하기
                     </button>
                 </div>
@@ -455,7 +455,7 @@
                 <div id="discover-more" class="hidden mt-8 bg-white border border-stone-200 rounded-2xl p-6 md:p-7 shadow-sm">
                     <div class="flex items-center gap-4 mb-4">
                         <div class="bg-primary/10 p-3 rounded-full text-primary flex-shrink-0">
-                            <span class="material-symbols-outlined text-xl">grid_view</span>
+                            <span class="material-symbols-outlined text-xl" aria-hidden="true">grid_view</span>
                         </div>
                         <div>
                             <h4 class="text-base font-bold text-slate-800 mb-0.5">찾으시는 서비스가 없으신가요?</h4>
@@ -464,11 +464,11 @@
                     </div>
                     <div class="flex flex-col sm:flex-row gap-3">
                         <button id="btn-browse-scroll" class="flex-1 px-5 py-3 bg-white border border-stone-300 text-slate-700 hover:bg-slate-50 font-semibold rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-1.5 text-sm">
-                            <span class="material-symbols-outlined text-base">list_alt</span>
+                            <span class="material-symbols-outlined text-base" aria-hidden="true">list_alt</span>
                             전체 서비스 둘러보기
                         </button>
                         <a href="tel:055-230-8200" class="flex-1 px-5 py-3 bg-primary text-white font-semibold rounded-xl shadow-sm hover:bg-primary-light transition-all flex items-center justify-center gap-1.5 text-sm">
-                            <span class="material-symbols-outlined text-base">call</span>
+                            <span class="material-symbols-outlined text-base" aria-hidden="true">call</span>
                             대표전화 055-230-8200
                         </a>
                     </div>
@@ -480,14 +480,14 @@
         <section id="initial-placeholder" class="hidden w-full px-4 sm:px-6 lg:px-20 xl:px-40 pb-12">
             <div class="max-w-5xl mx-auto">
                 <div class="flex items-center gap-2.5 mb-6">
-                    <span class="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+                    <span class="material-symbols-outlined text-primary text-xl" aria-hidden="true">auto_awesome</span>
                     <h2 class="text-xl font-bold text-slate-800">이런 서비스를 제공합니다</h2>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     <!-- Placeholder Card 1 -->
                     <div class="bg-white rounded-2xl p-6 border border-stone-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group cursor-pointer" onclick="document.getElementById('hero-input').value='긴급 돌봄이 필요해요';document.getElementById('hero-input').focus()">
                         <div class="bg-primary/10 p-3 rounded-xl text-primary w-fit mb-4 group-hover:bg-primary/15 transition-colors">
-                            <span class="material-symbols-outlined text-2xl">emergency</span>
+                            <span class="material-symbols-outlined text-2xl" aria-hidden="true">emergency</span>
                         </div>
                         <h3 class="text-lg font-bold text-slate-800 mb-2">긴급돌봄 지원</h3>
                         <p class="text-sm text-slate-500 leading-relaxed break-keep">갑작스러운 질병이나 사고로 돌봄이 필요할 때, 72시간 내 긴급 돌봄 서비스를 제공합니다.</p>
@@ -495,7 +495,7 @@
                     <!-- Placeholder Card 2 -->
                     <div class="bg-white rounded-2xl p-6 border border-stone-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group cursor-pointer" onclick="document.getElementById('hero-input').value='혼자 사는 어르신 안전 관리';document.getElementById('hero-input').focus()">
                         <div class="bg-blue-50 p-3 rounded-xl text-blue-600 w-fit mb-4 group-hover:bg-blue-100 transition-colors">
-                            <span class="material-symbols-outlined text-2xl">shield_with_heart</span>
+                            <span class="material-symbols-outlined text-2xl" aria-hidden="true">shield_with_heart</span>
                         </div>
                         <h3 class="text-lg font-bold text-slate-800 mb-2">AI 스마트 돌봄</h3>
                         <p class="text-sm text-slate-500 leading-relaxed break-keep">AI/IoT 기기를 활용하여 독거 어르신의 건강과 안전을 24시간 모니터링합니다.</p>
@@ -503,7 +503,7 @@
                     <!-- Placeholder Card 3 -->
                     <div class="bg-white rounded-2xl p-6 border border-stone-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group cursor-pointer" onclick="document.getElementById('hero-input').value='장애인 보조기기 지원';document.getElementById('hero-input').focus()">
                         <div class="bg-emerald-50 p-3 rounded-xl text-emerald-600 w-fit mb-4 group-hover:bg-emerald-100 transition-colors">
-                            <span class="material-symbols-outlined text-2xl">accessible_forward</span>
+                            <span class="material-symbols-outlined text-2xl" aria-hidden="true">accessible_forward</span>
                         </div>
                         <h3 class="text-lg font-bold text-slate-800 mb-2">장애인 지원 서비스</h3>
                         <p class="text-sm text-slate-500 leading-relaxed break-keep">보조기기 대여, 직업재활, 권익옹호 등 장애인 맞춤형 종합 복지 서비스를 제공합니다.</p>
@@ -529,7 +529,7 @@
 
                 <!-- Loading -->
                 <div id="browse-loading" class="text-center py-10">
-                    <span class="material-symbols-outlined text-stone-300 text-4xl animate-pulse-soft">hourglass_empty</span>
+                    <span class="material-symbols-outlined text-stone-300 text-4xl animate-pulse-soft" aria-hidden="true">hourglass_empty</span>
                     <p class="text-slate-400 text-sm mt-2">서비스 목록을 불러오는 중...</p>
                 </div>
             </div>
@@ -548,7 +548,7 @@
                     <!-- Step 1 -->
                     <div class="flex flex-col items-center text-center group journey-connector relative z-10">
                         <div class="w-20 h-20 bg-white border-[3px] border-primary rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300">
-                            <span class="material-symbols-outlined text-primary text-3xl">support_agent</span>
+                            <span class="material-symbols-outlined text-primary text-3xl" aria-hidden="true">support_agent</span>
                         </div>
                         <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
                             <p class="text-xs font-bold text-primary mb-0.5">STEP 1</p>
@@ -559,7 +559,7 @@
                     <!-- Step 2 -->
                     <div class="flex flex-col items-center text-center group journey-connector relative z-10">
                         <div class="w-20 h-20 bg-white border-[3px] border-stone-200 group-hover:border-primary/50 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-all duration-300">
-                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl">fact_check</span>
+                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl" aria-hidden="true">fact_check</span>
                         </div>
                         <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
                             <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">STEP 2</p>
@@ -570,7 +570,7 @@
                     <!-- Step 3 -->
                     <div class="flex flex-col items-center text-center group journey-connector relative z-10">
                         <div class="w-20 h-20 bg-white border-[3px] border-stone-200 group-hover:border-primary/50 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-all duration-300">
-                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl">person_apron</span>
+                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl" aria-hidden="true">person_apron</span>
                         </div>
                         <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
                             <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">STEP 3</p>
@@ -581,7 +581,7 @@
                     <!-- Step 4 -->
                     <div class="flex flex-col items-center text-center group relative z-10">
                         <div class="w-20 h-20 bg-white border-[3px] border-stone-200 group-hover:border-primary/50 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-all duration-300">
-                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl">handshake</span>
+                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl" aria-hidden="true">handshake</span>
                         </div>
                         <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
                             <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">STEP 4</p>
@@ -601,9 +601,9 @@
             <div style="position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:6px solid white;"></div>
         </div>
         <button id="floating-mic" title="음성으로 대화하기">
-            <span class="material-symbols-outlined" style="font-size:36px">mic</span>
+            <span class="material-symbols-outlined style=" aria-hidden="true"font-size:36px">mic</span>
             <span class="mic-status">
-                <span class="material-symbols-outlined" style="font-size:14px;color:#98002E">volume_off</span>
+                <span class="material-symbols-outlined style=" aria-hidden="true"font-size:14px;color:#98002E">volume_off</span>
             </span>
         </button>
     </div>
@@ -632,14 +632,14 @@
         <!-- Drawer Header -->
         <div class="flex items-center justify-between px-6 py-5 border-b border-stone-200 bg-gradient-to-r from-primary/5 to-purple-50">
             <div class="flex items-center gap-2.5">
-                <span class="material-symbols-outlined text-primary text-2xl">bookmark</span>
+                <span class="material-symbols-outlined text-primary text-2xl" aria-hidden="true">bookmark</span>
                 <div>
                     <h2 class="text-lg font-bold text-slate-800">내 서랍</h2>
                     <p class="text-xs text-slate-500">관심 있는 서비스를 모아두었어요</p>
                 </div>
             </div>
             <button onclick="closeMyDrawer()" class="p-1.5 text-slate-400 hover:text-slate-600 transition-colors rounded-lg hover:bg-stone-100">
-                <span class="material-symbols-outlined text-xl">close</span>
+                <span class="material-symbols-outlined text-xl" aria-hidden="true">close</span>
             </button>
         </div>
         <!-- Drawer Body -->
@@ -647,10 +647,10 @@
             <!-- Empty state (default) -->
             <div id="drawer-empty" class="flex flex-col items-center justify-center h-full text-center py-16">
                 <div class="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mb-5">
-                    <span class="material-symbols-outlined text-stone-300 text-4xl">bookmark_border</span>
+                    <span class="material-symbols-outlined text-stone-300 text-4xl" aria-hidden="true">bookmark_border</span>
                 </div>
                 <h3 class="text-lg font-bold text-slate-700 mb-2">아직 담아둔 서비스가 없어요</h3>
-                <p class="text-sm text-slate-500 leading-relaxed max-w-xs break-keep">서비스 카드의 <span class="inline-flex items-center gap-0.5 text-primary font-semibold"><span class="material-symbols-outlined text-sm">bookmark_add</span>담기</span> 버튼을 눌러<br/>관심 서비스를 저장해 보세요.</p>
+                <p class="text-sm text-slate-500 leading-relaxed max-w-xs break-keep">서비스 카드의 <span class="inline-flex items-center gap-0.5 text-primary font-semibold"><span class="material-symbols-outlined text-sm" aria-hidden="true">bookmark_add</span>담기</span> 버튼을 눌러<br/>관심 서비스를 저장해 보세요.</p>
             </div>
             <!-- Saved items rendered here -->
             <div id="drawer-items" class="hidden space-y-3"></div>
@@ -658,7 +658,7 @@
         <!-- Drawer Footer -->
         <div id="drawer-footer" class="hidden border-t border-stone-200 p-4">
             <button id="drawer-clear-all" class="w-full py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center gap-1">
-                <span class="material-symbols-outlined text-base">delete_sweep</span>
+                <span class="material-symbols-outlined text-base" aria-hidden="true">delete_sweep</span>
                 모두 비우기
             </button>
         </div>
@@ -669,7 +669,7 @@
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-up">
             <div class="p-6 text-center">
                 <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span class="material-symbols-outlined text-primary text-3xl">bookmark_add</span>
+                    <span class="material-symbols-outlined text-primary text-3xl" aria-hidden="true">bookmark_add</span>
                 </div>
                 <h3 class="text-lg font-bold text-slate-800 mb-3">서비스를 저장할까요?</h3>
                 <p class="text-sm text-slate-600 leading-relaxed break-keep mb-1">
@@ -706,14 +706,14 @@
                 </div>
                 <div id="modal-step-confirm" class="hidden text-center py-4">
                     <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span class="material-symbols-outlined text-emerald-600 text-3xl">check_circle</span>
+                        <span class="material-symbols-outlined text-emerald-600 text-3xl" aria-hidden="true">check_circle</span>
                     </div>
                     <h4 class="text-lg font-bold text-slate-800 mb-2">신청이 완료되었습니다!</h4>
                     <p id="modal-confirm-text" class="text-sm text-slate-500 leading-relaxed"></p>
                 </div>
                 <div id="modal-step-error" class="hidden text-center py-4">
                     <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span class="material-symbols-outlined text-red-500 text-3xl">error</span>
+                        <span class="material-symbols-outlined text-red-500 text-3xl" aria-hidden="true">error</span>
                     </div>
                     <h4 class="text-lg font-bold text-slate-800 mb-2">오류가 발생했습니다</h4>
                     <p class="text-sm text-slate-500">잠시 후 다시 시도해 주세요. 또는 055-230-8200으로 전화 문의해 주세요.</p>
@@ -846,7 +846,7 @@
             if (!text) return '';
             return text.replace(/(0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4})/g, (match) => {
                 const digits = match.replace(/[-.\s]/g, '');
-                return `<a href="tel:${digits}" class="tel-link"><span class="material-symbols-outlined" style="font-size:1.125rem">call</span>${match}</a>`;
+                return `<a href="tel:${digits}" class="tel-link"><span class="material-symbols-outlined style=" aria-hidden="true"font-size:1.125rem">call</span>${match}</a>`;
             });
         }
 
@@ -875,9 +875,9 @@
                     <div class="step-item${isFirst ? ' open' : ''}" data-step>
                         <div class="step-dot" style="background:${step.color}">${step.num}</div>
                         <div class="step-header" data-step-toggle>
-                            <span class="material-symbols-outlined text-base" style="color:${step.color}">${step.icon}</span>
+                            <span class="material-symbols-outlined text-base" aria-hidden="true" style="color:${step.color}">${step.icon}</span>
                             <span class="font-semibold text-slate-700 text-sm">${step.title}</span>
-                            <span class="material-symbols-outlined step-chevron text-stone-400 ml-auto">expand_more</span>
+                            <span class="material-symbols-outlined step-chevron text-stone-400 ml-auto" aria-hidden="true">expand_more</span>
                         </div>
                         <div class="step-body${isFirst ? ' open' : ''}">
                             <div class="text-slate-600 text-[13px] leading-relaxed break-keep pl-0.5">
@@ -891,7 +891,7 @@
             const phoneMatch = (data.agency || '').match(/0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/);
             const phoneBtnHTML = phoneMatch
                 ? `<a href="tel:${phoneMatch[0].replace(/[-.\s]/g, '')}" class="card-phone-btn hidden md:!hidden" style="display:none">
-                        <span class="material-symbols-outlined text-2xl">call</span>
+                        <span class="material-symbols-outlined text-2xl" aria-hidden="true">call</span>
                         전화하기 ${phoneMatch[0]}
                    </a>`
                 : '';
@@ -900,10 +900,10 @@
                 <div class="absolute top-0 right-0 w-28 h-28 ${theme.bg} rounded-full -mr-8 -mt-8 blur-2xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
                 <div class="flex items-start justify-between mb-3 relative z-10">
                     <div class="${theme.bg} p-2.5 rounded-xl ${theme.text}">
-                        <span class="material-symbols-outlined text-2xl">${theme.icon}</span>
+                        <span class="material-symbols-outlined text-2xl" aria-hidden="true">${theme.icon}</span>
                     </div>
                     <button class="btn-bookmark p-2 rounded-lg text-stone-300 hover:text-primary hover:bg-primary/5 transition-all" data-service-name="${data.serviceName || ''}" title="내 서랍에 담기">
-                        <span class="material-symbols-outlined text-xl">bookmark_add</span>
+                        <span class="material-symbols-outlined text-xl" aria-hidden="true">bookmark_add</span>
                     </button>
                 </div>
                 <h3 class="text-lg font-bold text-slate-800 mb-1 relative z-10 break-keep">${data.serviceName || ''}</h3>
@@ -917,7 +917,7 @@
                     ${phoneBtnHTML}
                     <button class="btn-apply w-full bg-primary hover:bg-primary-light active:scale-[0.98] text-white font-bold py-5 md:py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-lg md:text-sm" data-service="${data.serviceName || ''}">
                         이 서비스 상담 신청
-                        <span class="material-symbols-outlined text-base">arrow_outward</span>
+                        <span class="material-symbols-outlined text-base" aria-hidden="true">arrow_outward</span>
                     </button>
                     <p class="card-disclaimer text-[10px] text-slate-400 text-center mt-2 leading-snug">버튼을 누르면 담당 기관에 정보가 전달되며,<br/>2~3일 내 전화 연락드립니다.</p>
                 </div>
@@ -949,7 +949,7 @@
             DOM.browseTabs.innerHTML = browseData.map(cat => `
                 <button class="browse-tab flex items-center gap-2 px-5 py-3 rounded-xl border-2 transition-all text-sm font-semibold" data-cat="${cat.category}"
                     style="border-color: ${cat.color}20; color: ${cat.color};">
-                    <span class="material-symbols-outlined text-lg">${cat.icon}</span>
+                    <span class="material-symbols-outlined text-lg" aria-hidden="true">${cat.icon}</span>
                     ${cat.category}
                     <span class="text-xs font-normal opacity-70">(${cat.services.length})</span>
                 </button>
@@ -987,20 +987,20 @@
                                 </div>
                                 <div class="flex items-center gap-1 flex-shrink-0">
                                     <button class="browse-bookmark p-1 rounded text-stone-300 hover:text-primary transition-colors" data-service-name="${s.name}" data-summary="${(s.summary || '').replace(/"/g, '&quot;')}" data-agency="${(s.agency || '').replace(/"/g, '&quot;')}" title="내 서랍에 담기" onclick="event.stopPropagation()">
-                                        <span class="material-symbols-outlined text-lg">bookmark_add</span>
+                                        <span class="material-symbols-outlined text-lg" aria-hidden="true">bookmark_add</span>
                                     </button>
-                                    <span class="material-symbols-outlined text-stone-300 group-hover:text-primary transition-colors mt-1">chevron_right</span>
+                                    <span class="material-symbols-outlined text-stone-300 group-hover:text-primary transition-colors mt-1" aria-hidden="true">chevron_right</span>
                                 </div>
                             </div>
                             <!-- Expandable Detail -->
                             <div class="browse-detail hidden mt-4 pt-4 border-t border-stone-100 space-y-3 text-sm">
-                                ${s.target ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">group</span><div><span class="font-semibold text-slate-700">지원 대상</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.target}</p></div></div>` : ''}
-                                ${s.benefits ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">featured_seasonal_and_gifts</span><div><span class="font-semibold text-slate-700">지원 내용</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.benefits}</p></div></div>` : ''}
-                                ${s.method ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">edit_document</span><div><span class="font-semibold text-slate-700">신청 방법</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.method}</p></div></div>` : ''}
-                                ${s.agency ? `<p class="text-[11px] text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-xs">account_balance</span>담당: ${s.agency}</p>` : ''}
+                                ${s.target ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">group</span><div><span class="font-semibold text-slate-700">지원 대상</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.target}</p></div></div>` : ''}
+                                ${s.benefits ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">featured_seasonal_and_gifts</span><div><span class="font-semibold text-slate-700">지원 내용</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.benefits}</p></div></div>` : ''}
+                                ${s.method ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">edit_document</span><div><span class="font-semibold text-slate-700">신청 방법</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.method}</p></div></div>` : ''}
+                                ${s.agency ? `<p class="text-[11px] text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-xs" aria-hidden="true">account_balance</span>담당: ${s.agency}</p>` : ''}
                                 <button class="browse-apply w-full bg-primary hover:bg-primary-light text-white font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm mt-2" data-service="${s.name}">
                                     이 사업 상담 신청하기
-                                    <span class="material-symbols-outlined text-base">arrow_outward</span>
+                                    <span class="material-symbols-outlined text-base" aria-hidden="true">arrow_outward</span>
                                 </button>
                                 <p class="text-[10px] text-slate-400 text-center leading-snug">버튼을 누르시면 담당 기관에 이메일로 정보가 전달되며,<br/>2~3일 내로 전화 연락을 드릴 예정입니다.</p>
                             </div>
@@ -1170,7 +1170,7 @@
                         <p>죄송합니다. AI 서버에서 응답을 받지 못했습니다.</p>
                         <p class="text-sm text-slate-500 mt-2">네트워크 상태를 확인하시거나, 잠시 후 다시 시도해 주세요.</p>
                         <button id="btn-retry-search" class="mt-4 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-light transition-colors inline-flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-base">refresh</span>
+                            <span class="material-symbols-outlined text-base" aria-hidden="true">refresh</span>
                             다시 시도하기
                         </button>
                     `;
@@ -1195,7 +1195,7 @@
                     DOM.aiSummaryText.innerHTML = `
                         <p>AI 응답이 비어 있습니다. 다시 시도해 주세요.</p>
                         <button id="btn-retry-search" class="mt-4 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-light transition-colors inline-flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-base">refresh</span>
+                            <span class="material-symbols-outlined text-base" aria-hidden="true">refresh</span>
                             다시 시도하기
                         </button>
                     `;
@@ -1240,7 +1240,7 @@
                     DOM.cardsGrid.classList.remove('hidden');
                     DOM.cardsGrid.innerHTML = `
                         <div class="col-span-full text-center py-10 opacity-0 animate-fade-up">
-                            <span class="material-symbols-outlined text-stone-300 text-5xl mb-3">search_off</span>
+                            <span class="material-symbols-outlined text-stone-300 text-5xl mb-3" aria-hidden="true">search_off</span>
                             <p class="text-slate-500 text-sm">관련 서비스를 찾지 못했습니다.<br/>다른 키워드로 다시 검색해 보세요.</p>
                         </div>
                     `;
@@ -1273,7 +1273,7 @@
                         DOM.aiSummaryText.innerHTML += `
                             <div class="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl animate-fade-up">
                                 <div class="flex items-center gap-2 mb-1">
-                                    <span class="material-symbols-outlined text-emerald-600" style="font-size:20px">check_circle</span>
+                                    <span class="material-symbols-outlined text-emerald-600" aria-hidden="true" style="font-size:20px">check_circle</span>
                                     <span class="font-bold text-emerald-800 text-sm">상담 신청 완료</span>
                                 </div>
                                 <p class="text-emerald-700 text-sm leading-relaxed">${applyData.userName}님, <b>${applyData.serviceName}</b> 담당 기관에 상담 요청을 보냈습니다.<br/>2~3일 내로 <b>${applyData.userPhone}</b>으로 연락드릴 예정입니다.</p>
@@ -1284,7 +1284,7 @@
                         DOM.aiSummaryText.innerHTML += `
                             <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl animate-fade-up">
                                 <div class="flex items-center gap-2 mb-1">
-                                    <span class="material-symbols-outlined text-red-600" style="font-size:20px">error</span>
+                                    <span class="material-symbols-outlined text-red-600" aria-hidden="true" style="font-size:20px">error</span>
                                     <span class="font-bold text-red-800 text-sm">신청 중 오류가 발생했습니다</span>
                                 </div>
                                 <p class="text-red-700 text-sm leading-relaxed">자동 신청에 실패했습니다. 서비스 카드의 <b>"상담 신청"</b> 버튼을 눌러 직접 신청해 주세요.</p>
@@ -1311,7 +1311,7 @@
                     <p>${isTimeout ? 'AI 서버 응답 시간이 초과되었습니다.' : 'AI 서버에 연결할 수 없습니다.'}</p>
                     <p class="text-sm text-slate-500 mt-2">${isTimeout ? '잠시 후 다시 시도해 주세요.' : '로컬 서버(localhost:5000)가 실행 중인지 확인해 주세요.'}</p>
                     <button id="btn-retry-search" class="mt-4 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-light transition-colors inline-flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-base">refresh</span>
+                        <span class="material-symbols-outlined text-base" aria-hidden="true">refresh</span>
                         다시 시도하기
                     </button>
                 `;
@@ -1857,14 +1857,14 @@
                         <div class="flex-1 min-w-0">
                             <h4 class="font-bold text-slate-800 text-sm mb-1 break-keep">${item.serviceName}</h4>
                             <p class="text-xs text-slate-500 leading-relaxed break-keep line-clamp-2">${item.summary}</p>
-                            ${item.agency ? `<p class="text-[10px] text-slate-400 mt-1.5 flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]">account_balance</span>${item.agency}</p>` : ''}
+                            ${item.agency ? `<p class="text-[10px] text-slate-400 mt-1.5 flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]" aria-hidden="true">account_balance</span>${item.agency}</p>` : ''}
                         </div>
                         <div class="flex flex-col gap-1 flex-shrink-0">
                             <button class="drawer-item-apply p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors" data-service="${item.serviceName}" title="상담 신청">
-                                <span class="material-symbols-outlined text-lg">outgoing_mail</span>
+                                <span class="material-symbols-outlined text-lg" aria-hidden="true">outgoing_mail</span>
                             </button>
                             <button class="drawer-item-remove p-1.5 rounded-lg text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors" data-service="${item.serviceName}" title="서랍에서 빼기">
-                                <span class="material-symbols-outlined text-lg">bookmark_remove</span>
+                                <span class="material-symbols-outlined text-lg" aria-hidden="true">bookmark_remove</span>
                             </button>
                         </div>
                     </div>

@@ -20,257 +20,571 @@
                         "bg-warm": "#F8F5F2",
                         "bg-section": "#F1ECE7",
                         "deep-purple": "#4A1942",
+                        "sidebar-start": "#1B1033",
+                        "sidebar-end": "#2D1B4E",
+                        "content-bg": "#F4F6FA",
                     },
                     fontFamily: {
                         "sans": ["Pretendard Variable", "Pretendard", "-apple-system", "BlinkMacSystemFont", "system-ui", "Roboto", "Noto Sans KR", "Malgun Gothic", "sans-serif"],
+                    },
+                    keyframes: {
+                        "fade-in": {
+                            "from": { opacity: "0", transform: "translateY(8px)" },
+                            "to": { opacity: "1", transform: "translateY(0)" },
+                        },
+                        "slide-in-right": {
+                            "from": { transform: "translateX(100%)" },
+                            "to": { transform: "translateX(0)" },
+                        },
+                        "slide-out-right": {
+                            "from": { transform: "translateX(0)" },
+                            "to": { transform: "translateX(100%)" },
+                        },
+                    },
+                    animation: {
+                        "fade-in": "fade-in 0.3s ease-out both",
+                        "slide-in-right": "slide-in-right 0.3s ease-out both",
+                        "slide-out-right": "slide-out-right 0.25s ease-in both",
                     },
                 },
             },
         }
     </script>
     <style>
-        .tab-active { border-bottom: 3px solid #98002E; color: #98002E; font-weight: 600; }
+        /* Sidebar navigation */
+        .nav-item {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.625rem 1rem; margin: 0 0.5rem;
+            border-radius: 0.5rem; font-size: 0.875rem;
+            color: rgba(255,255,255,0.6); cursor: pointer;
+            transition: all 0.2s; position: relative;
+            border-left: 3px solid transparent;
+        }
+        .nav-item:hover { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.06); }
+        .nav-active {
+            color: #fff !important; background: rgba(255,255,255,0.1) !important;
+            border-left-color: #fff;
+        }
+        .nav-item .nav-badge {
+            margin-left: auto; min-width: 1.25rem; height: 1.25rem;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 9999px; font-size: 0.65rem; font-weight: 700;
+            background: #EF4444; color: #fff; padding: 0 0.35rem;
+        }
+
+        /* Cards */
+        .card-elevated {
+            background: #fff; border-radius: 0.75rem;
+            padding: 1.25rem; border: 1px solid #E2E8F0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card-elevated:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        }
+
+        /* KPI gradient text */
+        .kpi-value {
+            font-size: 1.875rem; font-weight: 800; line-height: 1.2;
+            background: linear-gradient(135deg, #98002E, #4A1942);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Table zebra */
+        .table-zebra tbody tr:nth-child(even) { background: #F8FAFC; }
+        .table-zebra tbody tr:hover { background: #EEF2FF !important; }
+
+        /* Badge (keep) */
         .badge { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
+
+        /* Sidebar overlay (mobile) */
+        .sidebar-overlay {
+            position: fixed; inset: 0; z-index: 45;
+            background: rgba(0,0,0,0.5); backdrop-filter: blur(2px);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .sidebar-overlay.active { opacity: 1; pointer-events: auto; }
+
+        /* Modal overlay */
         .modal-overlay { background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); }
+
+        /* Panel content fade-in */
+        .panel-content { animation: fade-in 0.3s ease-out both; }
+
+        /* Kanban Board */
+        .kanban-container {
+            display: flex; gap: 1rem; min-height: 500px;
+            align-items: flex-start;
+        }
+        .kanban-col {
+            flex: 1; min-width: 0;
+            background: #F8FAFC; border-radius: 0.75rem;
+            border: 1px solid #E2E8F0;
+            display: flex; flex-direction: column;
+        }
+        .kanban-col.kanban-highlight {
+            border-color: #93C5FD;
+            box-shadow: 0 0 0 1px #93C5FD, 0 4px 12px rgba(59,130,246,0.08);
+        }
+        .kanban-header {
+            padding: 0.75rem 1rem; border-bottom: 1px solid #E2E8F0;
+            display: flex; align-items: center; gap: 0.5rem;
+            font-size: 0.8125rem; font-weight: 700;
+        }
+        .kanban-header .kanban-count {
+            margin-left: auto; min-width: 1.25rem; height: 1.25rem;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 9999px; font-size: 0.65rem; font-weight: 700;
+            padding: 0 0.35rem;
+        }
+        .kanban-body {
+            padding: 0.5rem; flex: 1;
+            overflow-y: auto; max-height: 600px;
+            display: flex; flex-direction: column; gap: 0.5rem;
+        }
+        .kanban-card {
+            background: #fff; border-radius: 0.5rem;
+            border: 1px solid #E2E8F0; padding: 0.75rem;
+            cursor: pointer; transition: all 0.2s;
+            font-size: 0.8125rem;
+        }
+        .kanban-card:hover {
+            border-color: #CBD5E1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .kanban-card.expanded {
+            border-color: #6366F1; cursor: default;
+            box-shadow: 0 4px 16px rgba(99,102,241,0.12);
+        }
+        .kanban-card .card-summary { pointer-events: none; }
+        .kanban-card .card-detail {
+            display: none; border-top: 1px solid #E2E8F0;
+            margin-top: 0.75rem; padding-top: 0.75rem;
+        }
+        .kanban-card.expanded .card-detail { display: block; }
+
+        /* Approval Timeline */
+        .approval-timeline { position: relative; padding-left: 1.5rem; }
+        .approval-timeline::before {
+            content: ''; position: absolute; left: 0.5rem; top: 0.25rem; bottom: 0.25rem;
+            width: 2px; background: #E2E8F0;
+        }
+        .timeline-item { position: relative; padding-bottom: 0.75rem; }
+        .timeline-item:last-child { padding-bottom: 0; }
+        .timeline-item .timeline-dot {
+            position: absolute; left: -1.25rem; top: 0.125rem;
+            width: 0.625rem; height: 0.625rem;
+            border-radius: 9999px; border: 2px solid #CBD5E1;
+            background: #fff;
+        }
+        .timeline-item.done .timeline-dot { border-color: #22C55E; background: #22C55E; }
+        .timeline-item.current .timeline-dot { border-color: #3B82F6; background: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,0.2); }
+        .timeline-item.rejected .timeline-dot { border-color: #EF4444; background: #EF4444; }
+
+        /* Kanban stats ribbon */
+        .kanban-stat { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+        .kanban-stat:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+        /* Responsive: stack columns vertically on mobile */
+        @media (max-width: 640px) {
+            .kanban-container { flex-direction: column; }
+            .kanban-body { max-height: 400px; }
+        }
     </style>
 </head>
 
-<body class="bg-bg-warm min-h-screen font-sans text-slate-800">
+<body class="bg-content-bg min-h-screen font-sans text-slate-800">
 
-    <!-- Header -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-deep-purple flex items-center justify-center">
-                    <span class="material-symbols-outlined text-white text-xl" style="font-variation-settings:'FILL' 1">dashboard</span>
+    <!-- 로그인 게이트 -->
+    <div id="login-gate" class="flex items-center justify-center min-h-screen bg-gradient-to-b from-sidebar-start to-sidebar-end">
+        <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm mx-4">
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                    <span class="material-symbols-outlined text-primary text-3xl" aria-hidden="true">admin_panel_settings</span>
                 </div>
-                <div>
-                    <h1 class="text-lg font-bold text-slate-800 leading-tight">관리자 대시보드</h1>
-                    <p class="text-xs text-slate-400 leading-none">경상남도사회서비스원</p>
-                </div>
+                <h1 class="text-xl font-bold text-slate-800">관리자 로그인</h1>
+                <p class="text-sm text-slate-500 mt-1">경상남도사회서비스원</p>
             </div>
-            <a href="/" class="flex items-center gap-1 text-sm text-slate-500 hover:text-primary transition-colors">
-                <span class="material-symbols-outlined text-lg">home</span>
+            <div id="login-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"></div>
+            <input id="login-password" type="password" placeholder="관리자 비밀번호"
+                class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none text-sm"
+                onkeydown="if(event.key==='Enter')doLogin()" />
+            <button onclick="doLogin()" class="w-full mt-4 py-3 bg-primary text-white rounded-lg font-semibold text-sm hover:bg-primary-light transition-colors">
+                로그인
+            </button>
+        </div>
+    </div>
+
+    <!-- 메인 콘텐츠 (인증 후 표시) -->
+    <div id="main-content" class="hidden">
+
+    <!-- Sidebar Overlay (mobile) -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-60 bg-gradient-to-b from-sidebar-start to-sidebar-end flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+        <!-- Logo -->
+        <div class="px-5 py-5 flex items-center gap-3 border-b border-white/10">
+            <div class="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center">
+                <span class="material-symbols-outlined text-white text-xl" aria-hidden="true" style="font-variation-settings:'FILL' 1">dashboard</span>
+            </div>
+            <div>
+                <h1 class="text-sm font-bold text-white leading-tight">관리자 대시보드</h1>
+                <p class="text-[10px] text-white/40 leading-none mt-0.5">경상남도사회서비스원</p>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 py-4 space-y-1">
+            <div onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-item nav-active">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">monitoring</span>
+                현황판
+            </div>
+            <div onclick="switchTab('requests')" id="nav-requests" class="nav-item">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">list_alt</span>
+                상담 요청
+            </div>
+            <div onclick="switchTab('analytics')" id="nav-analytics" class="nav-item">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">analytics</span>
+                분석
+            </div>
+            <div onclick="switchTab('collab')" id="nav-collab" class="nav-item">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">hub</span>
+                연계 조정
+                <span id="sidebar-collab-badge" class="nav-badge" style="display:none">0</span>
+            </div>
+        </nav>
+
+        <!-- Bottom link -->
+        <div class="px-3 pb-4">
+            <a href="/" class="nav-item !text-white/40 hover:!text-white/70">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">home</span>
                 메인으로
             </a>
         </div>
+    </aside>
+
+    <!-- Topbar -->
+    <header id="topbar" class="fixed top-0 right-0 left-0 lg:left-60 z-40 h-14 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-4 sm:px-6 transition-all">
+        <div class="flex items-center gap-3">
+            <button onclick="toggleSidebar()" class="lg:hidden p-1.5 hover:bg-slate-100 rounded-lg">
+                <span class="material-symbols-outlined text-xl text-slate-600" aria-hidden="true">menu</span>
+            </button>
+            <h2 id="topbar-title" class="text-base font-semibold text-slate-800">현황판</h2>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400 hidden sm:inline" id="topbar-time"></span>
+        </div>
     </header>
 
-    <!-- Tab Navigation -->
-    <nav class="bg-white border-b border-slate-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 flex gap-0">
-            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn tab-active px-5 py-3 text-sm transition-colors hover:text-primary flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-lg">monitoring</span>현황판
-            </button>
-            <button onclick="switchTab('requests')" id="tab-requests" class="tab-btn px-5 py-3 text-sm text-slate-500 transition-colors hover:text-primary flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-lg">list_alt</span>상담 요청
-            </button>
-            <button onclick="switchTab('analytics')" id="tab-analytics" class="tab-btn px-5 py-3 text-sm text-slate-500 transition-colors hover:text-primary flex items-center gap-1.5">
-                <span class="material-symbols-outlined text-lg">analytics</span>분석
-            </button>
-        </div>
-    </nav>
-
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <main class="lg:ml-60 pt-14 min-h-screen">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
 
-        <!-- Tab 1: Dashboard -->
-        <section id="panel-dashboard">
-            <!-- KPI Cards -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="material-symbols-outlined text-primary text-xl">inbox</span>
-                        <span class="text-sm text-slate-500">총 접수</span>
+            <!-- Tab 1: Dashboard -->
+            <section id="panel-dashboard" class="panel-content">
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="card-elevated">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="material-symbols-outlined text-primary text-xl" aria-hidden="true">inbox</span>
+                            <span class="text-sm text-slate-500">총 접수</span>
+                        </div>
+                        <p id="kpi-total" class="kpi-value">-</p>
                     </div>
-                    <p id="kpi-total" class="text-3xl font-bold text-slate-800">-</p>
-                </div>
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="material-symbols-outlined text-amber-500 text-xl">today</span>
-                        <span class="text-sm text-slate-500">오늘 접수</span>
+                    <div class="card-elevated">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="material-symbols-outlined text-amber-500 text-xl" aria-hidden="true">today</span>
+                            <span class="text-sm text-slate-500">오늘 접수</span>
+                        </div>
+                        <p id="kpi-today" class="kpi-value">-</p>
                     </div>
-                    <p id="kpi-today" class="text-3xl font-bold text-slate-800">-</p>
-                </div>
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="material-symbols-outlined text-blue-500 text-xl">pending_actions</span>
-                        <span class="text-sm text-slate-500">미처리(open)</span>
+                    <div class="card-elevated">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="material-symbols-outlined text-blue-500 text-xl" aria-hidden="true">pending_actions</span>
+                            <span class="text-sm text-slate-500">미처리(open)</span>
+                        </div>
+                        <p id="kpi-open" class="kpi-value">-</p>
                     </div>
-                    <p id="kpi-open" class="text-3xl font-bold text-slate-800">-</p>
-                </div>
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="material-symbols-outlined text-green-600 text-xl">schedule</span>
-                        <span class="text-sm text-slate-500">평균 처리일</span>
+                    <div class="card-elevated">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="material-symbols-outlined text-green-600 text-xl" aria-hidden="true">schedule</span>
+                            <span class="text-sm text-slate-500">평균 처리일</span>
+                        </div>
+                        <p id="kpi-avg-days" class="kpi-value">-</p>
                     </div>
-                    <p id="kpi-avg-days" class="text-3xl font-bold text-slate-800">-</p>
                 </div>
-            </div>
 
-            <!-- Status Cards -->
-            <div class="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
-                    <span class="badge bg-blue-100 text-blue-600 mb-2">접수</span>
-                    <p id="st-open" class="text-2xl font-bold mt-1">-</p>
+                <!-- Status Cards -->
+                <div class="grid grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+                    <div class="card-elevated text-center !p-4">
+                        <span class="badge bg-blue-100 text-blue-600 mb-2">접수</span>
+                        <p id="st-open" class="text-2xl font-bold mt-1">-</p>
+                    </div>
+                    <div class="card-elevated text-center !p-4">
+                        <span class="badge bg-amber-100 text-amber-600 mb-2">확인</span>
+                        <p id="st-confirmed" class="text-2xl font-bold mt-1">-</p>
+                    </div>
+                    <div class="card-elevated text-center !p-4">
+                        <span class="badge bg-purple-100 text-purple-600 mb-2">연락</span>
+                        <p id="st-contacted" class="text-2xl font-bold mt-1">-</p>
+                    </div>
+                    <div class="card-elevated text-center !p-4">
+                        <span class="badge bg-teal-100 text-teal-600 mb-2">연결</span>
+                        <p id="st-connected" class="text-2xl font-bold mt-1">-</p>
+                    </div>
+                    <div class="card-elevated text-center !p-4">
+                        <span class="badge bg-green-100 text-green-700 mb-2">완료</span>
+                        <p id="st-closed" class="text-2xl font-bold mt-1">-</p>
+                    </div>
+                    <div class="card-elevated text-center !p-4">
+                        <span class="badge bg-indigo-100 text-indigo-600 mb-2">연계</span>
+                        <p id="st-referred" class="text-2xl font-bold mt-1">-</p>
+                    </div>
                 </div>
-                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
-                    <span class="badge bg-amber-100 text-amber-600 mb-2">확인</span>
-                    <p id="st-confirmed" class="text-2xl font-bold mt-1">-</p>
-                </div>
-                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
-                    <span class="badge bg-purple-100 text-purple-600 mb-2">연락</span>
-                    <p id="st-contacted" class="text-2xl font-bold mt-1">-</p>
-                </div>
-                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
-                    <span class="badge bg-teal-100 text-teal-600 mb-2">연결</span>
-                    <p id="st-connected" class="text-2xl font-bold mt-1">-</p>
-                </div>
-                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
-                    <span class="badge bg-green-100 text-green-700 mb-2">완료</span>
-                    <p id="st-closed" class="text-2xl font-bold mt-1">-</p>
-                </div>
-                <div class="bg-white rounded-lg p-4 shadow-sm border border-slate-100 text-center">
-                    <span class="badge bg-indigo-100 text-indigo-600 mb-2">연계</span>
-                    <p id="st-referred" class="text-2xl font-bold mt-1">-</p>
-                </div>
-            </div>
 
-            <!-- Chart + Overdue / KPI row -->
-            <div class="grid lg:grid-cols-3 gap-6 mb-6">
-                <!-- 14-day trend chart -->
-                <div class="lg:col-span-2 bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                <!-- Chart + Overdue / KPI row -->
+                <div class="grid lg:grid-cols-3 gap-6 mb-6">
+                    <!-- 14-day trend chart -->
+                    <div class="lg:col-span-2 card-elevated">
+                        <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-lg text-primary" aria-hidden="true">bar_chart</span>
+                            14일 접수 추이
+                        </h3>
+                        <div style="height:260px"><canvas id="chart-daily"></canvas></div>
+                    </div>
+                    <!-- Overdue alerts -->
+                    <div class="card-elevated">
+                        <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-lg text-red-500" aria-hidden="true">warning</span>
+                            미처리 알림 (3일+)
+                        </h3>
+                        <div id="overdue-list" class="space-y-2 max-h-[240px] overflow-y-auto text-sm">
+                            <p class="text-slate-400">로딩 중...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 연계 조정 현황 (dashboard: 승인 대기 + 최근 5건) -->
+                <div class="card-elevated mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-lg text-indigo-500" aria-hidden="true">hub</span>
+                            연계 조정 현황
+                            <span id="collab-count" class="ml-1 px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-600">-</span>
+                            <span id="pending-count-badge" class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-600" style="display:none">대기 0</span>
+                        </h3>
+                        <button onclick="switchTab('collab')" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5">
+                            더보기<span class="material-symbols-outlined text-sm" aria-hidden="true">chevron_right</span>
+                        </button>
+                    </div>
+                    <div id="collab-dashboard-list" class="space-y-2 max-h-[280px] overflow-y-auto">
+                        <p class="text-slate-400 text-sm py-4 text-center">로딩 중...</p>
+                    </div>
+                </div>
+
+                <!-- System KPI -->
+                <div class="card-elevated">
                     <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-lg text-primary">bar_chart</span>
-                        14일 접수 추이
+                        <span class="material-symbols-outlined text-lg text-deep-purple" aria-hidden="true">speed</span>
+                        시스템 KPI (7일)
                     </h3>
-                    <div style="height:260px"><canvas id="chart-daily"></canvas></div>
-                </div>
-                <!-- Overdue alerts -->
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-                    <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-lg text-red-500">warning</span>
-                        미처리 알림 (3일+)
-                    </h3>
-                    <div id="overdue-list" class="space-y-2 max-h-[240px] overflow-y-auto text-sm">
-                        <p class="text-slate-400">로딩 중...</p>
+                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4" id="system-kpi">
+                        <p class="text-slate-400 text-sm col-span-full">로딩 중...</p>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- 부서간 협업 현황 -->
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100 mb-6">
-                <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-lg text-indigo-500">group_work</span>
-                    부서간 협업 현황
-                    <span id="collab-count" class="ml-1 px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-600">-</span>
-                </h3>
-                <div id="collab-dashboard-list" class="space-y-2 max-h-[320px] overflow-y-auto">
-                    <p class="text-slate-400 text-sm py-4 text-center">로딩 중...</p>
+            <!-- Tab 2: Requests -->
+            <section id="panel-requests" class="hidden">
+                <!-- Filter Bar -->
+                <div class="card-elevated !p-4 mb-4 flex flex-wrap gap-3 items-center">
+                    <select id="filter-status" onchange="loadRequests()" class="rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary">
+                        <option value="all">전체 상태</option>
+                        <option value="open">접수</option>
+                        <option value="confirmed">확인</option>
+                        <option value="contacted">연락</option>
+                        <option value="connected">연결</option>
+                        <option value="closed">완료</option>
+                        <option value="referred">연계</option>
+                    </select>
+                    <div class="flex-1 min-w-[200px]">
+                        <input id="filter-search" type="text" placeholder="이름, 전화, 서비스명 검색..." onkeyup="debounceSearch()" class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary" />
+                    </div>
+                    <button onclick="toggleSort()" id="sort-btn" class="flex items-center gap-1 text-sm text-slate-600 hover:text-primary px-3 py-2 rounded-lg border border-slate-300">
+                        <span class="material-symbols-outlined text-lg" aria-hidden="true">swap_vert</span>
+                        <span id="sort-label">최신순</span>
+                    </button>
                 </div>
-            </div>
 
-            <!-- System KPI -->
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-                <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-lg text-deep-purple">speed</span>
-                    시스템 KPI (7일)
-                </h3>
-                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4" id="system-kpi">
-                    <p class="text-slate-400 text-sm col-span-full">로딩 중...</p>
+                <!-- Request Table -->
+                <div class="card-elevated !p-0 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm table-zebra">
+                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
+                                <tr>
+                                    <th class="px-4 py-3 text-left">ID</th>
+                                    <th class="px-4 py-3 text-left">이름</th>
+                                    <th class="px-4 py-3 text-left hidden sm:table-cell">전화</th>
+                                    <th class="px-4 py-3 text-left">서비스명</th>
+                                    <th class="px-4 py-3 text-left">상태</th>
+                                    <th class="px-4 py-3 text-left hidden md:table-cell">접수일</th>
+                                    <th class="px-4 py-3 text-center">상세</th>
+                                </tr>
+                            </thead>
+                            <tbody id="requests-tbody" class="divide-y divide-slate-100">
+                                <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">로딩 중...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Pagination -->
+                    <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100 text-sm">
+                        <span id="page-info" class="text-slate-500"></span>
+                        <div class="flex gap-1" id="page-buttons"></div>
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- Tab 2: Requests -->
-        <section id="panel-requests" class="hidden">
-            <!-- Filter Bar -->
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 mb-4 flex flex-wrap gap-3 items-center">
-                <select id="filter-status" onchange="loadRequests()" class="rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary">
-                    <option value="all">전체 상태</option>
-                    <option value="open">접수</option>
-                    <option value="confirmed">확인</option>
-                    <option value="contacted">연락</option>
-                    <option value="connected">연결</option>
-                    <option value="closed">완료</option>
-                    <option value="referred">연계</option>
-                </select>
-                <div class="flex-1 min-w-[200px]">
-                    <input id="filter-search" type="text" placeholder="이름, 전화, 서비스명 검색..." onkeyup="debounceSearch()" class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary" />
+            <!-- Tab 3: Analytics -->
+            <section id="panel-analytics" class="hidden">
+                <div class="grid lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Service Ranking -->
+                    <div class="card-elevated">
+                        <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-lg text-primary" aria-hidden="true">leaderboard</span>
+                            서비스 인기 랭킹
+                        </h3>
+                        <div style="height:300px"><canvas id="chart-service"></canvas></div>
+                    </div>
+                    <!-- Category Distribution -->
+                    <div class="card-elevated">
+                        <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-lg text-deep-purple" aria-hidden="true">donut_large</span>
+                            카테고리 분포
+                        </h3>
+                        <div style="height:300px" class="flex items-center justify-center"><canvas id="chart-category"></canvas></div>
+                    </div>
                 </div>
-                <button onclick="toggleSort()" id="sort-btn" class="flex items-center gap-1 text-sm text-slate-600 hover:text-primary px-3 py-2 rounded-lg border border-slate-300">
-                    <span class="material-symbols-outlined text-lg">swap_vert</span>
-                    <span id="sort-label">최신순</span>
-                </button>
-            </div>
-
-            <!-- Request Table -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-slate-50 text-slate-500 text-xs uppercase">
-                            <tr>
-                                <th class="px-4 py-3 text-left">ID</th>
-                                <th class="px-4 py-3 text-left">이름</th>
-                                <th class="px-4 py-3 text-left hidden sm:table-cell">전화</th>
-                                <th class="px-4 py-3 text-left">서비스명</th>
-                                <th class="px-4 py-3 text-left">상태</th>
-                                <th class="px-4 py-3 text-left hidden md:table-cell">접수일</th>
-                                <th class="px-4 py-3 text-center">상세</th>
-                            </tr>
-                        </thead>
-                        <tbody id="requests-tbody" class="divide-y divide-slate-100">
-                            <tr><td colspan="7" class="px-4 py-8 text-center text-slate-400">로딩 중...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <!-- Pagination -->
-                <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100 text-sm">
-                    <span id="page-info" class="text-slate-500"></span>
-                    <div class="flex gap-1" id="page-buttons"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Tab 3: Analytics -->
-        <section id="panel-analytics" class="hidden">
-            <div class="grid lg:grid-cols-2 gap-6 mb-6">
-                <!-- Service Ranking -->
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
+                <!-- Event Trends -->
+                <div class="card-elevated">
                     <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-lg text-primary">leaderboard</span>
-                        서비스 인기 랭킹
+                        <span class="material-symbols-outlined text-lg text-blue-500" aria-hidden="true">show_chart</span>
+                        이벤트 추이 (7일)
                     </h3>
-                    <div style="height:300px"><canvas id="chart-service"></canvas></div>
+                    <div style="height:280px"><canvas id="chart-trends"></canvas></div>
                 </div>
-                <!-- Category Distribution -->
-                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-                    <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-lg text-deep-purple">donut_large</span>
-                        카테고리 분포
-                    </h3>
-                    <div style="height:300px" class="flex items-center justify-center"><canvas id="chart-category"></canvas></div>
+            </section>
+
+            <!-- Tab 4: Linkage Coordination (Kanban) -->
+            <section id="panel-collab" class="hidden">
+                <!-- Filter toolbar -->
+                <div class="card-elevated !p-3 mb-4 flex flex-wrap gap-3 items-center">
+                    <select id="collab-filter-cat" onchange="applyCollabFilter()" class="rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary">
+                        <option value="all">전체 유형</option>
+                        <option value="referral">서비스연계</option>
+                        <option value="dept">부서협업</option>
+                    </select>
+                    <div class="flex-1 min-w-[180px]">
+                        <input id="collab-search" type="text" placeholder="이름, 서비스, 부서 검색..." oninput="debounceCollabSearch()" class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary" />
+                    </div>
+                    <span id="collab-total-count" class="text-xs text-slate-400">-</span>
                 </div>
-            </div>
-            <!-- Event Trends -->
-            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-                <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-lg text-blue-500">show_chart</span>
-                    이벤트 추이 (7일)
-                </h3>
-                <div style="height:280px"><canvas id="chart-trends"></canvas></div>
-            </div>
-        </section>
+
+                <!-- Stats ribbon -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-pending')">
+                        <div class="flex items-center justify-center gap-1.5 mb-1">
+                            <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+                            <span class="text-xs font-semibold text-slate-500">부서 대기</span>
+                        </div>
+                        <p id="kb-st-pending" class="text-xl font-bold text-yellow-700">-</p>
+                    </div>
+                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-dept-approved')">
+                        <div class="flex items-center justify-center gap-1.5 mb-1">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
+                            <span class="text-xs font-semibold text-slate-500">관리자 승인 대기</span>
+                        </div>
+                        <p id="kb-st-dept-approved" class="text-xl font-bold text-blue-700">-</p>
+                    </div>
+                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-approved')">
+                        <div class="flex items-center justify-center gap-1.5 mb-1">
+                            <span class="w-2.5 h-2.5 rounded-full bg-green-400"></span>
+                            <span class="text-xs font-semibold text-slate-500">처리 완료</span>
+                        </div>
+                        <p id="kb-st-approved" class="text-xl font-bold text-green-700">-</p>
+                    </div>
+                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-rejected')">
+                        <div class="flex items-center justify-center gap-1.5 mb-1">
+                            <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                            <span class="text-xs font-semibold text-slate-500">반려/반환</span>
+                        </div>
+                        <p id="kb-st-rejected" class="text-xl font-bold text-red-600">-</p>
+                    </div>
+                </div>
+
+                <!-- Kanban board -->
+                <div id="collab-kanban" class="kanban-container">
+                    <!-- Column 1: 부서 대기 -->
+                    <div id="col-pending" class="kanban-col">
+                        <div class="kanban-header text-yellow-700">
+                            <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+                            부서 대기
+                            <span class="kanban-count bg-yellow-100 text-yellow-700" id="cnt-pending">0</span>
+                        </div>
+                        <div class="kanban-body" id="body-pending">
+                            <p class="text-slate-400 text-xs text-center py-4">로딩 중...</p>
+                        </div>
+                    </div>
+                    <!-- Column 2: 관리자 승인 대기 (highlighted) -->
+                    <div id="col-dept-approved" class="kanban-col kanban-highlight">
+                        <div class="kanban-header text-blue-700">
+                            <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
+                            관리자 승인 대기
+                            <span class="kanban-count bg-blue-100 text-blue-700" id="cnt-dept-approved">0</span>
+                        </div>
+                        <div class="kanban-body" id="body-dept-approved">
+                            <p class="text-slate-400 text-xs text-center py-4">로딩 중...</p>
+                        </div>
+                    </div>
+                    <!-- Column 3: 처리 완료 -->
+                    <div id="col-approved" class="kanban-col">
+                        <div class="kanban-header text-green-700">
+                            <span class="w-2.5 h-2.5 rounded-full bg-green-400"></span>
+                            처리 완료
+                            <span class="kanban-count bg-green-100 text-green-700" id="cnt-approved">0</span>
+                        </div>
+                        <div class="kanban-body" id="body-approved">
+                            <p class="text-slate-400 text-xs text-center py-4">로딩 중...</p>
+                        </div>
+                    </div>
+                    <!-- Column 4: 반려/반환 -->
+                    <div id="col-rejected" class="kanban-col">
+                        <div class="kanban-header text-red-600">
+                            <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
+                            반려/반환
+                            <span class="kanban-count bg-red-100 text-red-600" id="cnt-rejected">0</span>
+                        </div>
+                        <div class="kanban-body" id="body-rejected">
+                            <p class="text-slate-400 text-xs text-center py-4">로딩 중...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
     </main>
 
     <!-- Detail Modal -->
-    <div id="detail-modal" class="fixed inset-0 z-50 hidden">
+    <div id="detail-modal" class="fixed inset-0 z-[60] hidden">
         <div class="modal-overlay absolute inset-0" onclick="closeModal()"></div>
-        <div class="absolute inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl overflow-y-auto">
-            <div class="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between z-10">
+        <div id="modal-panel" class="absolute inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl overflow-y-auto animate-slide-in-right">
+            <div class="sticky top-0 bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex items-center justify-between z-10">
                 <h2 class="text-lg font-bold text-slate-800">요청 상세</h2>
                 <button onclick="closeModal()" class="p-1 hover:bg-slate-100 rounded-lg">
-                    <span class="material-symbols-outlined">close</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">close</span>
                 </button>
             </div>
             <div id="modal-body" class="p-6">
@@ -286,6 +600,8 @@
     let currentPage = 1;
     let searchTimer = null;
     let charts = {};
+    let sidebarOpen = false;
+    let allCollabs = [];
 
     // ── Status helpers ──
     const STATUS_MAP = {
@@ -312,25 +628,79 @@
         return r.createdAt || '-';
     }
 
+    // ── Tab titles ──
+    const TAB_TITLES = {
+        dashboard: '현황판',
+        requests: '상담 요청',
+        analytics: '분석',
+        collab: '연계 조정',
+    };
+
     // ── Tab switching ──
     function switchTab(tab) {
         currentTab = tab;
-        document.querySelectorAll('.tab-btn').forEach(b => {
-            b.classList.remove('tab-active');
-            b.classList.add('text-slate-500');
+        // Sidebar nav active state
+        document.querySelectorAll('.nav-item[id^="nav-"]').forEach(el => el.classList.remove('nav-active'));
+        const navEl = document.getElementById('nav-' + tab);
+        if (navEl) navEl.classList.add('nav-active');
+
+        // Topbar title
+        document.getElementById('topbar-title').textContent = TAB_TITLES[tab] || tab;
+
+        // Toggle panels
+        ['dashboard', 'requests', 'analytics', 'collab'].forEach(p => {
+            const panel = document.getElementById('panel-' + p);
+            if (p === tab) {
+                panel.classList.remove('hidden');
+                panel.classList.add('panel-content');
+                // Re-trigger animation
+                panel.style.animation = 'none';
+                panel.offsetHeight; // reflow
+                panel.style.animation = '';
+            } else {
+                panel.classList.add('hidden');
+                panel.classList.remove('panel-content');
+            }
         });
-        const btn = document.getElementById('tab-' + tab);
-        btn.classList.add('tab-active');
-        btn.classList.remove('text-slate-500');
 
-        document.getElementById('panel-dashboard').classList.toggle('hidden', tab !== 'dashboard');
-        document.getElementById('panel-requests').classList.toggle('hidden', tab !== 'requests');
-        document.getElementById('panel-analytics').classList.toggle('hidden', tab !== 'analytics');
-
+        // Load data
         if (tab === 'dashboard') loadDashboard();
         else if (tab === 'requests') loadRequests();
         else if (tab === 'analytics') loadAnalytics();
+        else if (tab === 'collab') loadCollabPanel();
+
+        // Close sidebar on mobile
+        closeSidebar();
     }
+
+    // ── Sidebar toggle ──
+    function toggleSidebar() {
+        sidebarOpen ? closeSidebar() : openSidebar();
+    }
+
+    function openSidebar() {
+        sidebarOpen = true;
+        document.getElementById('sidebar').classList.remove('-translate-x-full');
+        document.getElementById('sidebar-overlay').classList.add('active');
+    }
+
+    function closeSidebar() {
+        if (window.innerWidth >= 1024) return; // Keep open on desktop
+        sidebarOpen = false;
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        document.getElementById('sidebar-overlay').classList.remove('active');
+    }
+
+    // ── Window resize handler ──
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1024) {
+            document.getElementById('sidebar').classList.remove('-translate-x-full');
+            document.getElementById('sidebar-overlay').classList.remove('active');
+            sidebarOpen = false;
+        } else if (!sidebarOpen) {
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+        }
+    });
 
     // ── API helpers ──
     async function api(url) {
@@ -350,19 +720,145 @@
     }
     function getDeptName(id) { return deptMap[id] || id; }
 
+    const APPROVAL_STATUS_MAP = {
+        pending:                     { label: '부서 대기', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+        dept_approved:               { label: '부서 승인', bg: 'bg-blue-100', text: 'text-blue-700' },
+        approved:                    { label: '최종 승인', bg: 'bg-green-100', text: 'text-green-700' },
+        rejected:                    { label: '부서 반려', bg: 'bg-red-100', text: 'text-red-600' },
+        revision_requested:          { label: '부서 수정요청', bg: 'bg-orange-100', text: 'text-orange-600' },
+        admin_rejected:              { label: '관리자 반려', bg: 'bg-red-100', text: 'text-red-600' },
+        admin_revision_requested:    { label: '관리자 수정요청', bg: 'bg-orange-100', text: 'text-orange-600' },
+    };
     const COLLAB_STATUS_MAP = {
-        requested: { label: '요청됨', bg: 'bg-amber-100', text: 'text-amber-600' },
-        accepted:  { label: '진행중', bg: 'bg-blue-100', text: 'text-blue-600' },
+        requested: { label: '대기', bg: 'bg-yellow-100', text: 'text-yellow-700' },
+        accepted:  { label: '승인', bg: 'bg-green-100', text: 'text-green-700' },
         completed: { label: '완료', bg: 'bg-green-100', text: 'text-green-700' },
         declined:  { label: '반려', bg: 'bg-red-100', text: 'text-red-600' },
     };
     const COLLAB_TYPE_MAP = {
-        consultation: '자문', joint: '공동처리', transfer: '이관',
+        consultation: '자문', joint: '공동처리', transfer: '이관', service_referral: '서비스연계',
     };
+
+    function renderCollabItem(c) {
+        // 승인 상태 우선 표시
+        const approvalSt = c.approvalStatus ? (APPROVAL_STATUS_MAP[c.approvalStatus] || APPROVAL_STATUS_MAP.pending) : null;
+        const st = approvalSt || COLLAB_STATUS_MAP[c.status] || COLLAB_STATUS_MAP.requested;
+        const typeName = COLLAB_TYPE_MAP[c.type] || '자문';
+        const catLabel = c.category === 'referral' ? '서비스연계' : '부서협업';
+
+        // 방향 표시
+        let directionHtml = '';
+        if (c.category === 'referral' && c.targetService) {
+            directionHtml = `<span class="font-semibold text-blue-700">${escapeHtml(c.targetService)}</span>`;
+        } else if (c.fromDept && c.toDept) {
+            directionHtml = `<span class="font-semibold text-indigo-700">${getDeptName(c.fromDept)}</span>
+                <span class="material-symbols-outlined text-slate-400 text-sm" aria-hidden="true">arrow_forward</span>
+                <span class="font-semibold text-green-700">${getDeptName(c.toDept)}</span>`;
+        }
+
+        const bgColor = c.approvalStatus === 'pending' ? 'bg-yellow-50 hover:bg-yellow-100 border border-yellow-200'
+            : c.approvalStatus === 'dept_approved' ? 'bg-blue-50 hover:bg-blue-100 border border-blue-200'
+            : c.approvalStatus === 'admin_rejected' ? 'bg-red-50 hover:bg-red-100 border border-red-200'
+            : c.approvalStatus === 'admin_revision_requested' ? 'bg-orange-50 hover:bg-orange-100 border border-orange-200'
+            : 'bg-slate-50 hover:bg-indigo-50';
+
+        return `
+        <div class="flex items-center gap-3 p-3 rounded-lg ${bgColor} transition-colors cursor-pointer" onclick="openDetail('${c.requestId}')">
+            <div class="flex-shrink-0">
+                <span class="badge ${st.bg} ${st.text}">${st.label}</span>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5 text-sm">
+                    ${directionHtml}
+                    <span class="text-xs text-slate-400 ml-1">(${typeName})</span>
+                </div>
+                <p class="text-xs text-slate-500 truncate mt-0.5">${c.userName || '-'} · ${c.serviceName || '-'} · ${c.reason || ''}</p>
+            </div>
+            <div class="text-xs text-slate-400 flex-shrink-0">${new Date(c.createdAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'})}</div>
+        </div>`;
+    }
+
+    // 승인 스테퍼 HTML 생성 (관리자용)
+    function renderApprovalStepper(approvalStatus) {
+        const steps = [
+            { label: '담당자', key: 'submitted' },
+            { label: '부서 조정자', key: 'dept' },
+            { label: '관리자 최종', key: 'admin' },
+        ];
+        let stepIdx = 0;
+        if (approvalStatus === 'dept_approved') stepIdx = 1;
+        else if (approvalStatus === 'approved') stepIdx = 2;
+        else if (approvalStatus === 'admin_rejected' || approvalStatus === 'admin_revision_requested') stepIdx = 1;
+        else if (approvalStatus === 'rejected' || approvalStatus === 'revision_requested') stepIdx = 0;
+        const isDone = approvalStatus === 'approved';
+
+        let html = '<div class="flex items-center gap-1 mb-2">';
+        steps.forEach((s, i) => {
+            const done = isDone || i < stepIdx;
+            const current = !isDone && i === stepIdx;
+            const colorClass = done ? 'bg-green-500 text-white' : current ? 'bg-blue-500 text-white ring-2 ring-blue-300' : 'bg-slate-200 text-slate-400';
+            const lineColor = done ? 'bg-green-400' : 'bg-slate-200';
+            html += `<div class="flex flex-col items-center" style="min-width:24px">
+                <div class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${colorClass}">${i + 1}</div>
+                <span class="text-[9px] mt-0.5 whitespace-nowrap ${current ? 'font-bold text-blue-700' : done ? 'text-green-700' : 'text-slate-400'}">${s.label}</span>
+            </div>`;
+            if (i < steps.length - 1) html += `<div class="flex-1 h-0.5 ${lineColor} -mt-3"></div>`;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    // 승인 대기 카드 (관리자 최종 승인/반려/수정요청 버튼 포함, dept_approved 건만 표시)
+    function renderPendingItem(c) {
+        const typeName = COLLAB_TYPE_MAP[c.type] || '자문';
+        let directionHtml = '';
+        if (c.category === 'referral' && c.targetService) {
+            directionHtml = `<span class="font-semibold text-blue-700">${escapeHtml(c.targetService)}</span>`;
+        } else if (c.fromDept && c.toDept) {
+            directionHtml = `<span class="font-semibold text-indigo-700">${getDeptName(c.fromDept)}</span> → <span class="font-semibold text-green-700">${getDeptName(c.toDept)}</span>`;
+        }
+
+        return `
+        <div class="p-4 rounded-lg border border-blue-200 bg-blue-50">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="badge bg-blue-100 text-blue-700">부서 승인 완료</span>
+                <span class="text-xs text-slate-500">${c.category === 'referral' ? '서비스연계' : '부서협업'} · ${typeName}</span>
+                <span class="text-xs text-slate-400 ml-auto">${new Date(c.createdAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+            </div>
+            ${renderApprovalStepper(c.approvalStatus)}
+            <div class="text-sm mb-1">${directionHtml}</div>
+            <p class="text-xs text-slate-600 mb-1">${c.userName || '-'} · ${c.serviceName || '-'}</p>
+            <p class="text-sm text-slate-700 mb-3">${escapeHtml(c.reason || '')}</p>
+            <div class="flex gap-2 items-center">
+                <button onclick="approveLinkage('${c.id}',event)" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm" aria-hidden="true">check_circle</span>최종 승인
+                </button>
+                <button onclick="rejectLinkage('${c.id}',event)" class="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-colors">반려</button>
+                <button onclick="revisionLinkage('${c.id}',event)" class="px-3 py-1.5 bg-white border border-orange-300 text-orange-600 rounded-lg text-xs font-semibold hover:bg-orange-50 transition-colors">수정요청</button>
+                <div class="flex-1"></div>
+                <button onclick="openDetail('${c.requestId}')" class="px-2 py-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-semibold">상세</button>
+            </div>
+        </div>`;
+    }
+
+    function updateSidebarCollabBadge(pendingCount) {
+        const badgeEl = document.getElementById('sidebar-collab-badge');
+        if (pendingCount > 0) {
+            badgeEl.style.display = '';
+            badgeEl.textContent = pendingCount;
+        } else {
+            badgeEl.style.display = 'none';
+        }
+    }
 
     async function loadDashboard() {
         try {
-            const [stats, kpi, collabs] = await Promise.all([api('/api/admin/stats'), api('/api/admin/kpi?days=7'), api('/api/admin/collaborations')]);
+            const [stats, kpi, collabs, pendingData] = await Promise.all([
+                api('/api/admin/stats'), api('/api/admin/kpi?days=7'),
+                api('/api/admin/linkages'), api('/api/admin/pending-approvals'),
+            ]);
+
+            allCollabs = collabs;
 
             document.getElementById('kpi-total').textContent = stats.total;
             document.getElementById('kpi-today').textContent = stats.today;
@@ -398,32 +894,26 @@
                 overdueEl.innerHTML = '<p class="text-slate-400 text-sm py-4 text-center">미처리 알림 없음</p>';
             }
 
-            // 협업 현황
+            // 연계 조정 현황 (dashboard: 최근 5건)
             const collabEl = document.getElementById('collab-dashboard-list');
             document.getElementById('collab-count').textContent = collabs.length;
-            if (collabs.length > 0) {
-                collabEl.innerHTML = collabs.map(c => {
-                    const st = COLLAB_STATUS_MAP[c.status] || COLLAB_STATUS_MAP.requested;
-                    const typeName = COLLAB_TYPE_MAP[c.type] || '자문';
-                    return `
-                    <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 hover:bg-indigo-50 transition-colors cursor-pointer" onclick="openDetail('${c.requestId}')">
-                        <div class="flex-shrink-0">
-                            <span class="badge ${st.bg} ${st.text}">${st.label}</span>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-1.5 text-sm">
-                                <span class="font-semibold text-indigo-700">${getDeptName(c.fromDept)}</span>
-                                <span class="material-symbols-outlined text-slate-400 text-sm">arrow_forward</span>
-                                <span class="font-semibold text-green-700">${getDeptName(c.toDept)}</span>
-                                <span class="text-xs text-slate-400 ml-1">(${typeName})</span>
-                            </div>
-                            <p class="text-xs text-slate-500 truncate mt-0.5">${c.userName || '-'} · ${c.serviceName || '-'} · ${c.reason || ''}</p>
-                        </div>
-                        <div class="text-xs text-slate-400 flex-shrink-0">${new Date(c.createdAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'})}</div>
-                    </div>`;
-                }).join('');
+            const pendingCount = pendingData.count || 0;
+            updateSidebarCollabBadge(pendingCount);
+
+            // 승인 대기 강조
+            const pendingBadge = document.getElementById('pending-count-badge');
+            if (pendingCount > 0) {
+                pendingBadge.style.display = '';
+                pendingBadge.textContent = '대기 ' + pendingCount;
             } else {
-                collabEl.innerHTML = '<p class="text-slate-400 text-sm py-4 text-center">활성 협업 요청 없음</p>';
+                pendingBadge.style.display = 'none';
+            }
+
+            if (collabs.length > 0) {
+                const displayCollabs = collabs.slice(0, 5);
+                collabEl.innerHTML = displayCollabs.map(c => renderCollabItem(c)).join('');
+            } else {
+                collabEl.innerHTML = '<p class="text-slate-400 text-sm py-4 text-center">연계 요청 없음</p>';
             }
 
             // System KPI
@@ -455,6 +945,305 @@
         }
     }
 
+    // ── Linkage Coordination Panel (Kanban) ──
+    let collabSearchTimer = null;
+    let expandedCardId = null;
+    let expandedCardData = {};
+
+    function debounceCollabSearch() {
+        clearTimeout(collabSearchTimer);
+        collabSearchTimer = setTimeout(() => renderKanbanBoard(allCollabs), 300);
+    }
+    function applyCollabFilter() { renderKanbanBoard(allCollabs); }
+
+    function filterCollabs(collabs) {
+        const cat = document.getElementById('collab-filter-cat')?.value || 'all';
+        const search = (document.getElementById('collab-search')?.value || '').trim().toLowerCase();
+        return collabs.filter(c => {
+            if (cat === 'referral' && c.category !== 'referral') return false;
+            if (cat === 'dept' && c.category === 'referral') return false;
+            if (search) {
+                const haystack = [c.userName, c.serviceName, c.targetService, c.reason,
+                    getDeptName(c.fromDept), getDeptName(c.toDept)].filter(Boolean).join(' ').toLowerCase();
+                if (!haystack.includes(search)) return false;
+            }
+            return true;
+        });
+    }
+
+    function classifyCollabs(collabs) {
+        const cols = { pending: [], dept_approved: [], approved: [], rejected: [] };
+        collabs.forEach(c => {
+            const as = c.approvalStatus || 'pending';
+            if (as === 'pending' || as === 'revision_requested') cols.pending.push(c);
+            else if (as === 'dept_approved') cols.dept_approved.push(c);
+            else if (as === 'approved') cols.approved.push(c);
+            else if (as === 'rejected' || as === 'admin_rejected' || as === 'admin_revision_requested') cols.rejected.push(c);
+            else cols.pending.push(c);
+        });
+        return cols;
+    }
+
+    function scrollToKanbanCol(colId) {
+        const el = document.getElementById(colId);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+    }
+
+    function renderKanbanCard(c, isActionable) {
+        const approvalSt = c.approvalStatus ? (APPROVAL_STATUS_MAP[c.approvalStatus] || APPROVAL_STATUS_MAP.pending) : APPROVAL_STATUS_MAP.pending;
+        const typeName = COLLAB_TYPE_MAP[c.type] || '자문';
+        const catLabel = c.category === 'referral' ? '서비스연계' : '부서협업';
+        const isExpanded = expandedCardId === c.id;
+
+        let directionHtml = '';
+        if (c.category === 'referral' && c.targetService) {
+            directionHtml = `<span class="font-semibold text-blue-700 text-xs">${escapeHtml(c.targetService)}</span>`;
+        } else if (c.fromDept && c.toDept) {
+            directionHtml = `<span class="font-semibold text-indigo-700 text-xs">${getDeptName(c.fromDept)}</span>
+                <span class="material-symbols-outlined text-slate-400" aria-hidden="true" style="font-size:12px">arrow_forward</span>
+                <span class="font-semibold text-green-700 text-xs">${getDeptName(c.toDept)}</span>`;
+        }
+
+        const dateStr = new Date(c.createdAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'});
+
+        let expandedHtml = '';
+        if (isExpanded) {
+            const ed = expandedCardData[c.id];
+            expandedHtml = `<div class="card-detail" style="display:block">
+                ${ed ? renderExpandedDetail(c, ed) : '<p class="text-xs text-slate-400 py-2">로딩 중...</p>'}
+            </div>`;
+        }
+
+        return `
+        <div id="kcard-${c.id}" class="kanban-card ${isExpanded ? 'expanded' : ''}" onclick="toggleCardExpand('${c.id}', event)">
+            <div class="card-summary">
+                <div class="flex items-center gap-1.5 mb-1.5">
+                    <span class="badge ${approvalSt.bg} ${approvalSt.text}" style="font-size:10px;padding:1px 6px">${approvalSt.label}</span>
+                    <span class="text-[10px] text-slate-400">${catLabel} · ${typeName}</span>
+                    <span class="text-[10px] text-slate-400 ml-auto">${dateStr}</span>
+                </div>
+                <div class="flex items-center gap-1 mb-1">${directionHtml}</div>
+                <p class="text-xs text-slate-500 truncate">${escapeHtml(c.userName || '-')} · ${escapeHtml(c.serviceName || '-')}</p>
+                ${c.reason ? `<p class="text-[11px] text-slate-400 truncate mt-0.5">${escapeHtml(c.reason)}</p>` : ''}
+                ${renderApprovalStepper(c.approvalStatus)}
+            </div>
+            ${expandedHtml}
+        </div>`;
+    }
+
+    function renderKanbanColumn(bodyId, items, isActionable) {
+        const el = document.getElementById(bodyId);
+        if (!el) return;
+        if (items.length === 0) {
+            el.innerHTML = '<p class="text-slate-400 text-xs text-center py-6">항목 없음</p>';
+            return;
+        }
+        el.innerHTML = items.map(c => renderKanbanCard(c, isActionable)).join('');
+    }
+
+    async function toggleCardExpand(linkageId, event) {
+        if (event) event.stopPropagation();
+        // If clicking inside expanded detail, don't collapse
+        if (event && event.target.closest('.card-detail')) return;
+
+        if (expandedCardId === linkageId) {
+            // Collapse
+            expandedCardId = null;
+            renderKanbanBoard(allCollabs);
+            return;
+        }
+
+        expandedCardId = linkageId;
+        // Show loading state immediately
+        renderKanbanBoard(allCollabs);
+
+        // Fetch request data for this linkage
+        const collab = allCollabs.find(c => c.id === linkageId);
+        if (collab && collab.requestId) {
+            try {
+                const data = await api(`/api/admin/requests/${collab.requestId}`);
+                expandedCardData[linkageId] = data;
+                renderKanbanBoard(allCollabs);
+                // Scroll expanded card into view
+                const cardEl = document.getElementById('kcard-' + linkageId);
+                if (cardEl) cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } catch (e) {
+                expandedCardData[linkageId] = { error: true };
+                renderKanbanBoard(allCollabs);
+            }
+        }
+    }
+
+    function renderApprovalTimeline(approvalHistory) {
+        if (!approvalHistory || approvalHistory.length === 0) {
+            return '<p class="text-xs text-slate-400">승인 이력 없음</p>';
+        }
+        let html = '<div class="approval-timeline">';
+        approvalHistory.forEach((h, i) => {
+            const isLast = i === approvalHistory.length - 1;
+            const statusClass = h.action === 'approved' || h.action === 'dept_approved' ? 'done'
+                : (h.action === 'rejected' || h.action === 'admin_rejected') ? 'rejected'
+                : isLast ? 'current' : 'done';
+            const actionLabel = {
+                submitted: '제출',
+                dept_approved: '부서 승인',
+                approved: '최종 승인',
+                rejected: '부서 반려',
+                revision_requested: '부서 수정요청',
+                admin_rejected: '관리자 반려',
+                admin_revision_requested: '관리자 수정요청',
+            }[h.action] || h.action;
+            const dateStr = h.date ? new Date(h.date).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+            html += `<div class="timeline-item ${statusClass}">
+                <div class="timeline-dot"></div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-700">${actionLabel}</span>
+                    <span class="text-[10px] text-slate-400">${h.by || ''}</span>
+                    <span class="text-[10px] text-slate-400 ml-auto">${dateStr}</span>
+                </div>
+                ${h.comment ? `<p class="text-[11px] text-slate-500 mt-0.5">${escapeHtml(h.comment)}</p>` : ''}
+            </div>`;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    function renderExpandedDetail(linkage, requestData) {
+        if (requestData.error) return '<p class="text-xs text-red-400">데이터를 불러올 수 없습니다.</p>';
+
+        const isActionable = linkage.approvalStatus === 'dept_approved';
+        const notes = linkage.notes || [];
+
+        let html = '';
+
+        // 1. Approval timeline
+        if (linkage.approvalHistory && linkage.approvalHistory.length > 0) {
+            html += `<div class="mb-3">
+                <h5 class="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1">
+                    <span class="material-symbols-outlined style=" aria-hidden="true"font-size:14px">timeline</span>승인 이력
+                </h5>
+                ${renderApprovalTimeline(linkage.approvalHistory)}
+            </div>`;
+        }
+
+        // 2. Request info
+        html += `<div class="mb-3 p-2.5 bg-slate-50 rounded-lg">
+            <h5 class="text-[11px] font-bold text-slate-500 mb-1.5">원본 요청</h5>
+            <div class="grid grid-cols-2 gap-1 text-xs">
+                <div><span class="text-slate-400">이름:</span> <span class="font-medium">${escapeHtml(requestData.userName || '-')}</span></div>
+                <div><span class="text-slate-400">전화:</span> <span class="font-medium">${requestData.userPhone || '-'}</span></div>
+                <div class="col-span-2"><span class="text-slate-400">서비스:</span> <span class="font-medium">${escapeHtml(requestData.serviceName || '-')}</span></div>
+            </div>
+            ${requestData.conversationSummary ? `<div class="mt-1.5 pt-1.5 border-t border-slate-200">
+                <span class="text-[10px] font-semibold text-purple-600">AI 요약:</span>
+                <p class="text-[11px] text-slate-600 mt-0.5">${escapeHtml(requestData.conversationSummary)}</p>
+            </div>` : ''}
+        </div>`;
+
+        // 3. Notes
+        html += `<div class="mb-3">
+            <h5 class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center gap-1">
+                <span class="material-symbols-outlined style=" aria-hidden="true"font-size:14px">sticky_note_2</span>메모 (${notes.length})
+            </h5>
+            ${notes.length > 0 ? '<div class="space-y-1 max-h-[120px] overflow-y-auto mb-2">' + notes.map(n => `
+                <div class="text-[11px] p-1.5 bg-amber-50 rounded">
+                    <span class="font-semibold text-indigo-600">${escapeHtml(n.dept || n.author || '관리자')}</span>
+                    <span class="text-slate-600 ml-1">${escapeHtml(n.text)}</span>
+                    <span class="text-slate-300 ml-1">${new Date(n.createdAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                </div>
+            `).join('') + '</div>' : '<p class="text-[11px] text-slate-400 mb-2">메모 없음</p>'}
+            <div class="flex gap-1">
+                <input id="kb-note-${linkage.id}" type="text" placeholder="메모 입력..." class="flex-1 rounded border-slate-300 text-xs py-1 px-2 focus:ring-primary focus:border-primary" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'){event.stopPropagation();addKanbanNote('${requestData.id}','${linkage.id}')}" />
+                <button onclick="event.stopPropagation();addKanbanNote('${requestData.id}','${linkage.id}')" class="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700">추가</button>
+            </div>
+        </div>`;
+
+        // 4. Action buttons (only for dept_approved)
+        if (isActionable) {
+            html += `<div class="mb-3 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+                <textarea id="kb-comment-${linkage.id}" rows="2" placeholder="코멘트 입력 (선택)..." class="w-full rounded border-slate-300 text-xs py-1.5 px-2 mb-2 focus:ring-primary focus:border-primary resize-none" onclick="event.stopPropagation()"></textarea>
+                <div class="flex gap-1.5 flex-wrap">
+                    <button onclick="event.stopPropagation();kanbanApprove('${linkage.id}')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 flex items-center gap-1">
+                        <span class="material-symbols-outlined style=" aria-hidden="true"font-size:14px">check_circle</span>최종 승인
+                    </button>
+                    <button onclick="event.stopPropagation();kanbanReject('${linkage.id}')" class="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50">반려</button>
+                    <button onclick="event.stopPropagation();kanbanRevision('${linkage.id}')" class="px-3 py-1.5 bg-white border border-orange-300 text-orange-600 rounded-lg text-xs font-semibold hover:bg-orange-50">수정요청</button>
+                </div>
+            </div>`;
+        }
+
+        // 5. 담당자 처리 페이지 링크
+        html += `<a href="/case/${requestData.id}" target="_blank" onclick="event.stopPropagation()" class="flex items-center gap-1.5 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-xs font-semibold text-green-700 hover:bg-green-100 transition-colors">
+            <span class="material-symbols-outlined style=" aria-hidden="true"font-size:14px">open_in_new</span>담당자 처리 페이지
+        </a>`;
+
+        return html;
+    }
+
+    function renderKanbanBoard(collabs) {
+        const filtered = filterCollabs(collabs);
+        const cols = classifyCollabs(filtered);
+
+        document.getElementById('collab-total-count').textContent = `총 ${filtered.length}건`;
+
+        // Stats ribbon
+        document.getElementById('kb-st-pending').textContent = cols.pending.length;
+        document.getElementById('kb-st-dept-approved').textContent = cols.dept_approved.length;
+        document.getElementById('kb-st-approved').textContent = cols.approved.length;
+        document.getElementById('kb-st-rejected').textContent = cols.rejected.length;
+
+        // Column counts
+        document.getElementById('cnt-pending').textContent = cols.pending.length;
+        document.getElementById('cnt-dept-approved').textContent = cols.dept_approved.length;
+        document.getElementById('cnt-approved').textContent = cols.approved.length;
+        document.getElementById('cnt-rejected').textContent = cols.rejected.length;
+
+        // Render columns
+        renderKanbanColumn('body-pending', cols.pending, false);
+        renderKanbanColumn('body-dept-approved', cols.dept_approved, true);
+        renderKanbanColumn('body-approved', cols.approved, false);
+        renderKanbanColumn('body-rejected', cols.rejected, false);
+    }
+
+    async function loadCollabPanel() {
+        try {
+            const [collabs, pendingData] = await Promise.all([
+                api('/api/admin/linkages'),
+                api('/api/admin/pending-approvals'),
+            ]);
+            allCollabs = collabs;
+            const pendingCount = pendingData.count || pendingData.items?.length || 0;
+            updateSidebarCollabBadge(pendingCount);
+            renderKanbanBoard(collabs);
+        } catch (e) {
+            console.error('Linkage panel load error:', e);
+        }
+    }
+
+    async function addKanbanNote(requestId, linkageId) {
+        const input = document.getElementById('kb-note-' + linkageId);
+        const text = input?.value.trim();
+        if (!text) return;
+        try {
+            await fetch(`/api/case/${requestId}/linkage/${linkageId}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, author: '관리자', dept: '관리자' }),
+            });
+            // Re-fetch expanded data
+            const data = await api(`/api/admin/requests/${requestId}`);
+            const updatedLinkage = (data.linkages || []).find(l => l.id === linkageId);
+            if (updatedLinkage) {
+                const collab = allCollabs.find(c => c.id === linkageId);
+                if (collab) Object.assign(collab, { notes: updatedLinkage.notes });
+            }
+            expandedCardData[linkageId] = data;
+            renderKanbanBoard(allCollabs);
+        } catch (e) {
+            alert('메모 추가 실패');
+        }
+    }
+
     // ── Requests ──
     async function loadRequests() {
         const status = document.getElementById('filter-status').value;
@@ -477,7 +1266,7 @@
                         <td class="px-4 py-3 hidden md:table-cell text-slate-500 text-xs">${formatDate(r)}</td>
                         <td class="px-4 py-3 text-center">
                             <button onclick="openDetail('${r.id}')" class="p-1.5 hover:bg-primary/10 rounded-lg text-primary transition-colors">
-                                <span class="material-symbols-outlined text-lg">open_in_new</span>
+                                <span class="material-symbols-outlined text-lg" aria-hidden="true">open_in_new</span>
                             </button>
                         </td>
                     </tr>
@@ -511,7 +1300,12 @@
 
     // ── Detail Modal ──
     async function openDetail(id) {
-        document.getElementById('detail-modal').classList.remove('hidden');
+        const modal = document.getElementById('detail-modal');
+        const panel = document.getElementById('modal-panel');
+        modal.classList.remove('hidden');
+        // Reset and trigger slide-in
+        panel.classList.remove('animate-slide-out-right');
+        panel.classList.add('animate-slide-in-right');
         document.getElementById('modal-body').innerHTML = '<p class="text-slate-400 py-8 text-center">로딩 중...</p>';
 
         try {
@@ -522,7 +1316,16 @@
         }
     }
 
-    function closeModal() { document.getElementById('detail-modal').classList.add('hidden'); }
+    function closeModal() {
+        const modal = document.getElementById('detail-modal');
+        const panel = document.getElementById('modal-panel');
+        panel.classList.remove('animate-slide-in-right');
+        panel.classList.add('animate-slide-out-right');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            panel.classList.remove('animate-slide-out-right');
+        }, 250);
+    }
 
     function renderDetail(data) {
         const el = document.getElementById('modal-body');
@@ -549,7 +1352,7 @@
             ${data.conversationSummary ? `
             <div class="mb-6 p-4 bg-purple-50 border border-purple-100 rounded-lg">
                 <h4 class="text-xs font-semibold text-purple-700 mb-2 flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm">smart_toy</span>AI 대화 요약
+                    <span class="material-symbols-outlined text-sm" aria-hidden="true">smart_toy</span>AI 대화 요약
                 </h4>
                 <p class="text-sm text-slate-700 whitespace-pre-line leading-relaxed">${escapeHtml(data.conversationSummary)}</p>
             </div>` : ''}
@@ -558,7 +1361,7 @@
             ${chain.length > 1 ? `
             <div class="mb-6">
                 <h4 class="text-xs font-semibold text-slate-500 mb-3 flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm">link</span>연계 체인
+                    <span class="material-symbols-outlined text-sm" aria-hidden="true">link</span>연계 체인
                 </h4>
                 <div class="space-y-2">
                     ${chain.map(c => `
@@ -567,52 +1370,79 @@
                             <span class="${c.current ? 'font-semibold text-primary' : 'text-slate-600'}">${c.serviceName}</span>
                             ${c.reason ? `<span class="text-xs text-slate-400 ml-auto">${c.reason}</span>` : ''}
                         </div>
-                    `).join('<div class="flex justify-center"><span class="material-symbols-outlined text-slate-300 text-sm">arrow_downward</span></div>')}
+                    `).join('<div class="flex justify-center"><span class="material-symbols-outlined text-slate-300 text-sm" aria-hidden="true">arrow_downward</span></div>')}
                 </div>
             </div>` : ''}
 
-            <!-- 부서간 협업 -->
-            ${(data.collaborations && data.collaborations.length > 0) ? `
+            <!-- 연계 요청 (linkages) -->
+            ${(data.linkages && data.linkages.length > 0) ? `
             <div class="mb-6">
                 <h4 class="text-xs font-semibold text-slate-500 mb-2 flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm">group_work</span>협업 (${data.collaborations.length})
+                    <span class="material-symbols-outlined text-sm" aria-hidden="true">hub</span>연계 (${data.linkages.length})
                 </h4>
                 <div class="space-y-2">
-                    ${data.collaborations.map(c => {
-                        const st = COLLAB_STATUS_MAP[c.status] || { label: c.status, bg: 'bg-slate-100', text: 'text-slate-600' };
-                        const typeName = COLLAB_TYPE_MAP[c.type] || '자문';
-                        const isActive = c.status === 'requested' || c.status === 'accepted';
-                        return `<div class="p-3 ${isActive ? 'bg-indigo-50 border border-indigo-200' : 'bg-slate-50 border border-slate-100'} rounded-lg text-sm">
+                    ${data.linkages.map(l => {
+                        const ast = APPROVAL_STATUS_MAP[l.approvalStatus] || APPROVAL_STATUS_MAP.pending;
+                        const typeName = COLLAB_TYPE_MAP[l.type] || '자문';
+                        const isDeptApproved = l.approvalStatus === 'dept_approved';
+                        const isApproved = l.approvalStatus === 'approved';
+
+                        let dirHtml = '';
+                        if (l.category === 'referral' && l.targetService) {
+                            dirHtml = `<span class="font-semibold text-blue-700">${escapeHtml(l.targetService)}</span>`;
+                        } else if (l.fromDept && l.toDept) {
+                            dirHtml = `<span class="font-semibold text-indigo-700">${getDeptName(l.fromDept)}</span>
+                                <span class="material-symbols-outlined text-slate-400 text-sm" aria-hidden="true">arrow_forward</span>
+                                <span class="font-semibold text-green-700">${getDeptName(l.toDept)}</span>`;
+                        }
+
+                        const bgClass = isDeptApproved ? 'bg-blue-50 border border-blue-200'
+                            : isApproved ? 'bg-green-50 border border-green-100'
+                            : l.approvalStatus === 'admin_rejected' || l.approvalStatus === 'admin_revision_requested' ? 'bg-red-50 border border-red-100'
+                            : l.approvalStatus === 'pending' ? 'bg-yellow-50 border border-yellow-200'
+                            : 'bg-slate-50 border border-slate-100';
+
+                        return `<div class="p-3 ${bgClass} rounded-lg text-sm">
                             <div class="flex items-center gap-2 mb-1">
-                                <span class="badge ${st.bg} ${st.text}">${st.label}</span>
-                                <span class="text-xs text-slate-400">${typeName}</span>
-                                <span class="text-xs text-slate-400 ml-auto">${new Date(c.createdAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                                <span class="badge ${ast.bg} ${ast.text}">${ast.label}</span>
+                                <span class="text-xs text-slate-400">${l.category === 'referral' ? '서비스연계' : typeName}</span>
+                                ${l.executionStatus ? '<span class="text-xs text-blue-600">' + l.executionStatus + '</span>' : ''}
+                                <span class="text-xs text-slate-400 ml-auto">${new Date(l.createdAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
                             </div>
-                            <div class="flex items-center gap-1.5 text-sm mb-1">
-                                <span class="font-semibold text-indigo-700">${getDeptName(c.fromDept)}</span>
-                                <span class="material-symbols-outlined text-slate-400 text-sm">arrow_forward</span>
-                                <span class="font-semibold text-green-700">${getDeptName(c.toDept)}</span>
-                            </div>
-                            <p class="text-xs text-slate-600">${escapeHtml(c.reason)}</p>
-                            ${c.notes && c.notes.length > 0 ? '<div class="mt-1.5 pt-1.5 border-t border-indigo-100 space-y-1">' + c.notes.map(n => `<div class="flex gap-1.5 text-xs"><span class="font-semibold text-indigo-600">${escapeHtml(n.dept || n.author)}</span><span class="text-slate-600">${escapeHtml(n.text)}</span><span class="text-slate-300 ml-auto">${new Date(n.createdAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span></div>`).join('') + '</div>' : ''}
-                            ${isActive ? `<div class="mt-2 pt-2 border-t border-indigo-100 flex flex-wrap gap-1.5">
-                                ${c.status === 'requested' ? `<button onclick="updateAdminCollab('${data.id}','${c.id}','accepted')" class="px-2.5 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700">수락</button><button onclick="updateAdminCollab('${data.id}','${c.id}','declined')" class="px-2.5 py-1 bg-white border border-red-300 text-red-600 rounded text-xs font-semibold hover:bg-red-50">반려</button>` : ''}
-                                ${c.status === 'accepted' ? `<button onclick="updateAdminCollab('${data.id}','${c.id}','completed')" class="px-2.5 py-1 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700">완료</button>` : ''}
-                                <div class="flex-1"></div>
-                                <div class="flex gap-1">
-                                    <input id="admin-cnote-${c.id}" type="text" placeholder="메모..." class="border border-slate-300 rounded px-2 py-1 text-xs w-28 focus:ring-primary focus:border-primary" onkeydown="if(event.key==='Enter')addAdminCollabNote('${data.id}','${c.id}')" />
-                                    <button onclick="addAdminCollabNote('${data.id}','${c.id}')" class="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700">추가</button>
-                                </div>
-                            </div>` : ''}
+                            ${renderApprovalStepper(l.approvalStatus)}
+                            <div class="flex items-center gap-1.5 text-sm mb-1">${dirHtml}</div>
+                            <p class="text-xs text-slate-600">${escapeHtml(l.reason)}</p>
+                            ${l.notes && l.notes.length > 0 ? '<div class="mt-1.5 pt-1.5 border-t border-indigo-100 space-y-1">' + l.notes.map(n => '<div class="flex gap-1.5 text-xs"><span class="font-semibold text-indigo-600">' + escapeHtml(n.dept || n.author) + '</span><span class="text-slate-600">' + escapeHtml(n.text) + '</span><span class="text-slate-300 ml-auto">' + new Date(n.createdAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) + '</span></div>').join('') + '</div>' : ''}
+                            ${isDeptApproved ? `<div class="mt-2 pt-2 border-t border-blue-200 flex flex-wrap gap-1.5"><button onclick="approveLinkage('${l.id}',event)" class="px-2.5 py-1 bg-green-600 text-white rounded text-xs font-semibold hover:bg-green-700">최종 승인</button><button onclick="rejectLinkage('${l.id}',event)" class="px-2.5 py-1 bg-white border border-red-300 text-red-600 rounded text-xs font-semibold hover:bg-red-50">반려</button><button onclick="revisionLinkage('${l.id}',event)" class="px-2.5 py-1 bg-white border border-orange-300 text-orange-600 rounded text-xs font-semibold hover:bg-orange-50">수정요청</button><div class="flex-1"></div><div class="flex gap-1"><input id="admin-lnote-${l.id}" type="text" placeholder="메모..." class="border border-slate-300 rounded px-2 py-1 text-xs w-28 focus:ring-primary focus:border-primary" onkeydown="if(event.key==='Enter')addAdminLinkageNote('${data.id}','${l.id}')" /><button onclick="addAdminLinkageNote('${data.id}','${l.id}')" class="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700">추가</button></div></div>` : ''}
                         </div>`;
                     }).join('')}
                 </div>
             </div>` : ''}
 
+            <!-- 서비스 계획 설계 -->
+            <div class="mb-6">
+                <h4 class="text-xs font-semibold text-slate-500 mb-2 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-sm" aria-hidden="true">route</span>서비스 계획
+                </h4>
+                <div id="service-plan-editor-${data.id}" class="space-y-2">
+                    ${(data.servicePlan && data.servicePlan.steps && data.servicePlan.steps.length > 0) ? data.servicePlan.steps.map((s, i) => `
+                        <div class="flex items-center gap-2 text-sm p-2 rounded bg-slate-50">
+                            <span class="text-xs font-bold text-slate-500">${i+1}</span>
+                            <span class="font-medium">${escapeHtml(s.serviceName)}</span>
+                            <span class="badge ${s.status === 'completed' ? 'bg-green-100 text-green-700' : s.status === 'in_progress' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'} ml-auto">${s.status === 'completed' ? '완료' : s.status === 'in_progress' ? '진행' : '대기'}</span>
+                        </div>
+                    `).join('') : '<p class="text-xs text-slate-400">서비스 계획 없음</p>'}
+                </div>
+                <div class="mt-2 flex gap-2">
+                    <input id="sp-input-${data.id}" type="text" placeholder="서비스명 추가..." class="flex-1 rounded border-slate-300 text-xs py-1.5 px-2 focus:ring-primary focus:border-primary" />
+                    <button onclick="addServicePlanStep('${data.id}')" class="px-3 py-1.5 bg-primary text-white rounded text-xs font-semibold hover:bg-primary-light">추가</button>
+                </div>
+            </div>
+
             <!-- 담당자 처리 페이지 링크 -->
             <div class="mb-4">
                 <a href="/case/${data.id}" target="_blank" class="flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-lg text-sm font-semibold text-green-700 hover:bg-green-100 transition-colors">
-                    <span class="material-symbols-outlined text-lg">open_in_new</span>
+                    <span class="material-symbols-outlined text-lg" aria-hidden="true">open_in_new</span>
                     담당자 처리 페이지 열기
                 </a>
             </div>
@@ -621,7 +1451,7 @@
             <div class="mb-6">
                 <h4 class="text-xs font-semibold text-slate-500 mb-2">상태 변경</h4>
                 <p class="text-xs text-amber-600 mb-2 flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm">warning</span>
+                    <span class="material-symbols-outlined text-sm" aria-hidden="true">warning</span>
                     관리자 오버라이드 - 일반적으로 담당자 처리 페이지에서 상태를 변경합니다.
                 </p>
                 <div class="flex flex-wrap gap-1.5">
@@ -636,7 +1466,7 @@
             <!-- Notes -->
             <div class="mb-4">
                 <h4 class="text-xs font-semibold text-slate-500 mb-2 flex items-center gap-1">
-                    <span class="material-symbols-outlined text-sm">sticky_note_2</span>메모 (${notes.length})
+                    <span class="material-symbols-outlined text-sm" aria-hidden="true">sticky_note_2</span>메모 (${notes.length})
                 </h4>
                 <div class="space-y-2 mb-3 max-h-[200px] overflow-y-auto">
                     ${notes.length > 0 ? notes.map(n => {
@@ -695,27 +1525,122 @@
         }
     }
 
-    // ── 협업 관리 (관리자) ──
-    async function updateAdminCollab(requestId, collabId, status) {
+    // ── 연계 조정 (관리자 승인/반려/수정요청) ──
+    // Kanban inline versions (read comment from textarea)
+    async function kanbanApprove(linkageId) {
+        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
         try {
-            await fetch(`/api/case/${requestId}/collaboration/${collabId}`, {
-                method: 'PATCH',
+            const resp = await fetch(`/api/admin/linkage/${linkageId}/approve`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status }),
+                body: JSON.stringify({ comment }),
             });
-            openDetail(requestId);
-            if (currentTab === 'dashboard') loadDashboard();
+            if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || ''); }
+            expandedCardId = null;
+            delete expandedCardData[linkageId];
+            loadCollabPanel();
         } catch (e) {
-            alert('협업 상태 변경 실패');
+            alert('승인 처리 실패');
         }
     }
 
-    async function addAdminCollabNote(requestId, collabId) {
-        const input = document.getElementById('admin-cnote-' + collabId);
+    async function kanbanReject(linkageId) {
+        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
+        if (!comment) { alert('반려 사유를 입력하세요.'); return; }
+        try {
+            const resp = await fetch(`/api/admin/linkage/${linkageId}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment }),
+            });
+            if (!resp.ok) throw new Error();
+            expandedCardId = null;
+            delete expandedCardData[linkageId];
+            loadCollabPanel();
+        } catch (e) {
+            alert('반려 처리 실패');
+        }
+    }
+
+    async function kanbanRevision(linkageId) {
+        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
+        if (!comment) { alert('수정 요청 사항을 입력하세요.'); return; }
+        try {
+            const resp = await fetch(`/api/admin/linkage/${linkageId}/revision`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment }),
+            });
+            if (!resp.ok) throw new Error();
+            expandedCardId = null;
+            delete expandedCardData[linkageId];
+            loadCollabPanel();
+        } catch (e) {
+            alert('수정 요청 실패');
+        }
+    }
+
+    // Legacy prompt-based versions (used by dashboard detail modal)
+    async function approveLinkage(linkageId, event) {
+        if (event) event.stopPropagation();
+        const comment = prompt('승인 코멘트 (선택):') || '';
+        try {
+            const resp = await fetch(`/api/admin/linkage/${linkageId}/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment }),
+            });
+            if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || ''); }
+            alert('최종 승인 완료. 이메일이 발송되었습니다.');
+            if (currentTab === 'dashboard') loadDashboard();
+            if (currentTab === 'collab') loadCollabPanel();
+        } catch (e) {
+            alert('승인 처리 실패');
+        }
+    }
+
+    async function rejectLinkage(linkageId, event) {
+        if (event) event.stopPropagation();
+        const comment = prompt('반려 사유를 입력하세요:');
+        if (comment === null) return;
+        try {
+            const resp = await fetch(`/api/admin/linkage/${linkageId}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment }),
+            });
+            if (!resp.ok) throw new Error();
+            if (currentTab === 'dashboard') loadDashboard();
+            if (currentTab === 'collab') loadCollabPanel();
+        } catch (e) {
+            alert('반려 처리 실패');
+        }
+    }
+
+    async function revisionLinkage(linkageId, event) {
+        if (event) event.stopPropagation();
+        const comment = prompt('수정 요청 사항을 입력하세요:');
+        if (comment === null) return;
+        try {
+            const resp = await fetch(`/api/admin/linkage/${linkageId}/revision`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment }),
+            });
+            if (!resp.ok) throw new Error();
+            if (currentTab === 'dashboard') loadDashboard();
+            if (currentTab === 'collab') loadCollabPanel();
+        } catch (e) {
+            alert('수정 요청 실패');
+        }
+    }
+
+    async function addAdminLinkageNote(requestId, linkageId) {
+        const input = document.getElementById('admin-lnote-' + linkageId);
         const text = input.value.trim();
         if (!text) return;
         try {
-            await fetch(`/api/case/${requestId}/collaboration/${collabId}/notes`, {
+            await fetch(`/api/case/${requestId}/linkage/${linkageId}/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text, author: '관리자', dept: '관리자' }),
@@ -724,6 +1649,30 @@
             openDetail(requestId);
         } catch (e) {
             alert('메모 추가 실패');
+        }
+    }
+
+    // 서비스 계획 관리
+    async function addServicePlanStep(requestId) {
+        const input = document.getElementById('sp-input-' + requestId);
+        const serviceName = input.value.trim();
+        if (!serviceName) return;
+
+        // 기존 계획 가져오기
+        try {
+            const data = await api(`/api/admin/requests/${requestId}`);
+            const existingSteps = (data.servicePlan && data.servicePlan.steps) ? data.servicePlan.steps : [];
+            existingSteps.push({ order: existingSteps.length + 1, serviceName, status: 'pending' });
+
+            await fetch(`/api/case/${requestId}/service-plan`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ steps: existingSteps }),
+            });
+            input.value = '';
+            openDetail(requestId);
+        } catch (e) {
+            alert('서비스 계획 저장 실패');
         }
     }
 
@@ -843,9 +1792,59 @@
         });
     }
 
-    // ── Init ──
-    loadDeptMap();
-    loadDashboard();
+    // ── Topbar time ──
+    function updateTopbarTime() {
+        const now = new Date();
+        const str = now.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' });
+        document.getElementById('topbar-time').textContent = str;
+    }
+
+    // ── 로그인 ──
+    async function doLogin() {
+        const pw = document.getElementById('login-password').value;
+        const errEl = document.getElementById('login-error');
+        errEl.classList.add('hidden');
+        try {
+            const resp = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pw }),
+            });
+            const data = await resp.json();
+            if (resp.ok && data.success) {
+                document.getElementById('login-gate').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+                initApp();
+            } else {
+                errEl.textContent = data.error || '로그인 실패';
+                errEl.classList.remove('hidden');
+            }
+        } catch (e) {
+            errEl.textContent = '서버에 연결할 수 없습니다.';
+            errEl.classList.remove('hidden');
+        }
+    }
+
+    function initApp() {
+        loadDeptMap();
+        loadDashboard();
+        updateTopbarTime();
+        setInterval(updateTopbarTime, 60000);
+    }
+
+    // ── Init: 인증 상태 확인 ──
+    (async function checkAuth() {
+        try {
+            const resp = await fetch('/api/auth/status');
+            const data = await resp.json();
+            if (data.authenticated) {
+                document.getElementById('login-gate').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+                initApp();
+            }
+        } catch { /* 서버 미응답 시 로그인 화면 유지 */ }
+    })();
     </script>
+</div><!-- /main-content -->
 </body>
 </html>

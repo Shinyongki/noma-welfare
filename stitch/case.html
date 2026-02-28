@@ -28,10 +28,31 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
 
+    <!-- 로그인 게이트 -->
+    <div id="login-gate" class="flex items-center justify-center min-h-screen">
+        <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm mx-4">
+            <div class="text-center mb-6">
+                <span class="material-symbols-rounded text-4xl text-green-600 block mb-2" aria-hidden="true">lock</span>
+                <h1 class="text-xl font-bold text-gray-800">담당자 인증</h1>
+                <p class="text-sm text-gray-500 mt-1">상담 처리를 위해 로그인이 필요합니다</p>
+            </div>
+            <div id="login-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"></div>
+            <input id="login-password" type="password" placeholder="비밀번호"
+                class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-300 focus:border-green-500 outline-none text-sm"
+                onkeydown="if(event.key==='Enter')doLogin()" />
+            <button onclick="doLogin()" class="w-full mt-4 py-3 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700 transition-colors">
+                로그인
+            </button>
+        </div>
+    </div>
+
+    <!-- 메인 콘텐츠 (인증 후 표시) -->
+    <div id="main-content" class="hidden">
+
     <!-- 로딩 상태 -->
     <div id="state-loading" class="flex items-center justify-center min-h-screen">
         <div class="text-center">
-            <span class="material-symbols-rounded text-5xl text-green-600 animate-spin-slow block mb-4">progress_activity</span>
+            <span class="material-symbols-rounded text-5xl text-green-600 animate-spin-slow block mb-4" aria-hidden="true">progress_activity</span>
             <p class="text-gray-500 text-lg">상담 정보를 불러오는 중...</p>
         </div>
     </div>
@@ -39,7 +60,7 @@
     <!-- 404 에러 -->
     <div id="state-error" class="hidden flex items-center justify-center min-h-screen">
         <div class="text-center animate-fade-up">
-            <span class="material-symbols-rounded text-6xl text-red-400 block mb-4">error</span>
+            <span class="material-symbols-rounded text-6xl text-red-400 block mb-4" aria-hidden="true">error</span>
             <h2 class="text-xl font-bold text-gray-800 mb-2">요청을 찾을 수 없습니다</h2>
             <p class="text-gray-500">유효하지 않거나 만료된 링크입니다.</p>
         </div>
@@ -52,7 +73,7 @@
             <!-- A. 헤더 (녹색 그라데이션) -->
             <div class="bg-gradient-to-br from-green-700 to-green-900 rounded-t-2xl px-6 py-5 text-white">
                 <h1 class="text-xl font-bold flex items-center gap-2">
-                    <span class="material-symbols-rounded">assignment</span>
+                    <span class="material-symbols-rounded" aria-hidden="true">assignment</span>
                     상담 처리
                 </h1>
                 <p class="text-green-200 text-sm mt-1">대상자에게 연락하고 처리 상태를 업데이트해 주세요.</p>
@@ -95,7 +116,7 @@
                 <div id="section-summary" class="hidden px-6 pb-4">
                     <div class="bg-purple-50 border border-purple-100 rounded-xl p-4">
                         <p class="text-xs font-semibold text-purple-700 mb-2 flex items-center gap-1">
-                            <span class="material-symbols-rounded text-base">smart_toy</span>
+                            <span class="material-symbols-rounded text-base" aria-hidden="true">smart_toy</span>
                             AI 대화 요약
                         </p>
                         <p id="summary-text" class="text-sm text-gray-700 whitespace-pre-line leading-relaxed"></p>
@@ -114,7 +135,7 @@
                 <!-- D. 처리 메모 -->
                 <div class="px-6 py-4">
                     <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1">
-                        <span class="material-symbols-rounded text-sm">sticky_note_2</span>
+                        <span class="material-symbols-rounded text-sm" aria-hidden="true">sticky_note_2</span>
                         처리 메모
                     </p>
                     <div id="notes-list" class="space-y-2 mb-3 max-h-[250px] overflow-y-auto">
@@ -123,91 +144,185 @@
                     <div class="flex gap-2">
                         <input id="note-input" type="text" placeholder="메모 입력..." class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" />
                         <button onclick="submitNote()" id="note-btn" class="px-4 py-2.5 bg-green-700 text-white rounded-xl text-sm font-semibold hover:bg-green-800 transition-colors flex items-center gap-1">
-                            <span class="material-symbols-rounded text-base">add</span>추가
+                            <span class="material-symbols-rounded text-base" aria-hidden="true">add</span>추가
                         </button>
                     </div>
                 </div>
 
-                <!-- E. 부서간 협업 -->
+                <!-- E. 서비스 계획 뷰어 (읽기 전용) -->
+                <div id="section-service-plan" class="hidden px-6 pb-4">
+                    <div class="border-t border-gray-100 mb-4"></div>
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1">
+                        <span class="material-symbols-rounded text-sm" aria-hidden="true">route</span>
+                        서비스 계획
+                    </p>
+                    <div id="service-plan-steps" class="flex flex-wrap items-center gap-2"></div>
+                </div>
+
+                <!-- F. 통합 연계 요청 -->
                 <div class="px-6 pb-4">
                     <div class="border-t border-gray-100 mb-4"></div>
                     <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1">
-                        <span class="material-symbols-rounded text-sm">group_work</span>
-                        부서간 협업
+                        <span class="material-symbols-rounded text-sm" aria-hidden="true">hub</span>
+                        연계 요청
                     </p>
 
-                    <!-- 기존 협업 요청 목록 -->
-                    <div id="collab-list" class="space-y-3 mb-4"></div>
+                    <!-- 연계 목록 -->
+                    <div id="linkage-list" class="space-y-3 mb-4"></div>
 
-                    <!-- 새 협업 요청 폼 -->
-                    <div id="collab-form-toggle" class="mb-3">
-                        <button onclick="toggleCollabForm()" class="w-full py-2.5 border-2 border-dashed border-indigo-300 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5">
-                            <span class="material-symbols-rounded text-lg">add_circle</span>
-                            협업 요청하기
+                    <!-- 새 연계 요청 폼 -->
+                    <div id="linkage-form-toggle" class="mb-3">
+                        <button onclick="toggleLinkageForm()" class="w-full py-2.5 border-2 border-dashed border-indigo-300 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5">
+                            <span class="material-symbols-rounded text-lg" aria-hidden="true">add_circle</span>
+                            연계 요청하기
                         </button>
                     </div>
-                    <div id="collab-form" class="hidden bg-indigo-50 rounded-xl p-4 mb-3 space-y-3">
+                    <div id="linkage-form" class="hidden bg-indigo-50 rounded-xl p-4 mb-3 space-y-3">
                         <p class="text-sm font-semibold text-indigo-800 flex items-center gap-1">
-                            <span class="material-symbols-rounded text-base">group_add</span>
-                            새 협업 요청
+                            <span class="material-symbols-rounded text-base" aria-hidden="true">hub</span>
+                            새 연계 요청
                         </p>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-xs text-gray-500 block mb-1">요청 부서 (우리팀)</label>
-                                <select id="collab-from" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"></select>
+                        <!-- 카테고리 탭 -->
+                        <div class="flex gap-2">
+                            <button onclick="switchLinkageTab('collaboration')" id="tab-collab" class="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-indigo-600 text-white">부서 협업</button>
+                            <button onclick="switchLinkageTab('referral')" id="tab-referral" class="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-white text-indigo-600 border border-indigo-200">서비스 연계</button>
+                        </div>
+
+                        <!-- 부서 협업 필드 -->
+                        <div id="fields-collab">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-xs text-gray-500 block mb-1">우리팀</label>
+                                    <select id="linkage-from" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"></select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500 block mb-1">대상팀</label>
+                                    <select id="linkage-to" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"></select>
+                                </div>
                             </div>
-                            <div>
-                                <label class="text-xs text-gray-500 block mb-1">협업 대상 부서</label>
-                                <select id="collab-to" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"></select>
+                            <div class="mt-3">
+                                <label class="text-xs text-gray-500 block mb-1">유형</label>
+                                <div class="flex gap-2">
+                                    <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs cursor-pointer has-[:checked]:bg-indigo-100 has-[:checked]:border-indigo-400">
+                                        <input type="radio" name="linkage-type" value="consultation" checked class="w-3 h-3 text-indigo-600"> 자문
+                                    </label>
+                                    <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs cursor-pointer has-[:checked]:bg-indigo-100 has-[:checked]:border-indigo-400">
+                                        <input type="radio" name="linkage-type" value="joint" class="w-3 h-3 text-indigo-600"> 공동처리
+                                    </label>
+                                    <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs cursor-pointer has-[:checked]:bg-indigo-100 has-[:checked]:border-indigo-400">
+                                        <input type="radio" name="linkage-type" value="transfer" class="w-3 h-3 text-indigo-600"> 이관
+                                    </label>
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <label class="text-xs text-gray-500 block mb-1">협업 유형</label>
-                            <div class="flex gap-2">
-                                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs cursor-pointer has-[:checked]:bg-indigo-100 has-[:checked]:border-indigo-400">
-                                    <input type="radio" name="collab-type" value="consultation" checked class="w-3 h-3 text-indigo-600"> 자문 요청
-                                </label>
-                                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs cursor-pointer has-[:checked]:bg-indigo-100 has-[:checked]:border-indigo-400">
-                                    <input type="radio" name="collab-type" value="joint" class="w-3 h-3 text-indigo-600"> 공동 처리
-                                </label>
-                                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs cursor-pointer has-[:checked]:bg-indigo-100 has-[:checked]:border-indigo-400">
-                                    <input type="radio" name="collab-type" value="transfer" class="w-3 h-3 text-indigo-600"> 이관 요청
-                                </label>
+
+                        <!-- 서비스 연계 필드 -->
+                        <div id="fields-referral" class="hidden">
+                            <div>
+                                <label class="text-xs text-gray-500 block mb-1">대상 서비스</label>
+                                <select id="linkage-target-service" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                                    <option value="" disabled selected>서비스를 선택하세요</option>
+                                </select>
                             </div>
                         </div>
+
+                        <!-- 공통: 사유 -->
                         <div>
-                            <label class="text-xs text-gray-500 block mb-1">협업 사유</label>
-                            <textarea id="collab-reason" rows="2" placeholder="협업이 필요한 이유를 입력하세요..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
+                            <label class="text-xs text-gray-500 block mb-1">사유</label>
+                            <textarea id="linkage-reason" rows="2" placeholder="연계가 필요한 이유를 입력하세요..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="submitCollaboration()" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1">
-                                <span class="material-symbols-rounded text-base">send</span>요청 보내기
+                            <button onclick="submitLinkage()" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1">
+                                <span class="material-symbols-rounded text-base" aria-hidden="true">send</span>요청 보내기
                             </button>
-                            <button onclick="toggleCollabForm()" class="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition-colors">취소</button>
+                            <button onclick="toggleLinkageForm()" class="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition-colors">취소</button>
+                        </div>
+                        <p class="text-xs text-amber-600 flex items-center gap-1">
+                            <span class="material-symbols-rounded text-sm" aria-hidden="true">info</span>
+                            관리자 승인 후 실행됩니다
+                        </p>
+                    </div>
+                </div>
+
+                <!-- G. 배정 근거 -->
+                <div id="section-rationale" class="hidden px-6 pb-4">
+                    <div class="border-t border-gray-100 mb-4"></div>
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1">
+                        <span class="material-symbols-rounded text-sm" aria-hidden="true">gavel</span>
+                        배정 근거
+                    </p>
+                    <div class="space-y-3">
+                        <div id="rationale-dept" class="hidden bg-green-50 border border-green-200 rounded-xl p-4">
+                            <p class="text-xs font-semibold text-green-700 mb-1">담당 부서</p>
+                            <p id="rationale-dept-name" class="text-sm font-bold text-green-900"></p>
+                            <p id="rationale-dept-role" class="text-xs text-green-700 mt-1"></p>
+                        </div>
+                        <div id="rationale-text-box" class="hidden bg-blue-50 border border-blue-200 rounded-xl p-4">
+                            <p class="text-xs font-semibold text-blue-700 mb-2 flex items-center gap-1">
+                                <span class="material-symbols-rounded text-sm" aria-hidden="true">smart_toy</span>
+                                AI 배정 분석
+                            </p>
+                            <p id="rationale-text" class="text-sm text-gray-700 whitespace-pre-line leading-relaxed"></p>
                         </div>
                     </div>
                 </div>
 
-                <!-- F. 연계 체인 -->
+                <!-- H. AI 상담 (담당자/조정자용) -->
+                <div class="px-6 pb-4">
+                    <div class="border-t border-gray-100 mb-4"></div>
+                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1">
+                        <span class="material-symbols-rounded text-sm" aria-hidden="true">psychology</span>
+                        AI 상담 (업무 지원)
+                    </p>
+
+                    <!-- 역할 선택 -->
+                    <div class="flex gap-2 mb-3">
+                        <select id="staff-role" class="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400">
+                            <option value="담당자">담당자</option>
+                            <option value="부서 조정자">부서 조정자</option>
+                            <option value="관리자 대시보드 조정자">관리자 조정자</option>
+                            <option value="타부서 담당자">타부서 담당자</option>
+                            <option value="타부서 조정자">타부서 조정자</option>
+                        </select>
+                    </div>
+
+                    <!-- 빠른 질문 버튼 -->
+                    <div class="flex flex-wrap gap-1.5 mb-3">
+                        <button onclick="askStaffAI('이 서비스를 우리 부서에서 처리해야 하는 근거가 무엇인가요?')" class="px-2.5 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 hover:bg-amber-100 transition-colors">배정 근거</button>
+                        <button onclick="askStaffAI('이 사건의 처리 방안을 제안해 주세요.')" class="px-2.5 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 hover:bg-amber-100 transition-colors">처리 방안</button>
+                        <button onclick="askStaffAI('다른 부서와 협업이나 연계가 필요한가요?')" class="px-2.5 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 hover:bg-amber-100 transition-colors">연계 필요성</button>
+                        <button onclick="askStaffAI('상급자에게 보고할 때 이 사건의 핵심 포인트를 정리해 주세요.')" class="px-2.5 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 hover:bg-amber-100 transition-colors">보고 요약</button>
+                    </div>
+
+                    <!-- 대화 영역 -->
+                    <div id="staff-chat-messages" class="space-y-2 mb-3 max-h-[400px] overflow-y-auto"></div>
+
+                    <!-- 입력 -->
+                    <div class="flex gap-2">
+                        <input id="staff-chat-input" type="text" placeholder="질문을 입력하세요... (의견 제시, 반론도 가능)" class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent" />
+                        <button onclick="submitStaffChat()" id="staff-chat-btn" class="px-4 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition-colors flex items-center gap-1">
+                            <span class="material-symbols-rounded text-base" aria-hidden="true">send</span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1.5">AI와 논리적으로 의견을 교환하면서 합리적인 결론을 도출할 수 있습니다.</p>
+                </div>
+
+                <!-- I. 연계 체인 -->
                 <div id="section-chain" class="hidden px-6 pb-4">
                     <div class="border-t border-gray-100 mb-4"></div>
                     <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1">
-                        <span class="material-symbols-rounded text-sm">link</span>
+                        <span class="material-symbols-rounded text-sm" aria-hidden="true">link</span>
                         연계 체인
                     </p>
                     <div id="chain-list" class="space-y-1"></div>
                 </div>
 
-                <!-- G. 하단 버튼 -->
+                <!-- J. 하단 버튼 -->
                 <div class="px-6 pb-6 pt-2 space-y-2.5">
                     <div class="border-t border-gray-100 mb-4"></div>
                     <a id="btn-call" href="#" class="w-full bg-gradient-to-r from-green-600 to-green-800 text-white font-bold py-3.5 rounded-xl text-sm hover:from-green-700 hover:to-green-900 transition-all flex items-center justify-center gap-2">
-                        <span class="material-symbols-rounded text-lg">call</span>
+                        <span class="material-symbols-rounded text-lg" aria-hidden="true">call</span>
                         대상자에게 전화
-                    </a>
-                    <a id="btn-referral" href="#" class="w-full border-2 border-blue-600 text-blue-700 font-bold py-3 rounded-xl text-sm hover:bg-blue-50 transition-all flex items-center justify-center gap-2">
-                        <span class="material-symbols-rounded text-lg">swap_horiz</span>
-                        타 서비스 연계
                     </a>
                 </div>
             </div>
@@ -243,8 +358,35 @@
             referred:  '<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-600">연계</span>',
         };
 
+        // 승인 상태 배지
+        const APPROVAL_BADGE = {
+            pending:                     { label: '부서 검토 대기', bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'hourglass_top' },
+            dept_approved:               { label: '부서 승인 (최종 대기)', bg: 'bg-blue-100', text: 'text-blue-700', icon: 'verified' },
+            approved:                    { label: '최종 승인', bg: 'bg-green-100', text: 'text-green-700', icon: 'check_circle' },
+            rejected:                    { label: '부서 반려', bg: 'bg-red-100', text: 'text-red-700', icon: 'cancel' },
+            revision_requested:          { label: '부서 수정 요청', bg: 'bg-orange-100', text: 'text-orange-700', icon: 'edit_note' },
+            admin_rejected:              { label: '관리자 반려', bg: 'bg-red-100', text: 'text-red-700', icon: 'block' },
+            admin_revision_requested:    { label: '관리자 수정 요청', bg: 'bg-orange-100', text: 'text-orange-700', icon: 'rate_review' },
+        };
+
+        const EXEC_STATUS = {
+            email_sent: { label: '발송완료', bg: 'bg-blue-100', text: 'text-blue-700' },
+            in_progress: { label: '진행중', bg: 'bg-blue-100', text: 'text-blue-700' },
+            completed: { label: '완료', bg: 'bg-green-100', text: 'text-green-700' },
+            declined: { label: '거절', bg: 'bg-red-100', text: 'text-red-700' },
+        };
+
+        const LINKAGE_TYPE = {
+            consultation: { label: '자문', icon: 'question_answer' },
+            joint: { label: '공동처리', icon: 'group_work' },
+            transfer: { label: '이관', icon: 'swap_horiz' },
+            service_referral: { label: '서비스연계', icon: 'swap_horiz' },
+        };
+
         let caseData = null;
         let departments = [];
+        let linkageTab = 'collaboration';
+        let referralServices = {};
 
         // 부서 목록 로드
         async function loadDepartments() {
@@ -256,8 +398,8 @@
         }
 
         function populateDeptSelects() {
-            const fromSel = document.getElementById('collab-from');
-            const toSel = document.getElementById('collab-to');
+            const fromSel = document.getElementById('linkage-from');
+            const toSel = document.getElementById('linkage-to');
             if (!fromSel || !toSel) return;
             const opts = departments.map(d => `<option value="${d.id}">${d.name}</option>`).join('');
             fromSel.innerHTML = opts;
@@ -268,6 +410,30 @@
         function getDeptName(id) {
             const d = departments.find(d => d.id === id);
             return d ? d.name : id;
+        }
+
+        // 연계 서비스 목록 로드
+        async function loadReferralServices() {
+            try {
+                const resp = await fetch('/api/referral/' + requestId);
+                if (!resp.ok) return;
+                const data = await resp.json();
+                referralServices = data.services || {};
+                const select = document.getElementById('linkage-target-service');
+                select.innerHTML = '<option value="" disabled selected>서비스를 선택하세요</option>';
+                for (const [category, services] of Object.entries(referralServices)) {
+                    const group = document.createElement('optgroup');
+                    group.label = category;
+                    services.forEach(svc => {
+                        if (caseData && svc.name === caseData.serviceName) return;
+                        const opt = document.createElement('option');
+                        opt.value = svc.name;
+                        opt.textContent = svc.name;
+                        group.appendChild(opt);
+                    });
+                    if (group.children.length > 0) select.appendChild(group);
+                }
+            } catch { /* ignore */ }
         }
 
         // 데이터 로드
@@ -311,10 +477,27 @@
             // D. 메모
             renderNotes(req.notes || []);
 
-            // E. 협업
-            renderCollaborations(req.collaborations || []);
+            // E. 서비스 계획
+            renderServicePlan(req.servicePlan);
 
-            // F. 연계 체인
+            // F. 연계 목록
+            renderLinkages(req.linkages || []);
+
+            // G. 배정 근거
+            if (req.assignedDept || req.assignmentRationale) {
+                document.getElementById('section-rationale').classList.remove('hidden');
+                if (req.assignedDept) {
+                    document.getElementById('rationale-dept').classList.remove('hidden');
+                    document.getElementById('rationale-dept-name').textContent = req.assignedDept.name;
+                    document.getElementById('rationale-dept-role').textContent = req.assignedDept.phone || '';
+                }
+                if (req.assignmentRationale) {
+                    document.getElementById('rationale-text-box').classList.remove('hidden');
+                    document.getElementById('rationale-text').textContent = req.assignmentRationale;
+                }
+            }
+
+            // H. 연계 체인
             const chain = req.chain || [];
             if (chain.length > 1) {
                 document.getElementById('section-chain').classList.remove('hidden');
@@ -325,14 +508,213 @@
                         <span class="${isCurrent ? 'font-semibold text-green-800' : 'text-gray-600'}">${escapeHtml(c.serviceName)}</span>
                         ${c.reason ? '<span class="text-xs text-gray-400 ml-auto">' + escapeHtml(c.reason) + '</span>' : ''}
                     </div>`;
-                }).join('<div class="flex justify-center py-0.5"><span class="material-symbols-rounded text-gray-300 text-sm">arrow_downward</span></div>');
+                }).join('<div class="flex justify-center py-0.5"><span class="material-symbols-rounded text-gray-300 text-sm" aria-hidden="true">arrow_downward</span></div>');
             }
 
-            // F. 하단 버튼
+            // I. 하단 버튼
             document.getElementById('btn-call').href = 'tel:' + (req.userPhone || '').replace(/[^0-9+]/g, '');
-            document.getElementById('btn-referral').href = '/referral/' + requestId;
 
             show($main);
+        }
+
+        // 서비스 계획 렌더링
+        function renderServicePlan(plan) {
+            const section = document.getElementById('section-service-plan');
+            const stepsEl = document.getElementById('service-plan-steps');
+            if (!plan || !plan.steps || plan.steps.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+            section.classList.remove('hidden');
+            stepsEl.innerHTML = plan.steps.map((s, i) => {
+                const statusIcon = s.status === 'completed' ? 'check_circle' : s.status === 'in_progress' ? 'sync' : 'schedule';
+                const statusColor = s.status === 'completed' ? 'text-green-600 bg-green-50 border-green-200' : s.status === 'in_progress' ? 'text-blue-600 bg-blue-50 border-blue-200' : 'text-gray-400 bg-gray-50 border-gray-200';
+                const connector = i < plan.steps.length - 1 ? '<span class="material-symbols-rounded text-gray-300 text-base" aria-hidden="true">arrow_forward</span>' : '';
+                return `<div class="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-semibold ${statusColor}">
+                    <span class="material-symbols-rounded text-sm" aria-hidden="true">${statusIcon}</span>
+                    ${i + 1}. ${escapeHtml(s.serviceName)}
+                </div>${connector}`;
+            }).join('');
+        }
+
+        // 연계 목록 렌더링
+        function renderLinkages(linkages) {
+            const el = document.getElementById('linkage-list');
+            if (!linkages || linkages.length === 0) {
+                el.innerHTML = '<p class="text-sm text-gray-400 py-2 text-center">연계 요청 없음</p>';
+                return;
+            }
+            el.innerHTML = linkages.map(l => {
+                // 승인 상태 배지
+                const ab = APPROVAL_BADGE[l.approvalStatus] || APPROVAL_BADGE.pending;
+                const tp = LINKAGE_TYPE[l.type] || LINKAGE_TYPE.consultation;
+
+                // 실행 상태 배지 (승인 후)
+                let execBadge = '';
+                if (l.approvalStatus === 'approved' && l.executionStatus) {
+                    const es = EXEC_STATUS[l.executionStatus] || {};
+                    execBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${es.bg || ''} ${es.text || ''}">${es.label || l.executionStatus}</span>`;
+                }
+
+                // 반려 사유 / 수정 요청 코멘트
+                let feedbackHtml = '';
+                const feedbackStatuses = ['rejected', 'revision_requested', 'admin_rejected', 'admin_revision_requested'];
+                if (feedbackStatuses.includes(l.approvalStatus)) {
+                    const lastAction = [...(l.approvalHistory || [])].reverse().find(h => h.action === l.approvalStatus);
+                    if (lastAction && lastAction.comment) {
+                        const isReject = l.approvalStatus === 'rejected' || l.approvalStatus === 'admin_rejected';
+                        const source = l.approvalStatus.startsWith('admin_') ? '관리자' : '부서 조정자';
+                        feedbackHtml = `<div class="mt-2 p-2.5 rounded-lg ${isReject ? 'bg-red-50 border border-red-100' : 'bg-orange-50 border border-orange-100'}">
+                            <p class="text-xs ${isReject ? 'text-red-700' : 'text-orange-700'} font-semibold mb-0.5">${source} ${isReject ? '반려 사유' : '수정 요청 사항'}</p>
+                            <p class="text-xs text-gray-700">${escapeHtml(lastAction.comment)}</p>
+                        </div>`;
+                    }
+                }
+
+                // 승인 스테퍼 (3단계: 담당자 요청 → 부서 조정자 → 관리자 조정자)
+                const approvalSteps = [
+                    { label: '담당자 요청', key: 'submitted' },
+                    { label: '부서 조정자', key: 'dept' },
+                    { label: '관리자 최종', key: 'admin' },
+                ];
+                let stepIdx = 0;
+                if (l.approvalStatus === 'dept_approved') stepIdx = 1;
+                else if (l.approvalStatus === 'approved') stepIdx = 2;
+                else if (l.approvalStatus === 'admin_rejected' || l.approvalStatus === 'admin_revision_requested') stepIdx = 1; // 관리자가 반환 → 부서 단계로
+                else if (l.approvalStatus === 'rejected' || l.approvalStatus === 'revision_requested') stepIdx = 0; // 부서 반려 → 담당자로
+                else stepIdx = 0; // pending
+                const isDone = l.approvalStatus === 'approved';
+
+                let stepperHtml = `<div class="flex items-center gap-1 mt-2 mb-1">`;
+                approvalSteps.forEach((s, i) => {
+                    const done = isDone || i < stepIdx;
+                    const current = !isDone && i === stepIdx;
+                    const colorClass = done ? 'bg-green-500 text-white' : current ? 'bg-blue-500 text-white ring-2 ring-blue-300' : 'bg-gray-200 text-gray-400';
+                    const lineColor = done ? 'bg-green-400' : 'bg-gray-200';
+                    stepperHtml += `<div class="flex flex-col items-center" style="min-width:28px">
+                        <div class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${colorClass}">${i + 1}</div>
+                        <span class="text-[9px] mt-0.5 whitespace-nowrap ${current ? 'font-bold text-blue-700' : done ? 'text-green-700' : 'text-gray-400'}">${s.label}</span>
+                    </div>`;
+                    if (i < approvalSteps.length - 1) stepperHtml += `<div class="flex-1 h-0.5 ${lineColor} -mt-3"></div>`;
+                });
+                stepperHtml += `</div>`;
+
+                // 방향 표시
+                let directionHtml = '';
+                if (l.category === 'collaboration' && l.fromDept && l.toDept) {
+                    directionHtml = `<div class="flex items-center gap-1.5 text-sm mb-1.5">
+                        <span class="font-semibold text-indigo-700">${getDeptName(l.fromDept)}</span>
+                        <span class="material-symbols-rounded text-gray-400 text-base" aria-hidden="true">arrow_forward</span>
+                        <span class="font-semibold text-green-700">${getDeptName(l.toDept)}</span>
+                    </div>`;
+                } else if (l.category === 'referral' && l.targetService) {
+                    directionHtml = `<div class="text-sm mb-1.5">
+                        <span class="font-semibold text-blue-700">${escapeHtml(l.targetService)}</span>
+                    </div>`;
+                }
+
+                // 메모
+                const notesHtml = (l.notes || []).map(n => `
+                    <div class="flex gap-2 text-xs py-1.5">
+                        <span class="font-semibold text-indigo-600 whitespace-nowrap">${escapeHtml(n.dept || n.author)}</span>
+                        <span class="text-gray-600">${escapeHtml(n.text)}</span>
+                        <span class="text-gray-300 ml-auto whitespace-nowrap">${new Date(n.createdAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                    </div>
+                `).join('');
+
+                // 액션 버튼
+                let actionsHtml = '';
+                const isApproved = l.approvalStatus === 'approved';
+                const isActive = isApproved && (l.executionStatus === 'email_sent' || l.executionStatus === 'in_progress');
+
+                // 부서 조정자 검토 영역 (pending 상태)
+                if (l.approvalStatus === 'pending') {
+                    actionsHtml = `<div class="mt-2 pt-2 border-t border-yellow-200">
+                        <p class="text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1">
+                            <span class="material-symbols-rounded text-sm" aria-hidden="true">supervisor_account</span>부서 조정자 검토
+                        </p>
+                        <div class="flex gap-1.5">
+                            <button onclick="deptApproveLinkage('${l.id}')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1">
+                                <span class="material-symbols-rounded text-sm" aria-hidden="true">check_circle</span>승인
+                            </button>
+                            <button onclick="deptRejectLinkage('${l.id}')" class="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-colors">반려</button>
+                            <button onclick="deptRevisionLinkage('${l.id}')" class="px-3 py-1.5 bg-white border border-orange-300 text-orange-600 rounded-lg text-xs font-semibold hover:bg-orange-50 transition-colors">수정요청</button>
+                        </div>
+                    </div>`;
+                }
+                // 담당자 재요청 (부서 조정자 반려/수정요청 시)
+                else if (l.approvalStatus === 'rejected') {
+                    actionsHtml = `<div class="flex gap-1.5 mt-2">
+                        <button onclick="resubmitLinkage('${l.id}')" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors flex items-center gap-1">
+                            <span class="material-symbols-rounded text-sm" aria-hidden="true">refresh</span>재요청
+                        </button>
+                    </div>`;
+                } else if (l.approvalStatus === 'revision_requested') {
+                    actionsHtml = `<div class="flex gap-1.5 mt-2">
+                        <button onclick="resubmitLinkage('${l.id}')" class="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-semibold hover:bg-orange-700 transition-colors flex items-center gap-1">
+                            <span class="material-symbols-rounded text-sm" aria-hidden="true">edit</span>수정 후 재제출
+                        </button>
+                    </div>`;
+                }
+                // 관리자 반환 → 부서 조정자 재검토
+                else if (l.approvalStatus === 'admin_rejected' || l.approvalStatus === 'admin_revision_requested') {
+                    actionsHtml = `<div class="mt-2 pt-2 border-t border-red-200">
+                        <p class="text-xs font-semibold text-red-600 mb-1.5 flex items-center gap-1">
+                            <span class="material-symbols-rounded text-sm" aria-hidden="true">assignment_return</span>관리자에서 반환됨 - 부서 조정자 재검토 필요
+                        </p>
+                        <div class="flex gap-1.5">
+                            <button onclick="deptResubmitLinkage('${l.id}')" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1">
+                                <span class="material-symbols-rounded text-sm" aria-hidden="true">send</span>재검토 후 재제출
+                            </button>
+                            <button onclick="resubmitLinkage('${l.id}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors">담당자에게 반환</button>
+                        </div>
+                    </div>`;
+                }
+                else if (isActive) {
+                    actionsHtml = `<div class="flex gap-1.5 mt-2">
+                        ${l.executionStatus === 'email_sent' ? `<button onclick="updateLinkageExec('${l.id}','in_progress')" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1"><span class="material-symbols-rounded text-sm" aria-hidden="true">play_arrow</span>진행</button>` : ''}
+                        <button onclick="updateLinkageExec('${l.id}','completed')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1"><span class="material-symbols-rounded text-sm" aria-hidden="true">task_alt</span>완료</button>
+                        <div class="flex-1"></div>
+                        <div class="flex gap-1">
+                            <input id="lnote-${l.id}" type="text" placeholder="메모..." class="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs w-28 focus:outline-none focus:ring-1 focus:ring-indigo-400" onkeydown="if(event.key==='Enter')addLinkageNote('${l.id}')" />
+                            <button onclick="addLinkageNote('${l.id}')" class="px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg text-xs hover:bg-indigo-700 transition-colors">
+                                <span class="material-symbols-rounded text-sm" aria-hidden="true">send</span>
+                            </button>
+                        </div>
+                    </div>`;
+                }
+
+                const borderColor = l.approvalStatus === 'pending' ? 'border-yellow-200 bg-yellow-50/30'
+                    : l.approvalStatus === 'dept_approved' ? 'border-blue-200 bg-blue-50/30'
+                    : l.approvalStatus === 'rejected' ? 'border-red-200 bg-red-50/30'
+                    : l.approvalStatus === 'revision_requested' ? 'border-orange-200 bg-orange-50/30'
+                    : l.approvalStatus === 'admin_rejected' ? 'border-red-200 bg-red-50/30'
+                    : l.approvalStatus === 'admin_revision_requested' ? 'border-orange-200 bg-orange-50/30'
+                    : isActive ? 'border-indigo-200 bg-white'
+                    : 'border-gray-100 bg-gray-50 opacity-75';
+
+                return `
+                <div class="border rounded-xl overflow-hidden ${borderColor}">
+                    <div class="px-4 py-3">
+                        <div class="flex items-center gap-2 mb-2 flex-wrap">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${ab.bg} ${ab.text}">
+                                <span class="material-symbols-rounded text-sm" aria-hidden="true">${ab.icon}</span>${ab.label}
+                            </span>
+                            ${execBadge}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                <span class="material-symbols-rounded text-sm" aria-hidden="true">${tp.icon}</span>${tp.label}
+                            </span>
+                            <span class="text-xs text-gray-400 ml-auto">${new Date(l.createdAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                        </div>
+                        ${directionHtml}
+                        ${stepperHtml}
+                        <p class="text-sm text-gray-600">${escapeHtml(l.reason)}</p>
+                        ${feedbackHtml}
+                        ${l.notes && l.notes.length > 0 ? `<div class="mt-2 pt-2 border-t border-gray-100">${notesHtml}</div>` : ''}
+                        ${actionsHtml}
+                    </div>
+                </div>`;
+            }).join('');
         }
 
         function renderStepper(currentStatus) {
@@ -360,7 +742,7 @@
                 return `
                     <div class="flex flex-col items-center" style="min-width:48px">
                         <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm ${stateClass}">
-                            <span class="material-symbols-rounded text-lg">${icon}</span>
+                            <span class="material-symbols-rounded text-lg" aria-hidden="true">${icon}</span>
                         </div>
                         <span class="text-xs mt-1 ${i === effectiveIdx ? 'font-bold text-green-800' : 'text-gray-400'}">${STEP_LABELS[step]}</span>
                     </div>
@@ -374,14 +756,14 @@
                 const nextStep = STEPS[effectiveIdx + 1];
                 nextArea.innerHTML = `
                     <button onclick="advanceStatus('${nextStep}')" class="w-full bg-green-700 text-white font-semibold py-3 rounded-xl text-sm hover:bg-green-800 transition-colors flex items-center justify-center gap-2">
-                        <span class="material-symbols-rounded text-lg">arrow_forward</span>
+                        <span class="material-symbols-rounded text-lg" aria-hidden="true">arrow_forward</span>
                         다음 단계: ${STEP_LABELS[nextStep]}
                     </button>
                 `;
             } else {
                 nextArea.innerHTML = `
                     <div class="text-center py-3 bg-green-50 rounded-xl">
-                        <span class="material-symbols-rounded text-green-600 text-2xl">task_alt</span>
+                        <span class="material-symbols-rounded text-green-600 text-2xl" aria-hidden="true">task_alt</span>
                         <p class="text-sm font-semibold text-green-700 mt-1">처리 완료</p>
                     </div>
                 `;
@@ -456,127 +838,252 @@
             if (e.key === 'Enter') window.submitNote();
         });
 
-        // ── 협업 기능 ──
-        const COLLAB_STATUS = {
-            requested: { label: '요청됨', bg: 'bg-amber-100', text: 'text-amber-700', icon: 'schedule_send' },
-            accepted:  { label: '진행중', bg: 'bg-blue-100', text: 'text-blue-700', icon: 'handshake' },
-            completed: { label: '완료', bg: 'bg-green-100', text: 'text-green-700', icon: 'check_circle' },
-            declined:  { label: '반려', bg: 'bg-red-100', text: 'text-red-700', icon: 'cancel' },
-        };
-        const COLLAB_TYPE = {
-            consultation: { label: '자문 요청', icon: 'question_answer' },
-            joint: { label: '공동 처리', icon: 'group_work' },
-            transfer: { label: '이관 요청', icon: 'swap_horiz' },
+        // ── AI 상담 기능 (담당자/조정자용) ──
+        let staffChatHistory = [];
+
+        window.askStaffAI = function(question) {
+            document.getElementById('staff-chat-input').value = question;
+            submitStaffChat();
         };
 
-        function renderCollaborations(collabs) {
-            const el = document.getElementById('collab-list');
-            if (!collabs || collabs.length === 0) {
-                el.innerHTML = '<p class="text-sm text-gray-400 py-2 text-center">협업 요청 없음</p>';
-                return;
-            }
-            el.innerHTML = collabs.map(c => {
-                const st = COLLAB_STATUS[c.status] || COLLAB_STATUS.requested;
-                const tp = COLLAB_TYPE[c.type] || COLLAB_TYPE.consultation;
-                const notesHtml = (c.notes || []).map(n => `
-                    <div class="flex gap-2 text-xs py-1.5">
-                        <span class="font-semibold text-indigo-600 whitespace-nowrap">${escapeHtml(n.dept || n.author)}</span>
-                        <span class="text-gray-600">${escapeHtml(n.text)}</span>
-                        <span class="text-gray-300 ml-auto whitespace-nowrap">${new Date(n.createdAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
-                    </div>
-                `).join('');
+        window.submitStaffChat = async function() {
+            const input = document.getElementById('staff-chat-input');
+            const text = input.value.trim();
+            if (!text) return;
 
-                const isActive = c.status === 'requested' || c.status === 'accepted';
-                const actions = isActive ? `
-                    <div class="flex gap-1.5 mt-2">
-                        ${c.status === 'requested' ? `<button onclick="updateCollab('${c.id}','accepted')" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1"><span class="material-symbols-rounded text-sm">check</span>수락</button>` : ''}
-                        ${c.status === 'requested' ? `<button onclick="updateCollab('${c.id}','declined')" class="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-colors">반려</button>` : ''}
-                        ${c.status === 'accepted' ? `<button onclick="updateCollab('${c.id}','completed')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1"><span class="material-symbols-rounded text-sm">task_alt</span>완료</button>` : ''}
-                        <div class="flex-1"></div>
-                        <div class="flex gap-1">
-                            <input id="cnote-${c.id}" type="text" placeholder="메모..." class="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs w-32 focus:outline-none focus:ring-1 focus:ring-indigo-400" onkeydown="if(event.key==='Enter')addCollabNote('${c.id}')" />
-                            <button onclick="addCollabNote('${c.id}')" class="px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg text-xs hover:bg-indigo-700 transition-colors">
-                                <span class="material-symbols-rounded text-sm">send</span>
-                            </button>
-                        </div>
-                    </div>
-                ` : '';
+            const role = document.getElementById('staff-role').value;
+            const btn = document.getElementById('staff-chat-btn');
+            const messagesEl = document.getElementById('staff-chat-messages');
 
-                return `
-                <div class="border rounded-xl overflow-hidden ${isActive ? 'border-indigo-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-75'}">
-                    <div class="px-4 py-3">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${st.bg} ${st.text}">
-                                <span class="material-symbols-rounded text-sm">${st.icon}</span>${st.label}
-                            </span>
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                <span class="material-symbols-rounded text-sm">${tp.icon}</span>${tp.label}
-                            </span>
-                            <span class="text-xs text-gray-400 ml-auto">${new Date(c.createdAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
-                        </div>
-                        <div class="flex items-center gap-1.5 text-sm mb-1.5">
-                            <span class="font-semibold text-indigo-700">${getDeptName(c.fromDept)}</span>
-                            <span class="material-symbols-rounded text-gray-400 text-base">arrow_forward</span>
-                            <span class="font-semibold text-green-700">${getDeptName(c.toDept)}</span>
-                        </div>
-                        <p class="text-sm text-gray-600">${escapeHtml(c.reason)}</p>
-                        ${c.notes && c.notes.length > 0 ? `<div class="mt-2 pt-2 border-t border-gray-100">${notesHtml}</div>` : ''}
-                        ${actions}
+            // 사용자 메시지 표시
+            staffChatHistory.push({ role: 'user', content: text });
+            messagesEl.innerHTML += `
+                <div class="flex justify-end">
+                    <div class="bg-amber-100 rounded-xl rounded-tr-sm px-3.5 py-2.5 max-w-[85%]">
+                        <p class="text-xs text-amber-600 font-semibold mb-0.5">${escapeHtml(role)}</p>
+                        <p class="text-sm text-gray-800">${escapeHtml(text)}</p>
                     </div>
                 </div>`;
-            }).join('');
-        }
 
-        window.toggleCollabForm = function() {
-            const form = document.getElementById('collab-form');
+            input.value = '';
+            btn.disabled = true;
+
+            // AI 응답 영역 준비
+            const aiMsgId = 'ai-msg-' + Date.now();
+            messagesEl.innerHTML += `
+                <div class="flex justify-start">
+                    <div id="${aiMsgId}" class="bg-gray-100 rounded-xl rounded-tl-sm px-3.5 py-2.5 max-w-[85%]">
+                        <p class="text-xs text-gray-500 font-semibold mb-0.5 flex items-center gap-1">
+                            <span class="material-symbols-rounded text-xs" aria-hidden="true">psychology</span>AI 분석
+                        </p>
+                        <p class="text-sm text-gray-800 whitespace-pre-line leading-relaxed ai-response-text">
+                            <span class="text-gray-400 animate-pulse">분석 중...</span>
+                        </p>
+                    </div>
+                </div>`;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+
+            try {
+                const resp = await fetch('/api/staff/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: staffChatHistory,
+                        requestId,
+                        role,
+                    }),
+                });
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let aiText = '';
+                const aiEl = document.getElementById(aiMsgId)?.querySelector('.ai-response-text');
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+
+                    for (const line of lines) {
+                        const dataStr = line.slice(6);
+                        if (dataStr === '[DONE]') break;
+                        try {
+                            const data = JSON.parse(dataStr);
+                            if (data.type === 'stream' && data.text) {
+                                aiText += data.text;
+                                if (aiEl) aiEl.textContent = aiText;
+                            } else if (data.type === 'error') {
+                                if (aiEl) aiEl.textContent = data.error;
+                            }
+                        } catch {}
+                    }
+                    messagesEl.scrollTop = messagesEl.scrollHeight;
+                }
+
+                staffChatHistory.push({ role: 'assistant', content: aiText });
+            } catch (e) {
+                const aiEl = document.getElementById(aiMsgId)?.querySelector('.ai-response-text');
+                if (aiEl) aiEl.textContent = 'AI 응답에 실패했습니다.';
+            }
+
+            btn.disabled = false;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        };
+
+        document.getElementById('staff-chat-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') window.submitStaffChat();
+        });
+
+        // ── 통합 연계 기능 ──
+
+        window.toggleLinkageForm = function() {
+            const form = document.getElementById('linkage-form');
             form.classList.toggle('hidden');
         };
 
-        window.submitCollaboration = async function() {
-            const fromDept = document.getElementById('collab-from').value;
-            const toDept = document.getElementById('collab-to').value;
-            const reason = document.getElementById('collab-reason').value.trim();
-            const type = document.querySelector('input[name="collab-type"]:checked')?.value || 'consultation';
-            if (!reason) { alert('협업 사유를 입력하세요.'); return; }
-            if (fromDept === toDept) { alert('같은 부서에는 협업 요청할 수 없습니다.'); return; }
+        window.switchLinkageTab = function(tab) {
+            linkageTab = tab;
+            const tabCollab = document.getElementById('tab-collab');
+            const tabReferral = document.getElementById('tab-referral');
+            const fieldsCollab = document.getElementById('fields-collab');
+            const fieldsReferral = document.getElementById('fields-referral');
 
-            try {
-                const resp = await fetch('/api/case/' + requestId + '/collaboration', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fromDept, toDept, reason, type }),
-                });
-                if (!resp.ok) { const err = await resp.json(); alert(err.error); return; }
-                document.getElementById('collab-reason').value = '';
-                document.getElementById('collab-form').classList.add('hidden');
-                if (await loadData()) render();
-            } catch { alert('협업 요청에 실패했습니다.'); }
+            if (tab === 'collaboration') {
+                tabCollab.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-indigo-600 text-white';
+                tabReferral.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-white text-indigo-600 border border-indigo-200';
+                fieldsCollab.classList.remove('hidden');
+                fieldsReferral.classList.add('hidden');
+            } else {
+                tabReferral.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-indigo-600 text-white';
+                tabCollab.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-white text-indigo-600 border border-indigo-200';
+                fieldsCollab.classList.add('hidden');
+                fieldsReferral.classList.remove('hidden');
+            }
         };
 
-        window.updateCollab = async function(collabId, status) {
+        window.submitLinkage = async function() {
+            const reason = document.getElementById('linkage-reason').value.trim();
+            if (!reason) { alert('사유를 입력하세요.'); return; }
+
+            let body;
+            if (linkageTab === 'collaboration') {
+                const fromDept = document.getElementById('linkage-from').value;
+                const toDept = document.getElementById('linkage-to').value;
+                const type = document.querySelector('input[name="linkage-type"]:checked')?.value || 'consultation';
+                if (fromDept === toDept) { alert('같은 부서에는 요청할 수 없습니다.'); return; }
+                body = { category: 'collaboration', type, fromDept, toDept, reason };
+            } else {
+                const targetService = document.getElementById('linkage-target-service').value;
+                if (!targetService) { alert('대상 서비스를 선택하세요.'); return; }
+                body = { category: 'referral', type: 'service_referral', targetService, reason };
+            }
+
             try {
-                const resp = await fetch(`/api/case/${requestId}/collaboration/${collabId}`, {
+                const resp = await fetch('/api/case/' + requestId + '/linkage', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (!resp.ok) { const err = await resp.json(); alert(err.error); return; }
+                document.getElementById('linkage-reason').value = '';
+                document.getElementById('linkage-form').classList.add('hidden');
+                if (await loadData()) render();
+            } catch { alert('연계 요청에 실패했습니다.'); }
+        };
+
+        window.updateLinkageExec = async function(linkageId, status) {
+            try {
+                const resp = await fetch(`/api/case/${requestId}/linkage/${linkageId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status }),
+                    body: JSON.stringify({ executionStatus: status }),
                 });
                 if (!resp.ok) throw new Error();
                 if (await loadData()) render();
             } catch { alert('상태 변경에 실패했습니다.'); }
         };
 
-        window.addCollabNote = async function(collabId) {
-            const input = document.getElementById('cnote-' + collabId);
-            const text = input.value.trim();
-            if (!text) return;
-            // 해당 협업의 fromDept를 직접 참조 (드롭다운 의존 제거)
-            const collab = (caseData.collaborations || []).find(c => c.id === collabId);
-            const deptName = collab ? getDeptName(collab.fromDept) : '담당자';
+        window.resubmitLinkage = async function(linkageId) {
             try {
-                const resp = await fetch(`/api/case/${requestId}/collaboration/${collabId}/notes`, {
+                const resp = await fetch(`/api/case/${requestId}/linkage/${linkageId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ resubmit: true }),
+                });
+                if (!resp.ok) throw new Error();
+                if (await loadData()) render();
+            } catch { alert('재제출에 실패했습니다.'); }
+        };
+
+        // ── 부서 조정자 승인/반려/수정요청 ──
+        window.deptApproveLinkage = async function(linkageId) {
+            const comment = prompt('승인 코멘트 (선택):') || '';
+            try {
+                const resp = await fetch(`/api/dept/linkage/${linkageId}/approve`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text, author: '담당자', dept: deptName }),
+                    body: JSON.stringify({ comment }),
+                });
+                if (!resp.ok) { const err = await resp.json(); alert(err.error); return; }
+                alert('부서 조정자 승인 완료. 관리자 최종 승인 대기 상태입니다.');
+                if (await loadData()) render();
+            } catch { alert('부서 조정자 승인에 실패했습니다.'); }
+        };
+
+        window.deptRejectLinkage = async function(linkageId) {
+            const comment = prompt('반려 사유를 입력하세요:');
+            if (comment === null) return;
+            try {
+                const resp = await fetch(`/api/dept/linkage/${linkageId}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comment }),
+                });
+                if (!resp.ok) { const err = await resp.json(); alert(err.error); return; }
+                if (await loadData()) render();
+            } catch { alert('부서 조정자 반려에 실패했습니다.'); }
+        };
+
+        window.deptRevisionLinkage = async function(linkageId) {
+            const comment = prompt('수정 요청 사항을 입력하세요:');
+            if (comment === null) return;
+            try {
+                const resp = await fetch(`/api/dept/linkage/${linkageId}/revision`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comment }),
+                });
+                if (!resp.ok) { const err = await resp.json(); alert(err.error); return; }
+                if (await loadData()) render();
+            } catch { alert('부서 조정자 수정 요청에 실패했습니다.'); }
+        };
+
+        // 부서 조정자가 관리자 반환 건 재검토 후 재제출
+        window.deptResubmitLinkage = async function(linkageId) {
+            const comment = prompt('재제출 코멘트 (선택):') || '';
+            try {
+                const resp = await fetch(`/api/dept/linkage/${linkageId}/resubmit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comment }),
+                });
+                if (!resp.ok) { const err = await resp.json(); alert(err.error); return; }
+                alert('관리자 최종 승인 대기 상태로 재제출되었습니다.');
+                if (await loadData()) render();
+            } catch { alert('재제출에 실패했습니다.'); }
+        };
+
+        window.addLinkageNote = async function(linkageId) {
+            const input = document.getElementById('lnote-' + linkageId);
+            const text = input.value.trim();
+            if (!text) return;
+            try {
+                const resp = await fetch(`/api/case/${requestId}/linkage/${linkageId}/notes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, author: '담당자', dept: '담당자' }),
                 });
                 if (!resp.ok) throw new Error();
                 input.value = '';
@@ -584,12 +1091,60 @@
             } catch { alert('메모 추가에 실패했습니다.'); }
         };
 
-        // 초기 로드
-        await loadDepartments();
-        if (await loadData()) {
-            render();
+        // URL 파라미터로 연계 폼 자동 열기
+        const params = new URLSearchParams(location.search);
+        const openLinkage = params.get('openLinkage');
+
+        // ── 로그인 ──
+        window.doLogin = async function() {
+            const pw = document.getElementById('login-password').value;
+            const errEl = document.getElementById('login-error');
+            errEl.classList.add('hidden');
+            try {
+                const resp = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pw }),
+                });
+                const data = await resp.json();
+                if (resp.ok && data.success) {
+                    document.getElementById('login-gate').classList.add('hidden');
+                    document.getElementById('main-content').classList.remove('hidden');
+                    await startApp();
+                } else {
+                    errEl.textContent = data.error || '로그인 실패';
+                    errEl.classList.remove('hidden');
+                }
+            } catch (e) {
+                errEl.textContent = '서버에 연결할 수 없습니다.';
+                errEl.classList.remove('hidden');
+            }
+        };
+
+        async function startApp() {
+            await loadDepartments();
+            if (await loadData()) {
+                await loadReferralServices();
+                render();
+                if (openLinkage) {
+                    toggleLinkageForm();
+                    if (openLinkage === 'referral') switchLinkageTab('referral');
+                }
+            }
         }
+
+        // 인증 상태 확인
+        try {
+            const resp = await fetch('/api/auth/status');
+            const data = await resp.json();
+            if (data.authenticated) {
+                document.getElementById('login-gate').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+                await startApp();
+            }
+        } catch { /* 로그인 화면 유지 */ }
     })();
     </script>
+</div><!-- /main-content -->
 </body>
 </html>

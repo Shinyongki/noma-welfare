@@ -20,197 +20,27 @@
     <style>
         body { font-family: 'Pretendard Variable', sans-serif; }
         .material-symbols-rounded { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
-        @keyframes fade-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-up { animation: fade-up 0.4s ease-out; }
-        @keyframes spin-slow { to { transform: rotate(360deg); } }
-        .animate-spin-slow { animation: spin-slow 1.2s linear infinite; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
-
-    <!-- 로딩 상태 -->
-    <div id="state-loading" class="flex items-center justify-center min-h-screen">
-        <div class="text-center">
-            <span class="material-symbols-rounded text-5xl text-blue-500 animate-spin-slow block mb-4">progress_activity</span>
-            <p class="text-gray-500 text-lg">요청 정보를 불러오는 중...</p>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center px-4">
+    <div class="text-center max-w-sm">
+        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="material-symbols-rounded text-3xl text-blue-600" aria-hidden="true">swap_horiz</span>
         </div>
+        <h2 class="text-lg font-bold text-gray-800 mb-2">연계 요청이 통합되었습니다</h2>
+        <p class="text-sm text-gray-500 mb-4">서비스 연계 요청은 이제 상담 처리 페이지에서 통합 관리됩니다.</p>
+        <p class="text-xs text-gray-400 mb-6">잠시 후 상담 처리 페이지로 이동합니다...</p>
+        <a id="redirect-link" href="#" class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors">
+            <span class="material-symbols-rounded text-lg" aria-hidden="true">arrow_forward</span>
+            상담 처리 페이지로 이동
+        </a>
     </div>
-
-    <!-- 404 에러 -->
-    <div id="state-error" class="hidden flex items-center justify-center min-h-screen">
-        <div class="text-center animate-fade-up">
-            <span class="material-symbols-rounded text-6xl text-red-400 block mb-4">error</span>
-            <h2 class="text-xl font-bold text-gray-800 mb-2">요청을 찾을 수 없습니다</h2>
-            <p class="text-gray-500">유효하지 않거나 만료된 링크입니다.</p>
-        </div>
-    </div>
-
-    <!-- 메인 폼 -->
-    <div id="state-form" class="hidden min-h-screen py-8 px-4">
-        <div class="max-w-lg mx-auto animate-fade-up">
-            <!-- 헤더 -->
-            <div class="bg-gradient-to-br from-blue-700 to-blue-900 rounded-t-2xl px-6 py-5 text-white">
-                <h1 class="text-xl font-bold flex items-center gap-2">
-                    <span class="material-symbols-rounded">swap_horiz</span>
-                    타 서비스 연계 요청
-                </h1>
-                <p class="text-blue-200 text-sm mt-1">상담 후 다른 서비스가 더 적합하다고 판단되면 아래에서 연계를 요청하세요.</p>
-            </div>
-
-            <div class="bg-white rounded-b-2xl shadow-lg border border-gray-100 overflow-hidden">
-                <!-- 원래 상담 요청 정보 카드 -->
-                <div class="px-6 pt-6 pb-4">
-                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">원래 상담 요청 정보</p>
-                    <div class="bg-gray-50 rounded-xl p-4 space-y-2.5">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-500">신청 서비스</span>
-                            <span id="info-service" class="text-sm font-bold text-gray-800">-</span>
-                        </div>
-                        <div class="border-t border-gray-100"></div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-500">신청자 성함</span>
-                            <span id="info-name" class="text-sm font-bold text-gray-800">-</span>
-                        </div>
-                        <div class="border-t border-gray-100"></div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-500">연락처</span>
-                            <span id="info-phone" class="text-sm font-bold text-gray-800">-</span>
-                        </div>
-                        <div class="border-t border-gray-100"></div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-500">접수 일시</span>
-                            <span id="info-date" class="text-sm text-gray-600">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 구분선 -->
-                <div class="px-6"><div class="border-t border-gray-100"></div></div>
-
-                <!-- 연계 폼 -->
-                <form id="referral-form" class="px-6 py-5 space-y-5">
-                    <!-- 서비스 선택 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            <span class="material-symbols-rounded text-base align-text-bottom mr-1 text-blue-600">category</span>
-                            연계 대상 서비스
-                        </label>
-                        <select id="target-service" required
-                            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white appearance-none cursor-pointer"
-                            style="background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22><path fill=%22%23666%22 d=%22M7 10l5 5 5-5z%22/></svg>');background-repeat:no-repeat;background-position:right 12px center;">
-                            <option value="" disabled selected>서비스를 선택하세요</option>
-                        </select>
-                    </div>
-
-                    <!-- 연계 사유 -->
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            <span class="material-symbols-rounded text-base align-text-bottom mr-1 text-orange-500">edit_note</span>
-                            연계 사유
-                        </label>
-                        <textarea id="reason" required rows="3" placeholder="연계가 필요한 사유를 입력해주세요..."
-                            class="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"></textarea>
-                    </div>
-
-                    <!-- 발송 버튼 -->
-                    <button type="submit" id="submit-btn"
-                        class="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white font-bold py-3.5 rounded-xl text-sm hover:from-blue-700 hover:to-blue-900 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <span class="material-symbols-rounded text-lg">send</span>
-                        연계 이메일 발송
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- 발송 완료 -->
-    <div id="state-done" class="hidden flex items-center justify-center min-h-screen px-4">
-        <div class="text-center animate-fade-up max-w-sm">
-            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
-                <span class="material-symbols-rounded text-4xl text-green-600">check_circle</span>
-            </div>
-            <h2 class="text-xl font-bold text-gray-800 mb-2">연계 이메일이 발송되었습니다</h2>
-            <p class="text-gray-500 text-sm">대상 기관에서 확인 후 이용자에게 연락을 드릴 예정입니다.</p>
-            <p id="done-detail" class="mt-4 text-sm text-blue-700 font-semibold bg-blue-50 rounded-xl py-3 px-4"></p>
-        </div>
-    </div>
-
     <script>
-    (async function () {
+    (function() {
         const requestId = location.pathname.split('/referral/')[1];
-        const $loading = document.getElementById('state-loading');
-        const $error   = document.getElementById('state-error');
-        const $form    = document.getElementById('state-form');
-        const $done    = document.getElementById('state-done');
-
-        function show(el) {
-            [$loading, $error, $form, $done].forEach(s => s.classList.add('hidden'));
-            el.classList.remove('hidden');
-        }
-
-        // 1. 요청 데이터 로드
-        let data;
-        try {
-            const resp = await fetch('/api/referral/' + requestId);
-            if (!resp.ok) throw new Error();
-            data = await resp.json();
-        } catch {
-            show($error);
-            return;
-        }
-
-        // 2. 정보 카드 채우기
-        const req = data.request;
-        document.getElementById('info-service').textContent = req.serviceName;
-        document.getElementById('info-name').textContent    = req.userName;
-        document.getElementById('info-phone').textContent   = req.userPhone;
-        document.getElementById('info-date').textContent    = req.createdAt;
-
-        // 3. 서비스 드롭다운 구성 (현재 서비스 제외, 대분류별 optgroup)
-        const select = document.getElementById('target-service');
-        for (const [category, services] of Object.entries(data.services)) {
-            const group = document.createElement('optgroup');
-            group.label = category;
-            services.forEach(svc => {
-                if (svc.name === req.serviceName) return; // 현재 서비스 제외
-                const opt = document.createElement('option');
-                opt.value = svc.name;
-                opt.textContent = svc.name;
-                group.appendChild(opt);
-            });
-            if (group.children.length > 0) select.appendChild(group);
-        }
-
-        show($form);
-
-        // 4. 폼 제출
-        document.getElementById('referral-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('submit-btn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="material-symbols-rounded text-lg animate-spin-slow">progress_activity</span> 발송 중...';
-
-            try {
-                const resp = await fetch('/api/referral/' + requestId + '/send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        targetService: document.getElementById('target-service').value,
-                        reason: document.getElementById('reason').value,
-                    }),
-                });
-                const result = await resp.json();
-                if (!resp.ok || !result.success) throw new Error(result.message);
-
-                document.getElementById('done-detail').textContent =
-                    `${req.serviceName} → ${document.getElementById('target-service').value}`;
-                show($done);
-            } catch (err) {
-                alert(err.message || '발송에 실패했습니다. 다시 시도해주세요.');
-                btn.disabled = false;
-                btn.innerHTML = '<span class="material-symbols-rounded text-lg">send</span> 연계 이메일 발송';
-            }
-        });
+        const targetUrl = '/case/' + requestId + '?openLinkage=referral';
+        document.getElementById('redirect-link').href = targetUrl;
+        setTimeout(function() { location.href = targetUrl; }, 2000);
     })();
     </script>
 </body>

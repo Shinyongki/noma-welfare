@@ -6,17 +6,38 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = path.join(__dirname, 'analytics.json');
 
+const BACKUP_FILE = DATA_FILE + '.bak';
+
 function readAll() {
     try {
         if (fs.existsSync(DATA_FILE)) {
             return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
         }
-    } catch { /* corrupted — start fresh */ }
+    } catch (e) {
+        console.error('[ANALYTICS CORRUPTION] analytics.json 파싱 실패:', e.message);
+        if (fs.existsSync(BACKUP_FILE)) {
+            try {
+                const backup = JSON.parse(fs.readFileSync(BACKUP_FILE, 'utf-8'));
+                console.warn('[ANALYTICS RECOVERY] 백업에서 복구 성공');
+                fs.writeFileSync(DATA_FILE, JSON.stringify(backup, null, 2), 'utf-8');
+                return backup;
+            } catch { /* 백업도 손상 */ }
+        }
+        const corruptFile = DATA_FILE + '.corrupt.' + Date.now();
+        try { fs.renameSync(DATA_FILE, corruptFile); } catch {}
+        console.error(`[ANALYTICS] 손상 파일 보존: ${corruptFile}`);
+    }
     return {};
 }
 
 function writeAll(data) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    const json = JSON.stringify(data, null, 2);
+    if (fs.existsSync(DATA_FILE)) {
+        try { fs.copyFileSync(DATA_FILE, BACKUP_FILE); } catch {}
+    }
+    const tmpFile = DATA_FILE + '.tmp';
+    fs.writeFileSync(tmpFile, json, 'utf-8');
+    fs.renameSync(tmpFile, DATA_FILE);
 }
 
 function todayKey() {
