@@ -559,11 +559,11 @@ if (migratedCount > 0) {
 // ── API Routes ──
 
 // 정적 파일 서빙 및 메인 화면 라우트
-app.use(express.static(path.join(__dirname, 'stitch')));
+app.use(express.static(path.join(__dirname, 'stitch'), { dotfiles: 'deny', index: false }));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'code.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'admin.html')));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
-app.use('/.well-known', (req, res) => res.status(200).end());
+app.use('/.well-known', (req, res) => res.status(404).end());
 
 // ── 프롬프트 인젝션 방어 ──
 
