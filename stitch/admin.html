@@ -137,10 +137,30 @@
         }
         .kanban-card .card-summary { pointer-events: none; }
         .kanban-card .card-detail {
-            display: none; border-top: 1px solid #E2E8F0;
+            border-top: 1px solid #E2E8F0;
             margin-top: 0.75rem; padding-top: 0.75rem;
+            max-height: 0; overflow: hidden; opacity: 0;
+            transition: max-height 0.35s ease, opacity 0.25s ease, margin-top 0.25s ease, padding-top 0.25s ease;
+            margin-top: 0; padding-top: 0; border-top-color: transparent;
         }
-        .kanban-card.expanded .card-detail { display: block; }
+        .kanban-card.expanded .card-detail {
+            max-height: 800px; opacity: 1;
+            margin-top: 0.75rem; padding-top: 0.75rem;
+            border-top-color: #E2E8F0;
+        }
+        .kanban-card .card-compact-extra {
+            max-height: 0; overflow: hidden; opacity: 0;
+            transition: max-height 0.3s ease, opacity 0.2s ease;
+        }
+        .kanban-card.expanded .card-compact-extra {
+            max-height: 200px; opacity: 1;
+        }
+        .kanban-card .expand-icon {
+            transition: transform 0.25s ease;
+        }
+        .kanban-card.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
         .kanban-card .bulk-checkbox { pointer-events: auto; }
 
         /* Approval Timeline */
@@ -179,6 +199,40 @@
             .kanban-body { max-height: 400px; }
             .kanban-card { padding: 0.875rem; font-size: 0.875rem; }
         }
+
+        /* View toggle buttons */
+        .view-toggle-btn {
+            display: flex; align-items: center; justify-content: center;
+            width: 2rem; height: 2rem; border-radius: 0.375rem;
+            border: 1px solid #E2E8F0; cursor: pointer;
+            transition: all 0.15s; color: #94A3B8;
+        }
+        .view-toggle-btn:hover { background: #F1F5F9; color: #475569; }
+        .view-toggle-btn.active {
+            background: #EEF2FF; color: #6366F1;
+            border-color: #6366F1;
+        }
+
+        /* Collab table view */
+        .collab-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+        .collab-table thead th {
+            padding: 0.625rem 0.75rem; text-align: left;
+            font-size: 0.6875rem; font-weight: 700;
+            text-transform: uppercase; color: #64748B;
+            background: #F8FAFC; border-bottom: 1px solid #E2E8F0;
+            cursor: pointer; user-select: none;
+            white-space: nowrap;
+        }
+        .collab-table thead th:hover { color: #334155; background: #F1F5F9; }
+        .collab-table thead th .sort-arrow { font-size: 14px; vertical-align: middle; margin-left: 2px; }
+        .collab-table tbody tr {
+            border-bottom: 1px solid #F1F5F9;
+            transition: background 0.15s; cursor: pointer;
+        }
+        .collab-table tbody tr:hover { background: #EEF2FF !important; }
+        .collab-table tbody tr:nth-child(even) { background: #F8FAFC; }
+        .collab-table tbody td { padding: 0.5rem 0.75rem; }
+        .collab-table tbody tr.bulk-selected { background: #F5F3FF !important; }
 
         /* Bulk action bar */
         .bulk-bar {
@@ -509,6 +563,14 @@
                         <input id="collab-search" type="text" placeholder="이름, 서비스, 부서 검색..." oninput="debounceCollabSearch()" class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary" />
                     </div>
                     <span id="collab-total-count" class="text-xs text-slate-400">-</span>
+                    <div class="flex gap-1 ml-auto">
+                        <button id="view-kanban-btn" class="view-toggle-btn active" onclick="switchCollabView('kanban')" title="칸반 뷰">
+                            <span class="material-symbols-outlined" style="font-size:18px" aria-hidden="true">view_kanban</span>
+                        </button>
+                        <button id="view-table-btn" class="view-toggle-btn" onclick="switchCollabView('table')" title="테이블 뷰">
+                            <span class="material-symbols-outlined" style="font-size:18px" aria-hidden="true">table_rows</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Stats ribbon -->
@@ -602,6 +664,30 @@
                         <div class="kanban-body" id="body-rejected">
                             <p class="text-slate-400 text-xs text-center py-4">로딩 중...</p>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Table view (hidden by default) -->
+                <div id="collab-table-view" class="card-elevated !p-0 overflow-hidden" style="display:none">
+                    <div class="overflow-x-auto">
+                        <table class="collab-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:2.5rem;text-align:center;cursor:default">
+                                        <input type="checkbox" id="collab-table-check-all" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5" onchange="toggleTableBulkAll(this.checked)" />
+                                    </th>
+                                    <th onclick="sortTable('id')">번호 <span class="sort-arrow material-symbols-outlined" aria-hidden="true">unfold_more</span></th>
+                                    <th onclick="sortTable('title')">제목 (유형) <span class="sort-arrow material-symbols-outlined" aria-hidden="true">unfold_more</span></th>
+                                    <th onclick="sortTable('status')">상태 <span class="sort-arrow material-symbols-outlined" aria-hidden="true">unfold_more</span></th>
+                                    <th onclick="sortTable('category')">카테고리 <span class="sort-arrow material-symbols-outlined" aria-hidden="true">unfold_more</span></th>
+                                    <th onclick="sortTable('date')">날짜 <span class="sort-arrow material-symbols-outlined" aria-hidden="true">unfold_more</span></th>
+                                    <th onclick="sortTable('dept')">담당부서 <span class="sort-arrow material-symbols-outlined" aria-hidden="true">unfold_more</span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="collab-table-body">
+                                <tr><td colspan="7" class="text-center text-slate-400 py-8">로딩 중...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
@@ -983,6 +1069,9 @@
     let collabSearchTimer = null;
     let expandedCardId = null;
     let expandedCardData = {};
+    let collabViewMode = 'kanban'; // 'kanban' or 'table'
+    let tableSortKey = 'date';
+    let tableSortAsc = false;
 
     function debounceCollabSearch() {
         clearTimeout(collabSearchTimer);
@@ -1031,7 +1120,7 @@
 
         let directionHtml = '';
         if (c.category === 'referral' && c.targetService) {
-            directionHtml = `<span class="font-semibold text-blue-700 text-xs">${escapeHtml(c.targetService)}</span>`;
+            directionHtml = `<span class="font-semibold text-blue-700 text-xs truncate">${escapeHtml(c.targetService)}</span>`;
         } else if (c.fromDept && c.toDept) {
             directionHtml = `<span class="font-semibold text-indigo-700 text-xs">${getDeptName(c.fromDept)}</span>
                 <span class="material-symbols-outlined text-slate-400" aria-hidden="true" style="font-size:12px">arrow_forward</span>
@@ -1040,31 +1129,31 @@
 
         const dateStr = new Date(c.createdAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'});
 
-        let expandedHtml = '';
-        if (isExpanded) {
-            const ed = expandedCardData[c.id];
-            expandedHtml = `<div class="card-detail" style="display:block">
-                ${ed ? renderExpandedDetail(c, ed) : '<p class="text-xs text-slate-400 py-2">로딩 중...</p>'}
-            </div>`;
-        }
-
+        const ed = expandedCardData[c.id];
         const isBulkSelected = bulkSelected.has(c.id);
 
         return `
         <div id="kcard-${c.id}" class="kanban-card ${isExpanded ? 'expanded' : ''} ${isBulkSelected ? 'bulk-selected' : ''}" draggable="true" ondragstart="onDragStart(event, '${c.id}')" ondragend="onDragEnd(event)" onclick="toggleCardExpand('${c.id}', event)">
             <div class="card-summary">
-                <div class="flex items-center gap-1.5 mb-1.5">
+                <div class="flex items-center gap-1.5">
                     <input type="checkbox" class="bulk-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 flex-shrink-0" ${isBulkSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleBulkSelect('${c.id}', this.checked)" />
                     <span class="badge ${approvalSt.bg} ${approvalSt.text}" style="font-size:10px;padding:1px 6px">${approvalSt.label}</span>
-                    <span class="text-[10px] text-slate-400">${catLabel} · ${typeName}</span>
-                    <span class="text-[10px] text-slate-400 ml-auto">${dateStr}</span>
+                    <span class="flex-1 min-w-0 flex items-center gap-1 truncate">${directionHtml || `<span class="text-xs text-slate-500 truncate">${escapeHtml(c.userName || '-')}</span>`}</span>
+                    <span class="text-[10px] text-slate-400 flex-shrink-0">${dateStr}</span>
+                    <span class="material-symbols-outlined expand-icon text-slate-400 flex-shrink-0" aria-hidden="true" style="font-size:16px">expand_more</span>
                 </div>
-                <div class="flex items-center gap-1 mb-1">${directionHtml}</div>
-                <p class="text-xs text-slate-500 truncate">${escapeHtml(c.userName || '-')} · ${escapeHtml(c.serviceName || '-')}</p>
-                ${c.reason ? `<p class="text-[11px] text-slate-400 truncate mt-0.5">${escapeHtml(c.reason)}</p>` : ''}
-                ${renderApprovalStepper(c.approvalStatus)}
             </div>
-            ${expandedHtml}
+            <div class="card-detail">
+                <div class="mb-2">
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <span class="text-[10px] text-slate-400">${catLabel} · ${typeName}</span>
+                    </div>
+                    ${directionHtml ? `<p class="text-xs text-slate-500 truncate">${escapeHtml(c.userName || '-')} · ${escapeHtml(c.serviceName || '-')}</p>` : `<p class="text-xs text-slate-500 truncate">${escapeHtml(c.serviceName || '-')}</p>`}
+                    ${c.reason ? `<p class="text-[11px] text-slate-400 mt-0.5">${escapeHtml(c.reason)}</p>` : ''}
+                </div>
+                ${renderApprovalStepper(c.approvalStatus)}
+                ${isExpanded && ed ? renderExpandedDetail(c, ed) : (isExpanded ? '<p class="text-xs text-slate-400 py-2">로딩 중...</p>' : '')}
+            </div>
         </div>`;
     }
 
@@ -1097,33 +1186,60 @@
         if (event && event.target.closest('.card-detail')) return;
         if (event && event.target.closest('.bulk-checkbox')) return;
 
+        const cardEl = document.getElementById('kcard-' + linkageId);
+
         if (expandedCardId === linkageId) {
-            // Collapse
+            // Collapse current card via class toggle (preserves transition)
             expandedCardId = null;
-            updateSingleCard(linkageId);
+            if (cardEl) cardEl.classList.remove('expanded');
             return;
         }
 
+        // Collapse previously expanded card
         const prevExpanded = expandedCardId;
+        if (prevExpanded) {
+            const prevEl = document.getElementById('kcard-' + prevExpanded);
+            if (prevEl) prevEl.classList.remove('expanded');
+        }
+
         expandedCardId = linkageId;
-        // Collapse previous card, expand new one
-        if (prevExpanded) updateSingleCard(prevExpanded);
+
+        // Re-render card to populate detail content, then expand
         updateSingleCard(linkageId);
+        // Use rAF to ensure DOM is updated before adding expanded class for transition
+        requestAnimationFrame(() => {
+            const newCardEl = document.getElementById('kcard-' + linkageId);
+            if (newCardEl) newCardEl.classList.add('expanded');
+        });
 
         // Fetch request data for this linkage
         const collab = allCollabs.find(c => c.id === linkageId);
-        if (collab && collab.requestId) {
+        if (collab && collab.requestId && !expandedCardData[linkageId]) {
             try {
                 const data = await api(`/api/admin/requests/${collab.requestId}`);
                 expandedCardData[linkageId] = data;
                 updateSingleCard(linkageId);
-                // Scroll expanded card into view
-                const cardEl = document.getElementById('kcard-' + linkageId);
-                if (cardEl) cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                requestAnimationFrame(() => {
+                    const updatedEl = document.getElementById('kcard-' + linkageId);
+                    if (updatedEl) {
+                        updatedEl.classList.add('expanded');
+                        updatedEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
             } catch (e) {
                 expandedCardData[linkageId] = { error: true };
                 updateSingleCard(linkageId);
+                requestAnimationFrame(() => {
+                    const updatedEl = document.getElementById('kcard-' + linkageId);
+                    if (updatedEl) updatedEl.classList.add('expanded');
+                });
             }
+        } else {
+            // Data already cached, scroll into view
+            requestAnimationFrame(() => {
+                const el = document.getElementById('kcard-' + linkageId);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
         }
     }
 
@@ -1263,6 +1379,11 @@
             if (!validIds.has(id)) bulkSelected.delete(id);
         }
         updateBulkBar();
+
+        // Also update table view if active
+        if (collabViewMode === 'table') {
+            renderCollabTable(collabs);
+        }
     }
 
     async function loadCollabPanel() {
@@ -1278,6 +1399,145 @@
         } catch (e) {
             console.error('Linkage panel load error:', e);
         }
+    }
+
+    // ── View switching (Kanban ↔ Table) ──
+    function switchCollabView(mode) {
+        collabViewMode = mode;
+        const kanbanEl = document.getElementById('collab-kanban');
+        const tableEl = document.getElementById('collab-table-view');
+        const kanbanBtn = document.getElementById('view-kanban-btn');
+        const tableBtn = document.getElementById('view-table-btn');
+
+        if (mode === 'kanban') {
+            kanbanEl.style.display = '';
+            tableEl.style.display = 'none';
+            kanbanBtn.classList.add('active');
+            tableBtn.classList.remove('active');
+        } else {
+            kanbanEl.style.display = 'none';
+            tableEl.style.display = '';
+            kanbanBtn.classList.remove('active');
+            tableBtn.classList.add('active');
+            renderCollabTable(allCollabs);
+        }
+    }
+
+    function sortTable(key) {
+        if (tableSortKey === key) {
+            tableSortAsc = !tableSortAsc;
+        } else {
+            tableSortKey = key;
+            tableSortAsc = true;
+        }
+        renderCollabTable(allCollabs);
+    }
+
+    function getCollabSortValue(c, key) {
+        switch (key) {
+            case 'id': return c.id || '';
+            case 'title':
+                if (c.category === 'referral' && c.targetService) return c.targetService;
+                if (c.fromDept && c.toDept) return getDeptName(c.fromDept) + ' ' + getDeptName(c.toDept);
+                return c.userName || '';
+            case 'status': return c.approvalStatus || 'pending';
+            case 'category': return c.category || '';
+            case 'date': return c.createdAt || '';
+            case 'dept':
+                return getDeptName(c.toDept || c.fromDept || '');
+            default: return '';
+        }
+    }
+
+    function renderCollabTable(collabs) {
+        const filtered = filterCollabs(collabs);
+
+        // Sort
+        const sorted = [...filtered].sort((a, b) => {
+            const av = getCollabSortValue(a, tableSortKey);
+            const bv = getCollabSortValue(b, tableSortKey);
+            let cmp = 0;
+            if (tableSortKey === 'date') {
+                cmp = new Date(av).getTime() - new Date(bv).getTime();
+            } else {
+                cmp = String(av).localeCompare(String(bv), 'ko');
+            }
+            return tableSortAsc ? cmp : -cmp;
+        });
+
+        // Update sort arrows
+        document.querySelectorAll('.collab-table thead th .sort-arrow').forEach(el => {
+            el.textContent = 'unfold_more';
+        });
+        const activeHeader = document.querySelector(`.collab-table thead th[onclick="sortTable('${tableSortKey}')"] .sort-arrow`);
+        if (activeHeader) {
+            activeHeader.textContent = tableSortAsc ? 'expand_less' : 'expand_more';
+        }
+
+        const tbody = document.getElementById('collab-table-body');
+        if (sorted.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-slate-400 py-8">항목 없음</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = sorted.map((c, idx) => {
+            const approvalSt = c.approvalStatus ? (APPROVAL_STATUS_MAP[c.approvalStatus] || APPROVAL_STATUS_MAP.pending) : APPROVAL_STATUS_MAP.pending;
+            const typeName = COLLAB_TYPE_MAP[c.type] || '자문';
+            const catLabel = c.category === 'referral' ? '서비스연계' : '부서협업';
+            const dateStr = new Date(c.createdAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+            const isBulkSelected = bulkSelected.has(c.id);
+
+            let titleHtml = '';
+            if (c.category === 'referral' && c.targetService) {
+                titleHtml = `<span class="font-semibold text-blue-700">${escapeHtml(c.targetService)}</span>`;
+            } else if (c.fromDept && c.toDept) {
+                titleHtml = `<span class="text-indigo-700">${getDeptName(c.fromDept)}</span> <span class="text-slate-400">&rarr;</span> <span class="text-green-700">${getDeptName(c.toDept)}</span>`;
+            } else {
+                titleHtml = escapeHtml(c.userName || '-');
+            }
+
+            const deptName = c.toDept ? getDeptName(c.toDept) : (c.fromDept ? getDeptName(c.fromDept) : '-');
+
+            return `<tr class="${isBulkSelected ? 'bulk-selected' : ''}" onclick="openTableRowDetail('${c.requestId}', event)">
+                <td style="text-align:center" onclick="event.stopPropagation()">
+                    <input type="checkbox" class="bulk-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5" ${isBulkSelected ? 'checked' : ''} onchange="toggleBulkSelect('${c.id}', this.checked); renderCollabTable(allCollabs)" />
+                </td>
+                <td class="font-mono text-xs text-slate-400">${shortId(c.id)}</td>
+                <td>
+                    <div class="flex items-center gap-1.5">
+                        ${titleHtml}
+                        <span class="text-[10px] text-slate-400">(${typeName})</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 truncate max-w-[220px]">${escapeHtml(c.userName || '-')} · ${escapeHtml(c.serviceName || '-')}</p>
+                </td>
+                <td><span class="badge ${approvalSt.bg} ${approvalSt.text}">${approvalSt.label}</span></td>
+                <td><span class="text-xs">${catLabel}</span></td>
+                <td class="text-xs text-slate-500 whitespace-nowrap">${dateStr}</td>
+                <td class="text-xs text-slate-600">${deptName}</td>
+            </tr>`;
+        }).join('');
+
+        // Update check-all state
+        const checkAll = document.getElementById('collab-table-check-all');
+        if (checkAll) {
+            const allIds = sorted.map(c => c.id);
+            checkAll.checked = allIds.length > 0 && allIds.every(id => bulkSelected.has(id));
+        }
+    }
+
+    function toggleTableBulkAll(checked) {
+        const filtered = filterCollabs(allCollabs);
+        filtered.forEach(c => {
+            if (checked) bulkSelected.add(c.id);
+            else bulkSelected.delete(c.id);
+        });
+        updateBulkBar();
+        renderCollabTable(allCollabs);
+    }
+
+    function openTableRowDetail(requestId, event) {
+        if (event && event.target.closest('input[type="checkbox"]')) return;
+        if (requestId) openDetail(requestId);
     }
 
     async function addKanbanNote(requestId, linkageId) {
@@ -1412,7 +1672,10 @@
     function clearBulkSelection() {
         bulkSelected.clear();
         document.querySelectorAll('.kanban-card.bulk-selected').forEach(el => el.classList.remove('bulk-selected'));
+        document.querySelectorAll('.collab-table tr.bulk-selected').forEach(el => el.classList.remove('bulk-selected'));
         document.querySelectorAll('.bulk-checkbox').forEach(cb => cb.checked = false);
+        const checkAll = document.getElementById('collab-table-check-all');
+        if (checkAll) checkAll.checked = false;
         updateBulkBar();
     }
 
