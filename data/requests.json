@@ -15,7 +15,92 @@
         "sentAt": "2026. 2. 26. 오후 10:21:24"
       }
     ],
-    "conversationSummary": "- 이용자 기본정보: (김영희, 75세, 김해시, 여성)\n- 생활상황: (독거, 자녀는 타지역 거주)\n- 주요 어려움: (혼자 생활하며 건강 악화로 일상생활 어려움)\n- 이용 중 서비스: (없음)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (노인맞춤돌봄서비스)"
+    "conversationSummary": "- 이용자 기본정보: (김영희, 75세, 김해시, 여성)\n- 생활상황: (독거, 자녀는 타지역 거주)\n- 주요 어려움: (혼자 생활하며 건강 악화로 일상생활 어려움)\n- 이용 중 서비스: (없음)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (노인맞춤돌봄서비스)",
+    "linkages": [
+      {
+        "id": "308ffe5d-8eaf-4011-ad8b-ca2d87c12a1b",
+        "_migratedFrom": "2f1efa7d-9449-4e9c-97fe-e1077ec9e4f5",
+        "category": "referral",
+        "type": "service_referral",
+        "fromDept": "private",
+        "toDept": "private",
+        "targetService": "민간 사회복지시설 경영컨설팅",
+        "reason": "컨설팅이 필요해요",
+        "approvalStatus": "approved",
+        "approvalHistory": [
+          {
+            "action": "submitted",
+            "by": "담당자",
+            "comment": "마이그레이션",
+            "at": "2026. 2. 26. 오후 10:21:24"
+          },
+          {
+            "action": "approved",
+            "by": "시스템",
+            "comment": "기존 데이터 자동 승인",
+            "at": "2026. 2. 26. 오후 10:21:24"
+          }
+        ],
+        "executionStatus": "completed",
+        "newRequestId": "2f1efa7d-9449-4e9c-97fe-e1077ec9e4f5",
+        "sequenceOrder": null,
+        "sequenceGroupId": null,
+        "createdAt": "2026. 2. 26. 오후 10:21:24",
+        "updatedAt": "2026-03-01T14:39:13.263Z",
+        "notes": [
+          {
+            "text": "ss",
+            "author": "관리자",
+            "dept": "관리자",
+            "createdAt": "2026-03-01T08:24:14.143Z"
+          }
+        ]
+      },
+      {
+        "id": "7c71176a-ea9d-4d54-a061-7d4a7a729c18",
+        "category": "collaboration",
+        "type": "joint",
+        "fromDept": "emergency",
+        "toDept": "private",
+        "targetService": null,
+        "reason": "긴급한돌봄이 필요",
+        "approvalStatus": "rejected",
+        "approvalHistory": [
+          {
+            "action": "submitted",
+            "by": "담당자",
+            "comment": "",
+            "at": "2026-02-28T14:14:14.470Z"
+          },
+          {
+            "action": "rejected",
+            "by": "부서 조정자",
+            "comment": "�̰� ���� ����",
+            "at": "2026-02-28T14:33:19.137Z"
+          }
+        ],
+        "executionStatus": null,
+        "newRequestId": null,
+        "sequenceOrder": null,
+        "sequenceGroupId": null,
+        "createdAt": "2026-02-28T14:14:14.470Z",
+        "updatedAt": "2026-02-28T14:33:19.137Z",
+        "notes": []
+      }
+    ],
+    "updatedAt": "2026-03-01T11:38:56.389Z",
+    "notes": [
+      {
+        "text": "ㅗㅗㅗ",
+        "author": "관리자",
+        "createdAt": "2026-03-01T08:48:35.016Z"
+      },
+      {
+        "text": "ㅗㅗㅗㅇㄹㅇㅇ",
+        "author": "관리자",
+        "createdAt": "2026-03-01T08:48:49.170Z"
+      }
+    ]
   },
   "2f1efa7d-9449-4e9c-97fe-e1077ec9e4f5": {
     "id": "2f1efa7d-9449-4e9c-97fe-e1077ec9e4f5",
@@ -26,7 +111,8 @@
     "createdAtISO": "2026-02-26T13:21:24.000Z",
     "status": "referred",
     "referredFrom": "12ae715e-90bf-4f99-b644-9f96d254d4ca",
-    "referrals": []
+    "referrals": [],
+    "linkages": []
   },
   "ebbaab1d-8d47-44e4-8472-90bce7287c02": {
     "id": "ebbaab1d-8d47-44e4-8472-90bce7287c02",
@@ -37,7 +123,8 @@
     "createdAtISO": "2026-02-26T13:21:49.000Z",
     "status": "confirmed",
     "referrals": [],
-    "conversationSummary": "- 이용자 기본정보: (박순자, 80세, 창원시, 여성)\n- 생활상황: (독거, 만성질환 보유)\n- 주요 어려움: (낙상 위험, 응급상황 대처 불안)\n- 이용 중 서비스: (미확인)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (응급안전안심서비스)"
+    "conversationSummary": "- 이용자 기본정보: (박순자, 80세, 창원시, 여성)\n- 생활상황: (독거, 만성질환 보유)\n- 주요 어려움: (낙상 위험, 응급상황 대처 불안)\n- 이용 중 서비스: (미확인)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (응급안전안심서비스)",
+    "linkages": []
   },
   "43f6405e-a09f-46e6-b0e2-9b06c7642d41": {
     "id": "43f6405e-a09f-46e6-b0e2-9b06c7642d41",
@@ -49,7 +136,8 @@
     "status": "referred",
     "referrals": [],
     "conversationSummary": "- 이용자 기본정보: (이철수, 72세, 진주시, 남성)\n- 생활상황: (배우자와 2인 가구)\n- 주요 어려움: (배우자 간병 부담)\n- 이용 중 서비스: (없음)\n- 긴급도: (일상적 불편)\n- 추천된 서비스: (노인맞춤돌봄서비스)",
-    "updatedAt": "2026-02-28T03:32:19.817Z"
+    "updatedAt": "2026-02-28T03:32:19.817Z",
+    "linkages": []
   },
   "55e84619-622d-4a65-90a2-fcbbe7086eb6": {
     "id": "55e84619-622d-4a65-90a2-fcbbe7086eb6",
@@ -61,7 +149,8 @@
     "status": "closed",
     "updatedAt": "2026-02-26T05:00:00.000Z",
     "referrals": [],
-    "conversationSummary": "- 이용자 기본정보: (정미숙, 68세, 통영시, 여성)\n- 생활상황: (독거)\n- 주요 어려움: (퇴원 후 일상 돌봄 필요)\n- 이용 중 서비스: (없음)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (노인맞춤돌봄서비스)"
+    "conversationSummary": "- 이용자 기본정보: (정미숙, 68세, 통영시, 여성)\n- 생활상황: (독거)\n- 주요 어려움: (퇴원 후 일상 돌봄 필요)\n- 이용 중 서비스: (없음)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (노인맞춤돌봄서비스)",
+    "linkages": []
   },
   "0932bdc8-3912-4285-a8ae-eee2af5c456e": {
     "id": "0932bdc8-3912-4285-a8ae-eee2af5c456e",
@@ -73,7 +162,8 @@
     "status": "confirmed",
     "referrals": [],
     "conversationSummary": "- 이용자 기본정보: (신용기, 미확인, 김해시, 미확인)\n- 생활상황: (미확인)\n- 주요 어려움: (재가 돌봄 서비스 필요)\n- 이용 중 서비스: (미확인)\n- 긴급도: (일상적 불편)\n- 추천된 서비스: (김해종합재가센터 통합재가서비스)",
-    "updatedAt": "2026-02-28T03:24:00.718Z"
+    "updatedAt": "2026-02-28T03:24:00.718Z",
+    "linkages": []
   },
   "96c5dcf5-39e5-4d74-a27c-0fb13b9bf7bd": {
     "id": "96c5dcf5-39e5-4d74-a27c-0fb13b9bf7bd",
@@ -84,7 +174,8 @@
     "createdAtISO": "2026-02-25T05:30:00.000Z",
     "status": "connected",
     "referrals": [],
-    "conversationSummary": "- 이용자 기본정보: (최지현, 45세, 창원시, 여성)\n- 생활상황: (장애 자녀 돌봄)\n- 주요 어려움: (활동지원사 교육 정보 필요)\n- 이용 중 서비스: (장애인활동지원)\n- 긴급도: (일상적 불편)\n- 추천된 서비스: (장애인활동지원사교육)"
+    "conversationSummary": "- 이용자 기본정보: (최지현, 45세, 창원시, 여성)\n- 생활상황: (장애 자녀 돌봄)\n- 주요 어려움: (활동지원사 교육 정보 필요)\n- 이용 중 서비스: (장애인활동지원)\n- 긴급도: (일상적 불편)\n- 추천된 서비스: (장애인활동지원사교육)",
+    "linkages": []
   },
   "fe98cdd6-7982-4f4d-91c7-f04113697cc2": {
     "id": "fe98cdd6-7982-4f4d-91c7-f04113697cc2",
@@ -93,8 +184,349 @@
     "userPhone": "010-5758-6517",
     "createdAt": "2026. 2. 28. 오후 12:01:56",
     "createdAtISO": "2026-02-28T03:01:56.896Z",
+    "status": "contacted",
+    "referrals": [
+      {
+        "targetService": "장기요양기관 평가지원 및 컨설팅",
+        "reason": "연계필요",
+        "newRequestId": "b9652f71-a1b8-4d1d-8b02-00eb0b5547d7",
+        "sentAt": "2026. 2. 28. 오후 1:26:15"
+      }
+    ],
+    "conversationSummary": "- 이용자 기본정보: (신용기, 미확인, 미확인, 미확인)\n- 생활상황: (퇴원 후 돌봐줄 사람이 없어 돌봄 부재)\n- 주요 어려움: (퇴원 후 돌봄 공백)\n- 이용 중 서비스: (미확인)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (노인맞춤돌봄서비스)",
+    "linkages": [
+      {
+        "id": "de58027e-ee50-43a5-bcb1-dc7cb2f187cb",
+        "_migratedFrom": "b9652f71-a1b8-4d1d-8b02-00eb0b5547d7",
+        "category": "referral",
+        "type": "service_referral",
+        "fromDept": "private",
+        "toDept": "private",
+        "targetService": "장기요양기관 평가지원 및 컨설팅",
+        "reason": "연계필요",
+        "approvalStatus": "approved",
+        "approvalHistory": [
+          {
+            "action": "submitted",
+            "by": "담당자",
+            "comment": "마이그레이션",
+            "at": "2026. 2. 28. 오후 1:26:15"
+          },
+          {
+            "action": "approved",
+            "by": "시스템",
+            "comment": "기존 데이터 자동 승인",
+            "at": "2026. 2. 28. 오후 1:26:15"
+          }
+        ],
+        "executionStatus": "email_sent",
+        "newRequestId": "b9652f71-a1b8-4d1d-8b02-00eb0b5547d7",
+        "sequenceOrder": null,
+        "sequenceGroupId": null,
+        "createdAt": "2026. 2. 28. 오후 1:26:15",
+        "updatedAt": "2026-03-01T14:39:13.260Z",
+        "notes": []
+      }
+    ],
+    "updatedAt": "2026-03-01T09:29:34.505Z"
+  },
+  "b9652f71-a1b8-4d1d-8b02-00eb0b5547d7": {
+    "id": "b9652f71-a1b8-4d1d-8b02-00eb0b5547d7",
+    "serviceName": "장기요양기관 평가지원 및 컨설팅",
+    "userName": "신용기",
+    "userPhone": "010-5758-6517",
+    "createdAt": "2026. 2. 28. 오후 1:26:15",
+    "createdAtISO": "2026-02-28T04:26:15.949Z",
+    "status": "confirmed",
+    "referredFrom": "fe98cdd6-7982-4f4d-91c7-f04113697cc2",
+    "referrals": [
+      {
+        "targetService": "AI 온하나케어 스마트 돌봄",
+        "reason": "온하나 연계 필요",
+        "newRequestId": "1b98f029-c79a-47ed-a38e-9e6a66abb4c4",
+        "sentAt": "2026. 2. 28. 오후 1:26:58"
+      }
+    ],
+    "linkages": [
+      {
+        "id": "9ca3a3dc-3493-469b-897c-91f90fe90e59",
+        "_migratedFrom": "1b98f029-c79a-47ed-a38e-9e6a66abb4c4",
+        "category": "referral",
+        "type": "service_referral",
+        "fromDept": "care",
+        "toDept": "care",
+        "targetService": "AI 온하나케어 스마트 돌봄",
+        "reason": "온하나 연계 필요",
+        "approvalStatus": "approved",
+        "approvalHistory": [
+          {
+            "action": "submitted",
+            "by": "담당자",
+            "comment": "마이그레이션",
+            "at": "2026. 2. 28. 오후 1:26:58"
+          },
+          {
+            "action": "approved",
+            "by": "시스템",
+            "comment": "기존 데이터 자동 승인",
+            "at": "2026. 2. 28. 오후 1:26:58"
+          }
+        ],
+        "executionStatus": "email_sent",
+        "newRequestId": "1b98f029-c79a-47ed-a38e-9e6a66abb4c4",
+        "sequenceOrder": null,
+        "sequenceGroupId": null,
+        "createdAt": "2026. 2. 28. 오후 1:26:58",
+        "updatedAt": "2026-03-01T14:39:13.251Z",
+        "notes": []
+      }
+    ],
+    "updatedAt": "2026-03-01T06:16:30.090Z"
+  },
+  "1b98f029-c79a-47ed-a38e-9e6a66abb4c4": {
+    "id": "1b98f029-c79a-47ed-a38e-9e6a66abb4c4",
+    "serviceName": "AI 온하나케어 스마트 돌봄",
+    "userName": "신용기",
+    "userPhone": "010-5758-6517",
+    "createdAt": "2026. 2. 28. 오후 1:26:58",
+    "createdAtISO": "2026-02-28T04:26:58.652Z",
+    "status": "contacted",
+    "referredFrom": "b9652f71-a1b8-4d1d-8b02-00eb0b5547d7",
+    "referrals": [
+      {
+        "targetService": "퇴원환자 지역사회 연계서비스",
+        "reason": "퇴원",
+        "newRequestId": "16afdda6-e87c-4eb7-a0d3-13a15cd9c1e5",
+        "sentAt": "2026. 2. 28. 오후 10:11:56"
+      }
+    ],
+    "updatedAt": "2026-02-28T04:28:30.885Z",
+    "collaborations": [
+      {
+        "id": "3010dd72-f55a-42c4-8730-7c18cb29b547",
+        "fromDept": "care",
+        "toDept": "private",
+        "reason": "둘다 필요",
+        "type": "joint",
+        "status": "declined",
+        "createdAt": "2026-02-28T04:28:57.537Z",
+        "updatedAt": "2026-02-28T13:11:40.497Z",
+        "notes": []
+      }
+    ],
+    "linkages": [
+      {
+        "id": "3010dd72-f55a-42c4-8730-7c18cb29b547",
+        "_migratedFrom": "3010dd72-f55a-42c4-8730-7c18cb29b547",
+        "category": "collaboration",
+        "type": "joint",
+        "fromDept": "care",
+        "toDept": "private",
+        "targetService": null,
+        "reason": "둘다 필요",
+        "approvalStatus": "approved",
+        "approvalHistory": [
+          {
+            "action": "submitted",
+            "by": "담당자",
+            "comment": "마이그레이션",
+            "at": "2026-02-28T04:28:57.537Z"
+          },
+          {
+            "action": "approved",
+            "by": "시스템",
+            "comment": "기존 데이터 자동 승인",
+            "at": "2026-02-28T04:28:57.537Z"
+          }
+        ],
+        "executionStatus": "declined",
+        "newRequestId": null,
+        "sequenceOrder": null,
+        "sequenceGroupId": null,
+        "createdAt": "2026-02-28T04:28:57.537Z",
+        "updatedAt": "2026-02-28T13:11:40.497Z",
+        "notes": []
+      },
+      {
+        "id": "c2575fbe-c37f-4e7e-931c-9589f782304b",
+        "_migratedFrom": "16afdda6-e87c-4eb7-a0d3-13a15cd9c1e5",
+        "category": "referral",
+        "type": "service_referral",
+        "fromDept": "care",
+        "toDept": "care",
+        "targetService": "퇴원환자 지역사회 연계서비스",
+        "reason": "퇴원",
+        "approvalStatus": "approved",
+        "approvalHistory": [
+          {
+            "action": "submitted",
+            "by": "담당자",
+            "comment": "마이그레이션",
+            "at": "2026. 2. 28. 오후 10:11:56"
+          },
+          {
+            "action": "approved",
+            "by": "시스템",
+            "comment": "기존 데이터 자동 승인",
+            "at": "2026. 2. 28. 오후 10:11:56"
+          }
+        ],
+        "executionStatus": "email_sent",
+        "newRequestId": "16afdda6-e87c-4eb7-a0d3-13a15cd9c1e5",
+        "sequenceOrder": null,
+        "sequenceGroupId": null,
+        "createdAt": "2026. 2. 28. 오후 10:11:56",
+        "updatedAt": "2026-03-01T14:39:13.248Z",
+        "notes": []
+      }
+    ]
+  },
+  "16afdda6-e87c-4eb7-a0d3-13a15cd9c1e5": {
+    "id": "16afdda6-e87c-4eb7-a0d3-13a15cd9c1e5",
+    "serviceName": "퇴원환자 지역사회 연계서비스",
+    "userName": "신용기",
+    "userPhone": "010-5758-6517",
+    "createdAt": "2026. 2. 28. 오후 10:11:56",
+    "createdAtISO": "2026-02-28T13:11:56.243Z",
+    "status": "referred",
+    "referredFrom": "1b98f029-c79a-47ed-a38e-9e6a66abb4c4",
+    "referrals": [],
+    "linkages": []
+  },
+  "44f4e2d5-d7dd-4148-9204-3f94b22ef93d": {
+    "id": "44f4e2d5-d7dd-4148-9204-3f94b22ef93d",
+    "serviceName": "��޵����������",
+    "userName": "�׽�Ʈ",
+    "userPhone": "010-1234-5678",
+    "createdAt": "2026. 2. 28. 오후 11:11:57",
+    "createdAtISO": "2026-02-28T14:11:57.620Z",
     "status": "open",
     "referrals": [],
-    "conversationSummary": "- 이용자 기본정보: (신용기, 미확인, 미확인, 미확인)\n- 생활상황: (퇴원 후 돌봐줄 사람이 없어 돌봄 부재)\n- 주요 어려움: (퇴원 후 돌봄 공백)\n- 이용 중 서비스: (미확인)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (노인맞춤돌봄서비스)"
+    "conversationSummary": "- 이용자 기본정보: 미확인\n- 생활상황: 미확인\n- 주요 어려움: 미확인\n- 이용 중 서비스: 미확인\n- 긴급도: 미확인\n- 추천된 서비스: 미확인",
+    "assignmentRationale": null,
+    "assignedDept": null,
+    "linkages": []
+  },
+  "f0587546-6f93-41a2-b68e-5ca642182c41": {
+    "id": "f0587546-6f93-41a2-b68e-5ca642182c41",
+    "serviceName": "긴급돌봄지원사업",
+    "userName": "테스트",
+    "userPhone": "010-1234-5678",
+    "createdAt": "2026. 2. 28. 오후 11:13:10",
+    "createdAtISO": "2026-02-28T14:13:10.669Z",
+    "status": "open",
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: (미확인, 미확인, 미확인, 미확인)\n- 생활상황: (남편 입원, 자녀 양육 중)\n- 주요 어려움: (남편의 갑작스러운 입원으로 인한 자녀 돌봄 공백)\n- 이용 중 서비스: (미확인)\n- 긴급도: (긴급)\n- 추천된 서비스: (긴급돌봄지원사업)",
+    "assignmentRationale": "1.  **배정 근거**\n    이용자는 남편의 갑작스러운 입원으로 인해 자녀 돌봄 공백이 발생하여 긴급 돌봄이 필요한 상황입니다. 통합돌봄사업부는 갑작스러운 질병·사고로 인한 돌봄 공백 시 단기(30일) 긴급 돌봄 파견을 전담하므로, 본 건은 통합돌봄사업부의 핵심 업무에 해당합니다.\n\n2.  **이용자 상황 매칭**\n    이용자의 남편 입원은 통합돌봄사업부의 핵심 자격 요건인 '갑작스러운 돌봄 공백 발생(보호자 입원·사고 등)'에 해당합니다. 또한, 자녀 양육 중 돌봄 공백은 '아동 돌봄 공백 가구'에 부합하며, 이용자가 긴급 돌봄을 요청한 점은 긴급돌봄지원사업의 '긴급성 확인 후 당일 또는 익일 파견'이 필요한 상황과 일치합니다.\n\n3.  **법적/제도적 근거**\n    본 서비스는 「사회서비스 이용 및 이용권 관리에 관한 법률」에 따른 긴급돌봄 지원이며, 경상남도사회서비스원 설립 목적(돌봄 사각지대 해소)에 의한 직접 서비스입니다.\n\n4.  **우선 확인 사항**\n    *   이용자의 거주지(도민 여부) 및 소득 수준(수급자·차상위·중위소득 160% 이하 여부) 확인\n    *   기존 공적 서비스 이용 여부 및 해당 서비스 이용 불가 사유 확인\n    *   돌봄이 필요한 자녀의 연령 및 구체적인 돌봄 필요 내용 확인",
+    "assignedDept": {
+      "name": "통합돌봄사업부",
+      "id": "care",
+      "phone": "055-230-8216"
+    },
+    "linkages": []
+  },
+  "6cd6e886-9822-412d-b1ed-95ce75296f37": {
+    "id": "6cd6e886-9822-412d-b1ed-95ce75296f37",
+    "serviceName": "경상남도 보조기기센터",
+    "userName": "신용기",
+    "userPhone": "010-5758-6517",
+    "createdAt": "2026. 3. 1. 오후 5:30:33",
+    "createdAtISO": "2026-03-01T08:30:33.055Z",
+    "status": "open",
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: (신용기, 60대 후반, 미확인, 미확인)\n- 생활상황: (미확인, 미확인)\n- 주요 어려움: (다리 불편으로 보행 보조기 필요)\n- 이용 중 서비스: (미확인)\n- 긴급도: (빠른 도움 필요)\n- 추천된 서비스: (경상남도 보조기기센터)",
+    "assignmentRationale": "다음은 경상남도사회서비스원 내부 업무 지원을 위한 서비스 배정 근거입니다.\n\n---\n\n1.  **배정 근거**\n    이용자는 다리 불편으로 보행 보조기 지원을 요청하였으며, 경상남도 보조기기센터는 보조기기 상담, 평가, 대여, 수리, 맞춤 제작 서비스를 제공합니다. 특히 이동 보조기기 지원이 핵심 업무이므로 해당 부서에서 처리하는 것이 적합합니다.\n\n2.  **이용자 상황 매칭**\n    이용자 신용기(68세)는 다리 불편으로 보행 보조기 지원을 요청하였습니다. 경상남도 보조기기센터는 65세 이상 노인을 지원 대상으로 하며, 이동 보조기기(보행 보조기 포함) 상담 및 대여 서비스를 제공하므로 이용자의 요청에 직접적으로 부합합니다.\n\n3.  **법적/제도적 근거**\n    경상남도 보조기기센터는 「장애인복지법」 및 「장애인·노인 등을 위한 보조기기 지원 및 활용촉진에 관한 법률」에 의거하여 운영됩니다.\n\n4.  **우선 확인 사항**\n    *   이용자의 다리 불편 정도 및 보행 보조기 필요성에 대한 전문가(물리치료사·작업치료사) 평가 진행.\n    *   이용자에게 적합한 보행 보조기 종류(예: 휠체어, 워커 등) 및 대여(6개월 무료) 또는 맞춤 제작 가능 여부 확인.\n    *   이용자의 생활 환경 및 추가적인 보조기기 필요 여부 파악.",
+    "assignedDept": {
+      "name": "경상남도 보조기기센터",
+      "id": "facility",
+      "phone": "055-715-9199"
+    },
+    "linkages": []
+  },
+  "0e2bc746-9764-4105-a47f-43992053e2d0": {
+    "id": "0e2bc746-9764-4105-a47f-43992053e2d0",
+    "serviceName": "노인맞춤돌봄서비스",
+    "userName": "신용기",
+    "userPhone": "010-5758-6517",
+    "createdAt": "2026. 3. 1. 오후 5:31:10",
+    "createdAtISO": "2026-03-01T08:31:10.239Z",
+    "status": "open",
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: 신용기, 60대 후반 (68세), 미확인, 미확인\n- 생활상황: 독거, 미확인\n- 주요 어려움: 보행 어려움 (다리 불편), 식사 해결 어려움 (배고픔)\n- 이용 중 서비스: 없음\n- 긴급도: 빠른 도움 필요\n- 추천된 서비스: 경상남도 보조기기센터, 노인맞춤돌봄서비스",
+    "assignmentRationale": null,
+    "assignedDept": null,
+    "linkages": []
+  },
+  "ca810dc8-f67d-4c90-80c6-0939ac4f0f63": {
+    "id": "ca810dc8-f67d-4c90-80c6-0939ac4f0f63",
+    "serviceName": "사회서비스 정책연구 및 데이터 분석",
+    "userName": "신용기",
+    "userPhone": "01057586517",
+    "createdAt": "2026. 3. 1. 오후 5:58:17",
+    "createdAtISO": "2026-03-01T08:58:17.856Z",
+    "status": "providing",
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: 미확인\n- 생활상황: 미확인\n- 주요 어려움: 사회서비스 정책연구 및 데이터 분석 관련 정보 탐색\n- 이용 중 서비스: 미확인\n- 긴급도: 일상적 불편\n- 추천된 서비스: 경상남도사회서비스원의 사회서비스 정책연구 및 데이터 분석 사업",
+    "assignmentRationale": null,
+    "assignedDept": null,
+    "linkages": [
+      {
+        "id": "94229b18-9098-444e-a07e-4e40fdc2ab1f",
+        "category": "referral",
+        "type": "service_referral",
+        "fromDept": "care",
+        "toDept": "care",
+        "targetService": "AI 온하나케어 스마트 돌봄",
+        "reason": "온하나에 대한 연구가 필요",
+        "approvalStatus": "pending",
+        "approvalHistory": [
+          {
+            "action": "submitted",
+            "by": "담당자",
+            "comment": "",
+            "at": "2026-03-01T09:00:59.773Z"
+          }
+        ],
+        "executionStatus": null,
+        "newRequestId": null,
+        "sequenceOrder": null,
+        "sequenceGroupId": null,
+        "createdAt": "2026-03-01T09:00:59.773Z",
+        "updatedAt": "2026-03-01T14:39:13.245Z",
+        "notes": []
+      },
+      {
+        "id": "66f804dc-4529-43fd-b875-c9d596804333",
+        "category": "collaboration",
+        "type": "consultation",
+        "fromDept": "care",
+        "toDept": "emergency",
+        "targetService": null,
+        "reason": "연계필요",
+        "approvalStatus": "rejected",
+        "approvalHistory": [
+          {
+            "action": "submitted",
+            "by": "담당자",
+            "comment": "",
+            "at": "2026-03-01T10:01:45.528Z"
+          },
+          {
+            "action": "rejected",
+            "by": "부서 조정자",
+            "comment": "우리부서에서 충분함",
+            "at": "2026-03-01T10:42:31.862Z"
+          }
+        ],
+        "executionStatus": null,
+        "newRequestId": null,
+        "sequenceOrder": null,
+        "sequenceGroupId": null,
+        "createdAt": "2026-03-01T10:01:45.528Z",
+        "updatedAt": "2026-03-01T10:42:31.862Z",
+        "notes": []
+      }
+    ],
+    "updatedAt": "2026-03-01T10:43:06.855Z"
   }
 }

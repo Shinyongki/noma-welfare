@@ -23,10 +23,10 @@
             animation: shimmer 2s linear infinite;
         }
         /* Transition classes */
-        .hero-compact .hero-title { font-size: 1.5rem; line-height: 2rem; }
+        .hero-compact .hero-title { display: none; }
         .hero-compact .hero-subtitle { display: none; }
         .hero-compact .hero-badge { display: none; }
-        #hero-section.hero-compact { min-height: auto !important; padding-top: 2rem; padding-bottom: 1rem; }
+        #hero-section.hero-compact { min-height: auto !important; padding-top: 0.75rem; padding-bottom: 0.75rem; scroll-margin-top: 80px; display: block !important; }
         .hero-compact #hero-voice-cta-wrap { display: none !important; }
         .hero-compact p.text-center.text-slate-400 { display: none; }
         #results-section { transition: all 0.5s ease-out; }
@@ -892,6 +892,13 @@
         let isSpeaking = false;
         let currentAudio = null;
         let currentUtterance = null;
+        let currentAudioSource = null;
+        // Web Audio API — 따뜻한 음색 처리용
+        let audioCtx = null;
+        function getAudioCtx() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return audioCtx;
+        }
         let sectionsRevealed = false;
         // TTS 자동재생 토글 (localStorage 기반)
         const TTS_KEY = 'noma_tts_enabled';
@@ -1213,7 +1220,7 @@
             });
         }
 
-        async function performSearch(query) {
+        async function performSearch(query, quickQuery = false) {
             if (!query.trim()) return;
 
             // Transition to results state
@@ -1255,7 +1262,7 @@
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: prepareMessagesForAPI() }),
+                    body: JSON.stringify({ messages: prepareMessagesForAPI(), quickQuery }),
                     signal: controller.signal,
                 });
                 clearTimeout(timeout);
@@ -1441,7 +1448,10 @@
                                 })).filter(m => m.content)
                             })
                         });
-                        if (!applyRes.ok) throw new Error('API failed');
+                        if (!applyRes.ok) {
+                            const errBody = await applyRes.json().catch(() => ({}));
+                            throw new Error(errBody.error || '신청 처리 중 오류');
+                        }
                         // 성공 카드
                         DOM.aiSummaryText.innerHTML += `
                             <div class="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl animate-fade-up">
@@ -1453,9 +1463,18 @@
                             </div>`;
                     } catch (applyErr) {
                         console.error('Auto apply error:', applyErr);
-                        // 실패 카드
-                        DOM.aiSummaryText.innerHTML += `
-                            <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl animate-fade-up">
+                        const errMsg = applyErr.message || '알 수 없는 오류';
+                        const isDuplicate = errMsg.includes('이미 신청');
+                        // 실패 카드 (중복 신청은 별도 안내)
+                        DOM.aiSummaryText.innerHTML += isDuplicate
+                            ? `<div class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl animate-fade-up">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="material-symbols-outlined text-amber-600" aria-hidden="true" style="font-size:20px">info</span>
+                                    <span class="font-bold text-amber-800 text-sm">이미 신청된 건입니다</span>
+                                </div>
+                                <p class="text-amber-700 text-sm leading-relaxed">동일한 서비스에 대해 최근 24시간 내 이미 신청하셨습니다. 담당자가 곧 연락드릴 예정입니다.</p>
+                            </div>`
+                            : `<div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl animate-fade-up">
                                 <div class="flex items-center gap-2 mb-1">
                                     <span class="material-symbols-outlined text-red-600" aria-hidden="true" style="font-size:20px">error</span>
                                     <span class="font-bold text-red-800 text-sm">신청 중 오류가 발생했습니다</span>
@@ -1465,8 +1484,8 @@
                     }
                 }
 
-                // Smooth scroll to results
-                DOM.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Smooth scroll: 입력란이 헤더 바로 아래 보이도록 스크롤 (scroll-margin-top: 80px 적용됨)
+                DOM.heroSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
                 // TTS: 토글 설정에 따라 음성으로 읽어주기 (시니어 최적화)
                 if (fullResponse && ttsEnabled) {
@@ -1515,15 +1534,15 @@
         }
 
         // ── Hero Event Handlers ──
-        function handleHeroSubmit() {
+        function handleHeroSubmit(quickQuery = false) {
             const query = DOM.heroInput.value.trim();
             if (!query) return;
             DOM.heroInput.value = '';
             history.pushState({ view: 'search', query }, '', '?q=' + encodeURIComponent(query));
-            performSearch(query);
+            performSearch(query, quickQuery);
         }
 
-        DOM.heroSubmit.addEventListener('click', handleHeroSubmit);
+        DOM.heroSubmit.addEventListener('click', () => handleHeroSubmit());
         DOM.heroInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') { e.preventDefault(); handleHeroSubmit(); }
         });
@@ -1532,7 +1551,7 @@
             chip.addEventListener('click', () => {
                 const msg = chip.getAttribute('data-msg');
                 DOM.heroInput.value = msg;
-                handleHeroSubmit();
+                handleHeroSubmit(true);
             });
         });
 
@@ -1868,11 +1887,34 @@
                     if (!res.ok) throw new Error('TTS API error ' + res.status);
                     const data = await res.json();
                     if (data.audioContent && data.audioContent.length > 100) {
-                        const audio = new Audio('data:audio/mpeg;base64,' + data.audioContent);
-                        currentAudio = audio;
-                        audio.onended = () => { isSpeaking = false; currentAudio = null; updateFloatingMicState(); resolve(); };
-                        audio.onerror = (e) => { console.error('Audio playback error:', e); isSpeaking = false; currentAudio = null; updateFloatingMicState(); resolve(); };
-                        await audio.play().catch(e => { console.error('Audio play failed:', e); throw e; });
+                        const ctx = getAudioCtx();
+                        if (ctx.state === 'suspended') await ctx.resume();
+                        const raw = atob(data.audioContent);
+                        const buf = new Uint8Array(raw.length);
+                        for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+                        const audioBuf = await ctx.decodeAudioData(buf.buffer);
+                        const source = ctx.createBufferSource();
+                        source.buffer = audioBuf;
+                        // 저음 부스트 — 따뜻하고 풍성한 음색
+                        const warmth = ctx.createBiquadFilter();
+                        warmth.type = 'lowshelf';
+                        warmth.frequency.value = 250;
+                        warmth.gain.value = 3.5;
+                        // 고음 살짝 깎아 부드럽게
+                        const soften = ctx.createBiquadFilter();
+                        soften.type = 'highshelf';
+                        soften.frequency.value = 6000;
+                        soften.gain.value = -2;
+                        // 컴프레서 — 일정한 볼륨
+                        const comp = ctx.createDynamicsCompressor();
+                        comp.threshold.value = -18;
+                        comp.ratio.value = 4;
+                        comp.attack.value = 0.003;
+                        comp.release.value = 0.15;
+                        source.connect(warmth).connect(soften).connect(comp).connect(ctx.destination);
+                        currentAudioSource = source;
+                        source.onended = () => { isSpeaking = false; currentAudioSource = null; currentAudio = null; updateFloatingMicState(); resolve(); };
+                        source.start();
                         return;
                     }
                     throw new Error('Empty audio content');
@@ -1893,6 +1935,10 @@
         }
 
         function stopSpeaking() {
+            if (currentAudioSource) {
+                try { currentAudioSource.stop(); } catch (_) {}
+                currentAudioSource = null;
+            }
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;

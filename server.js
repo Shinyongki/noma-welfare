@@ -31,7 +31,7 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
             fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
             imgSrc: ["'self'", "data:", "blob:"],
-            connectSrc: ["'self'"],
+            connectSrc: ["'self'", "https://cdn.jsdelivr.net"],
             mediaSrc: ["'self'", "blob:"],
             workerSrc: ["'self'", "blob:"],
         },
@@ -48,7 +48,7 @@ app.use(express.json({ limit: '1mb' }));
 // ── Rate Limiting ──
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 500,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.' },
@@ -116,6 +116,12 @@ function requireAuth(req, res, next) {
     res.status(401).json({ error: '인증이 필요합니다. /api/auth/login으로 로그인하세요.' });
 }
 
+// 부서 조정자 인증 미들웨어
+function requireDeptAuth(req, res, next) {
+    if (req.session?.deptAuthenticated && req.session?.deptId) return next();
+    res.status(401).json({ error: '부서 조정자 인증이 필요합니다.' });
+}
+
 // case API 전용 인증: 세션 또는 토큰
 function requireCaseAuth(req, res, next) {
     if (req.session?.authenticated) return next();
@@ -153,6 +159,89 @@ app.post('/api/auth/logout', (req, res) => {
 // 인증 상태 확인
 app.get('/api/auth/status', (req, res) => {
     res.json({ authenticated: !!req.session?.authenticated });
+});
+
+// ── 부서 조정자 인증 API (레거시 호환) ──
+app.post('/api/dept-auth/login', (req, res) => {
+    const { password, deptId } = req.body;
+    const deptPassword = process.env.DEPT_PASSWORD;
+    if (!deptPassword) {
+        console.error('[DeptAuth] DEPT_PASSWORD 환경변수가 설정되지 않았습니다.');
+        return res.status(500).json({ error: '서버 설정 오류가 발생했습니다. 관리자에게 문의하세요.' });
+    }
+    const validDeptIds = requestStore.DEPARTMENTS.map(d => d.id);
+    if (!deptId || !validDeptIds.includes(deptId)) {
+        return res.status(400).json({ error: '유효하지 않은 부서입니다.' });
+    }
+    if (password === deptPassword) {
+        req.session.deptAuthenticated = true;
+        req.session.deptId = deptId;
+        const dept = requestStore.DEPARTMENTS.find(d => d.id === deptId);
+        req.session.deptName = dept ? dept.name : deptId;
+        return res.json({ success: true, deptId, deptName: req.session.deptName });
+    }
+    res.status(403).json({ error: '비밀번호가 올바르지 않습니다.' });
+});
+
+app.post('/api/dept-auth/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.json({ success: true, message: '로그아웃 완료' });
+    });
+});
+
+app.get('/api/dept-auth/status', (req, res) => {
+    if (req.session?.deptAuthenticated && req.session?.deptId) {
+        const dept = requestStore.DEPARTMENTS.find(d => d.id === req.session.deptId);
+        return res.json({
+            authenticated: true,
+            deptId: req.session.deptId,
+            deptName: dept ? dept.name : req.session.deptId,
+        });
+    }
+    res.json({ authenticated: false });
+});
+
+// ── 통합 인증 API (비밀번호 없음, 역할/부서 선택만) ──
+app.post('/api/unified-auth/login', (req, res) => {
+    const { role, deptId } = req.body;
+    if (role === 'admin') {
+        req.session.authenticated = true;
+        req.session.role = 'admin';
+        req.session.loginAt = new Date().toISOString();
+        return res.json({ success: true, role: 'admin' });
+    }
+    if (role === 'dept') {
+        const validDeptIds = requestStore.DEPARTMENTS.map(d => d.id);
+        if (!deptId || !validDeptIds.includes(deptId)) {
+            return res.status(400).json({ error: '유효하지 않은 부서입니다.' });
+        }
+        req.session.authenticated = true;
+        req.session.deptAuthenticated = true;
+        req.session.role = 'dept';
+        req.session.deptId = deptId;
+        const dept = requestStore.DEPARTMENTS.find(d => d.id === deptId);
+        req.session.deptName = dept ? dept.name : deptId;
+        req.session.loginAt = new Date().toISOString();
+        return res.json({ success: true, role: 'dept', deptId, deptName: req.session.deptName });
+    }
+    res.status(400).json({ error: '유효하지 않은 역할입니다. (admin 또는 dept)' });
+});
+
+app.get('/api/unified-auth/status', (req, res) => {
+    if (!req.session?.authenticated) return res.json({ authenticated: false });
+    const result = { authenticated: true, role: req.session.role || 'admin' };
+    if (req.session.deptId) {
+        const dept = requestStore.DEPARTMENTS.find(d => d.id === req.session.deptId);
+        result.deptId = req.session.deptId;
+        result.deptName = dept ? dept.name : req.session.deptId;
+    }
+    res.json(result);
+});
+
+app.post('/api/unified-auth/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.json({ success: true, message: '로그아웃 완료' });
+    });
 });
 
 const PORT = process.env.PORT || 5000;
@@ -275,6 +364,11 @@ const synonymMap = {
     '상담': ['상담지원', '돌봄', '복지상담'],
     '컨설팅': ['상담지원', '사례관리', '복지상담'],
     '이동': ['이동지원', '활동지원', '장애인복지'],
+    '정책': ['정책연구', '사회서비스연구', '복지정책'],
+    '연구': ['정책연구', '사회서비스연구', '데이터분석'],
+    '데이터': ['데이터분석', '통계', '실태조사'],
+    '통계': ['데이터분석', '복지통계', '수요조사'],
+    '조사': ['실태조사', '수요조사', '만족도조사'],
 };
 
 // ── 부서별 사업 프로파일 및 배정 근거 ──
@@ -557,12 +651,35 @@ if (migratedCount > 0) {
     console.log(`[마이그레이션] 기존 데이터 ${migratedCount}건을 linkages로 변환 완료`);
 }
 
+// ── 부서 정보 누락 연계 자동 보정 (서버 시작 시 1회) ──
+{
+    const all = requestStore.listAll();
+    let patchCount = 0;
+    for (const r of all) {
+        if (!r.linkages) continue;
+        for (const l of r.linkages) {
+            if (l.category === 'referral' && l.targetService && (!l.fromDept || !l.toDept)) {
+                const profile = deptServiceMap[l.targetService];
+                if (profile && profile.deptId) {
+                    requestStore.updateLinkage(r.id, l.id, {
+                        fromDept: l.fromDept || profile.deptId,
+                        toDept: l.toDept || profile.deptId,
+                    });
+                    patchCount++;
+                }
+            }
+        }
+    }
+    if (patchCount > 0) console.log(`[부서 보정] 연계 ${patchCount}건에 부서 정보 자동 매핑 완료`);
+}
+
 // ── API Routes ──
 
 // 정적 파일 서빙 및 메인 화면 라우트
 app.use(express.static(path.join(__dirname, 'stitch'), { dotfiles: 'deny', index: false }));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'code.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'admin.html')));
+app.get('/dept', (req, res) => res.redirect('/admin'));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.use('/.well-known', (req, res) => res.status(404).end());
 
@@ -640,7 +757,7 @@ function checkResponseForLeaks(responseText) {
 
 // Noma 챗봇 API (대국민 복지 상담 전용)
 app.post('/api/chat', chatLimiter, async (req, res) => {
-    const { messages, systemPrompt, pageContext } = req.body;
+    const { messages, systemPrompt, pageContext, quickQuery } = req.body;
     if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ error: "messages array required" });
     }
@@ -767,7 +884,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 
         // ── 즉시 공감 응답 (filler): Gemini 호출 전에 먼저 전송 ──
         const lastUserMsg = sanitizedMessages.length > 0 ? sanitizedMessages[sanitizedMessages.length - 1].content : '';
-        let fillerText = '네, 말씀 잘 들었어요. 맞춤 서비스를 찾아보고 있어요...';
+        let fillerText = '네, 말씀 잘 들었어요. 상황을 파악하고 있어요...';
 
         const healthKeywords = ['아프', '아파', '병', '아프다', '다쳐', '다치', '수술', '입원', '퇴원', '치매', '건강', '간호', '간병', '약', '병원', '몸'];
         const lonelyKeywords = ['외롭', '외로', '혼자', '우울', '힘들', '걱정', '무섭'];
@@ -776,9 +893,9 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         if (urgentKeywords.some(k => lastUserMsg.includes(k))) {
             fillerText = '급하신 상황이시군요. 빠르게 확인해 드릴게요...';
         } else if (healthKeywords.some(k => lastUserMsg.includes(k))) {
-            fillerText = '아, 많이 불편하시겠어요. 관련 서비스를 찾아보고 있어요...';
+            fillerText = '아, 많이 불편하시겠어요. 상황을 좀 더 여쭤볼게요...';
         } else if (lonelyKeywords.some(k => lastUserMsg.includes(k))) {
-            fillerText = '혼자 계시면 걱정되시죠. 도움될 수 있는 서비스를 찾아볼게요...';
+            fillerText = '혼자 계시면 걱정되시죠. 상황을 좀 더 여쭤볼게요...';
         }
 
         if (!clientDisconnected) {
@@ -786,7 +903,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         }
 
         const defaultSystemPrompt = `당신은 경상남도사회서비스원의 AI 맞춤형 복지 내비게이터 '노마(Noma)'입니다.
-도민의 어려움을 듣고, 가장 적합한 복지 서비스를 친절하게 안내하는 것이 당신의 유일한 역할입니다.
+도민의 어려움을 듣고 맞춤 복지 서비스를 안내하고, 경상남도사회서비스원의 모든 사업(정책연구, 민간지원, 시설운영 등 포함)에 대해 안내하는 것이 당신의 역할입니다.
+지식베이스에 있는 서비스라면, 도민 대상이든 기관 대상이든 관계없이 모두 안내할 수 있습니다.
 
 [페르소나]
 - 이름: 노마(Noma)
@@ -801,60 +919,62 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 
 [상담 원칙]
 1. 사용자의 어려움에 먼저 공감하고, 그 다음에 서비스를 안내하세요.
-2. [Strict Grounding] 복지 서비스를 추천할 때는 반드시 아래 [지식베이스 검색 결과]에 근거해서만 답변하세요. 지식베이스에 없는 서비스를 절대 지어내지 마세요.
+2. [Strict Grounding] 복지 서비스를 추천할 때는 반드시 아래 [지식베이스 검색 결과]에 근거해서만 답변하세요. 지식베이스에 없는 서비스를 절대 지어내지 마세요. 검색 결과에 포함되지 않은 서비스는 언급조차 하지 마세요. 사용자의 상황을 임의로 추측하여 관련 없는 서비스를 연결하지 마세요. 예: "퇴원 후 돌봄"을 요청한 사용자에게 장애인 보조기기를 추천하면 안 됩니다. 사용자가 직접 언급하지 않은 상황(장애, 학대 등)을 가정하지 마세요.
 3. 지식베이스에 관련 서비스가 없으면, 경상남도사회서비스원 대표번호 055-230-8200으로 전화 문의를 안내하세요.
 4. 사용자가 추가 질문을 할 수 있도록 대화를 이어가세요.
 5. 개발, 코딩, 시스템, 버그 등 기술적인 질문에는 절대 답변하지 마세요. "저는 복지 서비스 안내만 도와드릴 수 있어요"라고 안내하세요.
 
 [인사 및 일상 대화 처리]
 - 사용자가 인사("안녕", "안녕하세요", "반가워요", "하이" 등)를 하면, 따뜻하게 인사를 받고 어떤 도움이 필요한지 물어보세요.
-  예: "안녕하세요! 경상남도사회서비스원 AI 복지 내비게이터 노마입니다. 어떤 어려움이 있으신지 말씀해 주시면, 맞춤 복지 서비스를 찾아드릴게요!"
+  예: "안녕하세요! 경상남도사회서비스원 AI 복지 내비게이터 노마입니다. 어떤 어려움이 있으신지 말씀해 주시면, 맞춤 복지 서비스를 찾아드리고 신청까지 도와드릴게요!"
 - 이모티콘(😊 등)은 절대 사용하지 마세요. 텍스트만으로 따뜻하게 표현하세요.
 - 인사에는 서비스를 검색하거나 "관련 서비스를 찾을 수 없다"고 답하지 마세요. 자연스러운 대화로 응대하세요.
 - 감사 표현("고마워요", "감사합니다")이나 작별 인사("잘 가요", "다음에 또 올게요")에도 자연스럽게 응대하세요.
 
-[정보 수집 프레임워크]
-대화를 통해 아래 정보를 자연스럽게 파악하세요. 설문조사처럼 나열하지 말고, 공감 사이사이에 한 번에 질문 1개씩만 자연스럽게 녹여 넣으세요.
+[정보 먼저 파악 → 맞춤 추천 원칙 - 매우 중요]
+서비스를 추천하기 전에 이용자의 상황을 먼저 파악하세요. 정보 없이 바로 추천하면 안 됩니다.
+설문조사처럼 나열하지 말고, 공감 사이사이에 한 번에 질문 1개씩만 자연스럽게 녹여 넣으세요.
 
-필수 정보 (대화 초반 2~3턴 내 파악):
-- 성함 (예: "어떻게 불러드리면 될까요?")
-- 연령대 (예: "혹시 연세가 어떻게 되실까요?")
-- 거주지 시/군 (예: "경남 어디에 살고 계신가요?")
+1단계 - 공감 및 상황 파악 (첫 질문, 서비스 추천 금지):
+- 사용자의 첫 메시지에 공감하고, 상황을 더 이해하기 위한 질문 1개를 하세요.
+- 이 단계에서는 <noma-card>를 절대 출력하지 마세요.
+- 예: "퇴원 후 돌봄이 필요하시군요. 많이 걱정되시죠. 혹시 연세가 어떻게 되시나요?"
+- 예: "긴급하게 돌봄이 필요하신 상황이시군요. 지금 경남 어디에 살고 계신가요?"
 
-상황 정보 (대화 중반, 자연스럽게):
-- 독거 여부 (예: "지금 혼자 살고 계신가요?")
-- 장애/질병 유무
-- 수급자 여부
+2단계 - 기본 정보 수집 (2~3턴, 서비스 추천 금지):
+- 아래 필수 정보를 1턴에 1개씩 자연스럽게 파악하세요.
+- 이 단계에서도 <noma-card>를 출력하지 마세요.
+- 필수 정보:
+  · 연령대 (예: "혹시 연세가 어떻게 되실까요?")
+  · 거주지 시/군 (예: "경남 어디에 살고 계신가요?")
+  · 현재 상황/어려운 점 (예: "지금 가장 어려운 점이 무엇인가요?")
+- 상황에 따라 추가로 파악:
+  · 독거 여부 (예: "지금 혼자 살고 계신가요?")
+  · 장애/질병 유무
+  · 수급자/차상위 여부
+- 사용자의 첫 메시지에서 이미 파악된 정보는 다시 묻지 마세요.
+- 사용자가 답변을 회피하면 강요하지 말고 자연스럽게 넘어가세요.
 
-심화 정보 (필요 시):
-- 현재 가장 어려운 점
-- 현재 이용 중인 서비스
-- 긴급도 (일상적 불편 vs 즉각 도움 필요)
+3단계 - 맞춤 서비스 추천 (필수 정보 2개 이상 파악 후):
+- 연령대, 거주지, 상황 중 최소 2개 이상 파악되면 맞춤 서비스를 추천하세요.
+- 파악된 정보에 기반하여 가장 적합한 1~2개 서비스를 <noma-card>로 안내하세요.
+- 지식베이스 검색 결과에서 관련도(★)가 높은 서비스를 우선 추천하세요.
+- 추천할 때 "말씀하신 상황을 종합하면" 등의 표현으로 이용자 정보를 반영했음을 보여주세요.
+- [매우 중요] 서비스 추천 후, 반드시 "제가 바로 서비스 신청을 도와드릴 수 있어요"라는 안내를 포함하세요. 단순히 전화번호만 안내하지 마세요.
+- 예: "김영희님, 창원에 혼자 사시면서 퇴원 후 돌봄이 필요하시군요. 이런 서비스가 도움이 될 것 같아요. 원하시면 제가 바로 신청을 도와드릴 수도 있어요!"
+
+4단계 - 후속 대화 (좁혀가기):
+- 사용자의 반응을 보고 가장 적합한 1개 서비스로 좁혀서 안내하세요.
+- 아직 파악되지 않은 정보가 있으면 1개씩 자연스럽게 수집하세요.
+- [매우 중요] 단순히 전화번호나 방문 신청처만 안내하지 마세요. "지금 저한테 말씀해 주시면 바로 상담 신청을 접수해 드릴 수 있어요"라고 적극적으로 AI 직접 접수를 우선 제안하세요.
+- 예: "직접 방문이나 전화 신청도 가능하지만, 지금 저한테 말씀해 주시면 바로 접수해 드릴게요. 편하게 신청하시겠어요?"
 
 규칙:
 - 한 번에 질문은 반드시 1개만 하세요. 여러 질문을 한꺼번에 나열하면 안 됩니다.
-- 공감 → 질문 → 추천 순서를 지키세요.
-- 사용자가 답변을 회피하면 강요하지 말고 자연스럽게 넘어가세요.
-- 이미 파악된 정보는 절대 다시 묻지 마세요.
-
-[넓게 추천 → 좁혀가기 원칙 - 매우 중요]
-첫 질문부터 지식베이스에서 관련 서비스를 적극적으로 추천하세요. 대화가 진행될수록 좁혀나갑니다.
-
-1단계 - 첫 질문 (넓은 추천):
-- 사용자의 첫 질문에서 키워드를 추출하여 관련 서비스를 2~3개 <noma-card>로 바로 추천하세요.
-- 모호한 감정 표현이라도(예: "외로워요", "힘들어요") 관련될 수 있는 서비스가 있다면 함께 보여주세요.
-- 추천과 동시에 [정보 수집 프레임워크]의 필수 정보 중 아직 모르는 항목 1개를 자연스럽게 여쭤보세요.
-
-2단계 - 후속 대화 (좁혀가기):
-- 사용자의 답변을 바탕으로 가장 적합한 1~2개 서비스로 좁혀서 다시 안내하세요.
-- [정보 수집 프레임워크]에서 아직 파악되지 않은 정보를 1개씩 자연스럽게 수집하세요.
-- 이미 파악된 정보는 다시 묻지 마세요.
-- 정보가 충분하면 최종 추천을 하고, 신청 방법을 구체적으로 안내하세요.
-
-규칙:
-- 첫 질문에서도 지식베이스 검색 결과가 있으면 반드시 서비스를 추천하세요. 질문만 하고 추천을 미루지 마세요.
+- 공감 → 질문 → (정보 충분 시) 추천 순서를 반드시 지키세요.
 - 사용자가 답변할 때마다 공감 표현을 곁들이세요.
-- 지식베이스 검색 결과에서 관련도(★)가 높은 서비스를 우선 추천하세요.
+- 이미 파악된 정보는 절대 다시 묻지 마세요.
+- 사용자가 "바로 추천해 주세요", "서비스 뭐 있어요?" 등 즉시 추천을 원하면 정보 수집을 생략하고 바로 추천해도 됩니다.
 
 [응답 포맷 - 서비스 추천 시 반드시 아래 형식 사용]
 <noma-card>
@@ -933,7 +1053,19 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 
 ${deptProfiles}`;
 
-        const systemInstructionString = systemPrompt || defaultSystemPrompt;
+        // 해시태그(빠른 질문) 클릭 시: 4단계 흐름 건너뛰고 즉시 서비스 안내
+        let quickQueryInstruction = '';
+        if (quickQuery && sanitizedMessages.length <= 1) {
+            quickQueryInstruction = `\n\n[빠른 안내 모드 - 최우선 적용]
+이 메시지는 사용자가 화면의 해시태그 버튼을 클릭하여 보낸 것입니다.
+- 위의 [정보 먼저 파악 → 맞춤 추천 원칙]의 1단계·2단계를 건너뛰세요.
+- 사용자의 질문에 공감 표현을 간단히 한 뒤, 지식베이스 검색 결과에서 관련도가 높은 서비스를 바로 <noma-card>로 안내하세요.
+- 지식베이스 검색 결과가 없는 경우에도 반드시 응답하세요. 해당 분야에 대해 간단히 설명하고, 경상남도사회서비스원 대표번호 055-230-8200으로 문의를 안내하세요.
+- 서비스를 추천한 후, "더 자세히 안내해 드릴까요?" 또는 "원하시면 제가 바로 신청을 도와드릴 수도 있어요!" 등으로 대화를 이어가세요. 단순히 전화번호만 안내하지 마세요.
+- 단, [Strict Grounding] 원칙은 그대로 지키세요. 검색 결과에 없는 서비스는 절대 추천하지 마세요.`;
+        }
+
+        const systemInstructionString = (systemPrompt || defaultSystemPrompt) + quickQueryInstruction;
 
         // Build conversation contents: RAG context + user messages (sanitized)
         const userPrompt = ragContext + "\n\n" +
@@ -1257,11 +1389,11 @@ app.post('/api/service-request/connect', async (req, res) => {
             html: { content: Buffer.from(htmlContent, 'utf-8'), contentType: 'text/html; charset=utf-8' },
         });
         console.log(`[이메일 발송 완료] ${serviceName} → ${DEV_RECIPIENT} (ID: ${requestId})`);
-        res.json({ success: true, message: "이메일 알림 발송 완료" });
     } catch (err) {
         console.error('[이메일 발송 실패]', err.message);
-        res.status(500).json({ success: false, message: "이메일 발송에 실패했습니다." });
+        // 이메일 실패해도 신청 데이터는 이미 저장됨 → 로그만 남기고 계속 진행
     }
+    res.json({ success: true, message: "상담 신청이 접수되었습니다." });
 });
 
 // 상담 신청 이메일 HTML 빌더
@@ -1330,6 +1462,9 @@ function buildServiceRequestEmailHTML({ serviceName, userName, userPhone, now, c
 // ── 서비스 연계 요청 시스템 ──
 
 // 담당자 처리 페이지 서빙
+app.get('/case', (req, res) => {
+    res.sendFile(path.join(__dirname, 'stitch', 'case.html'));
+});
 app.get('/case/:requestId', (req, res) => {
     res.sendFile(path.join(__dirname, 'stitch', 'case.html'));
 });
@@ -1364,11 +1499,17 @@ app.post('/api/referral/:requestId/send', async (req, res) => {
     const request = requestStore.findById(req.params.requestId);
     if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
+    // 서비스 프로파일에서 소속부서 자동 매핑
+    const svcProfile = deptServiceMap[targetService];
+    const autoFromDept = svcProfile ? svcProfile.deptId : null;
+
     // 통합 linkage로 생성 (pending 상태, 이메일 발송 없음)
     const linkage = requestStore.addLinkage(req.params.requestId, {
         category: 'referral',
         type: 'service_referral',
         targetService,
+        fromDept: autoFromDept,
+        toDept: autoFromDept,
         reason,
         submittedBy: '담당자',
     });
@@ -1394,7 +1535,7 @@ function buildReferralEmailHTML({ request, targetService, reason, newRequestId, 
             const bg = isCurrent ? '#E3F2FD' : '#F5F5F5';
             const border = isCurrent ? '2px solid #1565C0' : '1px solid #E0E0E0';
             const color = isCurrent ? '#0D47A1' : '#555';
-            const statusLabel = c.status === 'closed' ? '완료' : c.status === 'referred' ? '연계' : c.status === 'open' ? '접수' : c.status;
+            const statusLabel = c.status === 'closed' ? '종결' : c.status === 'providing' ? '제공중' : c.status === 'referred' ? '연계' : c.status === 'open' ? '접수' : c.status;
             const statusColor = c.status === 'closed' ? '#2E7D32' : c.status === 'referred' ? '#1565C0' : '#E65100';
             return '<div style="display:flex;align-items:center;gap:8px;">' +
                 (i > 0 ? '<div style="color:#999;font-size:18px;margin:0 4px;">&#8594;</div>' : '') +
@@ -1468,11 +1609,34 @@ function buildReferralEmailHTML({ request, targetService, reason, newRequestId, 
 }
 
 // ── Edge TTS API (Microsoft Neural Voice) ──
+// 텍스트를 자연스러운 음성용으로 전처리
+function prepareTTSText(text) {
+    let t = text;
+    // 마크다운 제거
+    t = t.replace(/#{1,6}\s*/g, '');
+    t = t.replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1');
+    t = t.replace(/`([^`]+)`/g, '$1');
+    t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    t = t.replace(/^[-*•]\s+/gm, '');
+    t = t.replace(/^\d+\.\s+/gm, '');
+    // 줄바꿈 → 쉼표 또는 마침표 (자연 호흡)
+    t = t.replace(/\n{2,}/g, '. ');
+    t = t.replace(/\n/g, ', ');
+    // 연속 공백/구두점 정리
+    t = t.replace(/[,\.]{2,}/g, '.');
+    t = t.replace(/\s{2,}/g, ' ');
+    return t.trim();
+}
+
 async function synthesizeTTS(text, retries = 2) {
+    const prepared = prepareTTSText(text);
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
             const tts = new EdgeTTS();
-            await tts.synthesize(text, 'ko-KR-SunHiNeural', { rate: '+0%', pitch: '+0Hz' });
+            await tts.synthesize(prepared, 'ko-KR-HyunsuMultilingualNeural', {
+                rate: '-8%',
+                pitch: '+2Hz',
+            });
             const audioBase64 = tts.toBase64();
             if (audioBase64 && audioBase64.length > 100) return audioBase64;
             console.warn(`[TTS] Attempt ${attempt}: empty audio, retrying...`);
@@ -1509,9 +1673,33 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
 // ── 보호된 API 인증 적용 ──
 // case 페이지: 이메일 링크에서 접근하므로 토큰 기반 또는 세션 인증
 app.use('/api/case', requireCaseAuth);
-app.use('/api/dept', requireAuth);
+app.use('/api/dept', (req, res, next) => {
+    // 부서 조정자 세션 또는 관리자 세션 모두 허용
+    if (req.session?.authenticated || (req.session?.deptAuthenticated && req.session?.deptId)) return next();
+    res.status(401).json({ error: '인증이 필요합니다.' });
+});
+app.use('/api/target-dept', (req, res, next) => {
+    // 대상부서 또는 관리자 세션 모두 허용
+    if (req.session?.authenticated || (req.session?.deptAuthenticated && req.session?.deptId)) return next();
+    res.status(401).json({ error: '인증이 필요합니다.' });
+});
 app.use('/api/admin', requireAuth);
 app.use('/api/staff', requireAuth);
+
+// ── Staff API Routes (담당자 케이스 목록) ──
+app.get('/api/staff/cases', (req, res) => {
+    const all = requestStore.listAll();
+    const summary = all.map(r => ({
+        id: r.id,
+        userName: r.userName || '-',
+        userPhone: r.userPhone || '-',
+        serviceName: r.serviceName || '-',
+        status: r.status || 'open',
+        createdAt: r.createdAt || r.createdAtISO || '-',
+        linkageCount: (r.linkages || []).length,
+    }));
+    res.json(summary);
+});
 
 // ── Case API Routes (담당자 처리 페이지용) ──
 
@@ -1529,19 +1717,23 @@ app.get('/api/case/:requestId', (req, res) => {
     res.json({ ...request, linkages: request.linkages || [], chain });
 });
 
-// 상태 변경 (전진만 허용)
+// 상태 변경 (전진·후진 모두 허용)
 app.patch('/api/case/:requestId/status', (req, res) => {
     const { status } = req.body;
-    const STEPS = ['open', 'confirmed', 'contacted', 'connected', 'closed'];
+    const valid = ['open', 'confirmed', 'contacted', 'connected', 'providing', 'closed', 'referred'];
     const request = requestStore.findById(req.params.requestId);
     if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
-    const currentIdx = STEPS.indexOf(request.status);
-    const targetIdx = STEPS.indexOf(status);
-    if (targetIdx === -1) return res.status(400).json({ error: '유효하지 않은 상태입니다.' });
-    if (targetIdx <= currentIdx) return res.status(400).json({ error: '이전 단계로 되돌릴 수 없습니다.' });
+    if (!valid.includes(status)) return res.status(400).json({ error: '유효하지 않은 상태입니다.' });
 
     const updated = requestStore.updateStatus(req.params.requestId, status);
+
+    // 자동 연동: closed → 승인된 연계 executionStatus 일괄 completed
+    if (status === 'closed') {
+        const cnt = requestStore.completeApprovedLinkages(req.params.requestId);
+        if (cnt > 0) console.log(`[자동연동] 케이스 ${req.params.requestId} 완료 → 승인된 연계 ${cnt}건 completed 처리`);
+    }
+
     res.json(updated);
 });
 
@@ -1905,13 +2097,13 @@ app.patch('/api/case/:id/linkage/:lid', (req, res) => {
     if (toDept !== undefined) updates.toDept = toDept;
     if (targetService !== undefined) updates.targetService = targetService;
     if (type !== undefined) updates.type = type;
-    // 담당자 재제출 로직: 부서 조정자 반려/수정요청 → pending, 관리자 반려/수정요청 → dept_approved
+    // 담당자 재제출 로직: 부서 조정자 반려/수정요청 → pending, 대상부서 반환 → dept_approved
     if (req.body.resubmit) {
         const currentReq = requestStore.findById(req.params.id);
         const currentLinkage = currentReq?.linkages?.find(l => l.id === req.params.lid);
         if (currentLinkage) {
-            if (currentLinkage.approvalStatus === 'admin_rejected' || currentLinkage.approvalStatus === 'admin_revision_requested') {
-                updates.approvalStatus = 'dept_approved'; // 관리자 반환 → 부서 조정자에게
+            if (currentLinkage.approvalStatus === 'target_rejected' || currentLinkage.approvalStatus === 'target_revision_requested') {
+                updates.approvalStatus = 'dept_approved'; // 대상부서 반환 → 대상부서에게 재제출
             } else {
                 updates.approvalStatus = 'pending'; // 부서 조정자 반려 → 처음부터
             }
@@ -1935,6 +2127,121 @@ app.post('/api/case/:id/linkage/:lid/notes', (req, res) => {
     res.json(linkage);
 });
 
+// ── 부서 조정자/관리자 공용 필터링 API ──
+app.use('/api/dept-coord', (req, res, next) => {
+    // 부서 조정자 세션 또는 관리자 세션 모두 허용
+    if (req.session?.authenticated || (req.session?.deptAuthenticated && req.session?.deptId)) return next();
+    res.status(401).json({ error: '인증이 필요합니다.' });
+});
+
+// 부서 조정자가 상담 요청 상세를 조회할 수 있는 API
+app.get('/api/dept-coord/requests/:id', (req, res) => {
+    const request = requestStore.findById(req.params.id);
+    if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+    const chain = [];
+    res.json({ ...request, linkages: request.linkages || [], chain });
+});
+
+app.get('/api/dept-coord/linkages', (req, res) => {
+    const deptId = req.query.deptId;
+    const sessionDeptId = req.session.deptId;
+    if (deptId && deptId !== sessionDeptId) {
+        return res.status(403).json({ error: '권한이 없는 부서입니다.' });
+    }
+    const targetDeptId = deptId || sessionDeptId;
+    const allLinkages = requestStore.getActiveLinkages();
+    const filtered = allLinkages.filter(l => l.fromDept === targetDeptId || l.toDept === targetDeptId);
+    res.json(filtered);
+});
+
+// ── 부서 조정자 실행상태 변경 API ──
+app.patch('/api/dept-coord/linkage/:lid/execution', (req, res) => {
+    const { executionStatus, comment } = req.body;
+    if (!executionStatus) return res.status(400).json({ error: 'executionStatus가 필요합니다.' });
+
+    const EXEC_TRANSITIONS = {
+        'null':        ['in_progress'],
+        'in_progress': ['completed', 'on_hold'],
+        'on_hold':     ['in_progress', 'cancelled'],
+    };
+
+    const all = requestStore.listAll();
+    let targetReq = null;
+    for (const r of all) {
+        if (!r.linkages) continue;
+        if (r.linkages.find(l => l.id === req.params.lid)) { targetReq = r; break; }
+    }
+    if (!targetReq) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+
+    const linkage = targetReq.linkages.find(l => l.id === req.params.lid);
+    if (linkage.approvalStatus !== 'approved') {
+        return res.status(400).json({ error: '최종승인(approved) 건만 실행상태를 변경할 수 있습니다.' });
+    }
+
+    const currentKey = String(linkage.executionStatus ?? 'null');
+    const allowed = EXEC_TRANSITIONS[currentKey];
+    if (!allowed || !allowed.includes(executionStatus)) {
+        return res.status(400).json({ error: `${currentKey} → ${executionStatus} 전이는 허용되지 않습니다.` });
+    }
+
+    const updated = requestStore.updateLinkage(targetReq.id, req.params.lid, { executionStatus });
+    if (!updated) return res.status(500).json({ error: '실행상태 변경 실패' });
+
+    const statusLabels = { in_progress: '진행중', completed: '완료', on_hold: '보류', cancelled: '취소' };
+    const noteText = `[실행상태 변경] ${statusLabels[executionStatus] || executionStatus}${comment ? ' — ' + comment : ''}`;
+    requestStore.addLinkageNote(targetReq.id, req.params.lid, noteText, req.session.deptId, req.session.deptId);
+
+    console.log(`[실행상태 변경] ${req.params.lid}: ${currentKey} → ${executionStatus}`);
+    res.json({ success: true, linkage: updated });
+});
+
+// ── 부서 조정자 후속연계 생성 API ──
+app.post('/api/dept-coord/linkage/:lid/followup', (req, res) => {
+    const { type, toDept, reason } = req.body;
+    if (!type || !toDept || !reason) {
+        return res.status(400).json({ error: 'type, toDept, reason 모두 필요합니다.' });
+    }
+
+    const all = requestStore.listAll();
+    let targetReq = null;
+    for (const r of all) {
+        if (!r.linkages) continue;
+        if (r.linkages.find(l => l.id === req.params.lid)) { targetReq = r; break; }
+    }
+    if (!targetReq) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+
+    const linkage = targetReq.linkages.find(l => l.id === req.params.lid);
+    if (linkage.approvalStatus !== 'approved') {
+        return res.status(400).json({ error: '최종승인(approved) 건만 후속연계를 생성할 수 있습니다.' });
+    }
+    if (linkage.executionStatus !== 'completed') {
+        return res.status(400).json({ error: '실행 완료(completed) 건만 후속연계를 생성할 수 있습니다.' });
+    }
+
+    // 새 후속연계 생성
+    const newLinkage = requestStore.addLinkage(targetReq.id, {
+        category: 'collaboration',
+        type,
+        fromDept: linkage.toDept || linkage.fromDept,
+        toDept,
+        reason,
+        submittedBy: req.session.deptId,
+    });
+    if (!newLinkage) return res.status(500).json({ error: '후속연계 생성 실패' });
+
+    // 기존 연계 상태 변경
+    requestStore.updateLinkage(targetReq.id, req.params.lid, {
+        executionStatus: 'completed_with_followup',
+        followupLinkageId: newLinkage.id,
+    });
+
+    const noteText = `[후속연계 생성] 유형: ${type}, 대상: ${toDept}, 사유: ${reason}`;
+    requestStore.addLinkageNote(targetReq.id, req.params.lid, noteText, req.session.deptId, req.session.deptId);
+
+    console.log(`[후속연계 생성] ${req.params.lid} → ${newLinkage.id}`);
+    res.json({ success: true, originalLinkage: req.params.lid, newLinkage });
+});
+
 // ── 부서 조정자 승인 API (1단계: pending → dept_approved / rejected / revision_requested) ──
 
 // 부서 조정자 승인 대기 목록
@@ -1949,54 +2256,52 @@ app.get('/api/dept/returned-items', (req, res) => {
     res.json({ count: items.length, items });
 });
 
-// 부서 조정자 승인 (pending → dept_approved)
+// 부서 조정자 승인 (pending → dept_approved) — 소속부서(fromDept) 검증 추가
 app.post('/api/dept/linkage/:lid/approve', (req, res) => {
     const { comment } = req.body;
-    const all = requestStore.listAll();
-    let targetReq = null;
-    for (const r of all) {
-        if (!r.linkages) continue;
-        if (r.linkages.find(l => l.id === req.params.lid)) { targetReq = r; break; }
-    }
-    if (!targetReq) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+    const found = requestStore.findByLinkageId(req.params.lid);
+    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
 
-    const linkage = requestStore.deptApproveLinkage(targetReq.id, req.params.lid, comment || '');
+    // 소속부서 검증 (관리자는 패스)
+    if (req.session.role === 'dept' && found.linkage.fromDept !== req.session.deptId) {
+        return res.status(403).json({ error: '소속부서만 승인할 수 있습니다.' });
+    }
+
+    const linkage = requestStore.deptApproveLinkage(found.request.id, req.params.lid, comment || '');
     if (!linkage) return res.status(400).json({ error: '부서 조정자 승인 처리 실패 (pending 상태가 아닙니다)' });
 
     console.log(`[부서 조정자 승인] ${req.params.lid}: ${comment || ''}`);
     res.json({ success: true, linkage });
 });
 
-// 부서 조정자 반려 (pending → rejected)
+// 부서 조정자 반려 (pending → rejected) — 소속부서(fromDept) 검증 추가
 app.post('/api/dept/linkage/:lid/reject', (req, res) => {
     const { comment } = req.body;
-    const all = requestStore.listAll();
-    let targetReq = null;
-    for (const r of all) {
-        if (!r.linkages) continue;
-        if (r.linkages.find(l => l.id === req.params.lid)) { targetReq = r; break; }
-    }
-    if (!targetReq) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+    const found = requestStore.findByLinkageId(req.params.lid);
+    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
 
-    const linkage = requestStore.deptRejectLinkage(targetReq.id, req.params.lid, comment || '');
+    if (req.session.role === 'dept' && found.linkage.fromDept !== req.session.deptId) {
+        return res.status(403).json({ error: '소속부서만 반려할 수 있습니다.' });
+    }
+
+    const linkage = requestStore.deptRejectLinkage(found.request.id, req.params.lid, comment || '');
     if (!linkage) return res.status(400).json({ error: '부서 조정자 반려 처리 실패 (pending 상태가 아닙니다)' });
 
     console.log(`[부서 조정자 반려] ${req.params.lid}: ${comment || '사유 없음'}`);
     res.json({ success: true, linkage });
 });
 
-// 부서 조정자 수정 요청 (pending → revision_requested)
+// 부서 조정자 수정 요청 (pending → revision_requested) — 소속부서(fromDept) 검증 추가
 app.post('/api/dept/linkage/:lid/revision', (req, res) => {
     const { comment } = req.body;
-    const all = requestStore.listAll();
-    let targetReq = null;
-    for (const r of all) {
-        if (!r.linkages) continue;
-        if (r.linkages.find(l => l.id === req.params.lid)) { targetReq = r; break; }
-    }
-    if (!targetReq) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+    const found = requestStore.findByLinkageId(req.params.lid);
+    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
 
-    const linkage = requestStore.deptRequestRevision(targetReq.id, req.params.lid, comment || '');
+    if (req.session.role === 'dept' && found.linkage.fromDept !== req.session.deptId) {
+        return res.status(403).json({ error: '소속부서만 수정요청할 수 있습니다.' });
+    }
+
+    const linkage = requestStore.deptRequestRevision(found.request.id, req.params.lid, comment || '');
     if (!linkage) return res.status(400).json({ error: '부서 조정자 수정 요청 처리 실패 (pending 상태가 아닙니다)' });
 
     console.log(`[부서 조정자 수정 요청] ${req.params.lid}: ${comment || ''}`);
@@ -2021,6 +2326,122 @@ app.post('/api/dept/linkage/:lid/resubmit', (req, res) => {
     res.json({ success: true, linkage });
 });
 
+// 소속부서 재제출 to 대상부서 (target_rejected / target_revision_requested → dept_approved)
+app.post('/api/dept/linkage/:lid/resubmit-to-target', (req, res) => {
+    const { comment } = req.body;
+    const found = requestStore.findByLinkageId(req.params.lid);
+    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+
+    // 소속부서 검증 (관리자는 패스)
+    if (req.session.role === 'dept') {
+        if (found.linkage.fromDept !== req.session.deptId) {
+            return res.status(403).json({ error: '소속부서만 재제출할 수 있습니다.' });
+        }
+    }
+
+    const linkage = requestStore.sourceDeptResubmitToTarget(found.request.id, req.params.lid, comment || '');
+    if (!linkage) return res.status(400).json({ error: '재제출 처리 실패 (대상부서 반환 상태가 아닙니다)' });
+
+    console.log(`[소속부서 재제출→대상부서] ${req.params.lid}: ${comment || ''}`);
+    res.json({ success: true, linkage });
+});
+
+// ── 대상부서 수락/반려/수정요청 API (dept_approved → approved / target_rejected / target_revision_requested) ──
+
+// 대상부서 수락 (dept_approved → approved) + autoConnectOnApproval
+app.post('/api/target-dept/linkage/:lid/accept', async (req, res) => {
+    const { comment } = req.body;
+    const found = requestStore.findByLinkageId(req.params.lid);
+    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+
+    // 대상부서 or 관리자만 수락 가능
+    if (req.session.role === 'dept') {
+        if (found.linkage.toDept !== req.session.deptId) {
+            return res.status(403).json({ error: '대상부서만 수락할 수 있습니다.' });
+        }
+    }
+
+    const deptName = req.session.deptName || '관리자';
+    const linkage = requestStore.targetDeptAcceptLinkage(found.request.id, req.params.lid, comment || '', deptName);
+    if (!linkage) return res.status(400).json({ error: '수락 처리 실패 (dept_approved 상태가 아닙니다)' });
+
+    // 자동 연동: 승인 시 케이스 상태를 connected로 변경
+    if (found.linkage.category !== 'referral') {
+        const connected = requestStore.autoConnectOnApproval(found.request.id);
+        if (connected) console.log(`[자동연동] 대상부서 수락 → 케이스 ${found.request.id} 상태를 connected로 변경`);
+    }
+
+    // referral인 경우 새 요청 레코드 생성
+    if (found.linkage.category === 'referral' && found.linkage.targetService) {
+        const newRequestId = crypto.randomUUID();
+        const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+        requestStore.save({
+            id: newRequestId,
+            serviceName: found.linkage.targetService,
+            userName: found.request.userName,
+            userPhone: found.request.userPhone,
+            createdAt: now,
+            createdAtISO: new Date().toISOString(),
+            status: 'open',
+            referredFrom: found.request.id,
+            referrals: [],
+        });
+        requestStore.updateStatus(found.request.id, 'referred');
+        requestStore.addReferral(found.request.id, {
+            targetService: found.linkage.targetService,
+            reason: found.linkage.reason,
+            newRequestId,
+            sentAt: now,
+        });
+        requestStore.updateLinkage(found.request.id, req.params.lid, { newRequestId });
+    }
+
+    console.log(`[대상부서 수락] ${req.params.lid}: ${deptName} - ${comment || ''}`);
+    res.json({ success: true, linkage: requestStore.findById(found.request.id)?.linkages?.find(l => l.id === req.params.lid) });
+});
+
+// 대상부서 반려 (dept_approved → target_rejected)
+app.post('/api/target-dept/linkage/:lid/reject', (req, res) => {
+    const { comment } = req.body;
+    if (!comment) return res.status(400).json({ error: '반려 사유를 입력하세요.' });
+    const found = requestStore.findByLinkageId(req.params.lid);
+    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+
+    if (req.session.role === 'dept') {
+        if (found.linkage.toDept !== req.session.deptId) {
+            return res.status(403).json({ error: '대상부서만 반려할 수 있습니다.' });
+        }
+    }
+
+    const deptName = req.session.deptName || '관리자';
+    const linkage = requestStore.targetDeptRejectLinkage(found.request.id, req.params.lid, comment, deptName);
+    if (!linkage) return res.status(400).json({ error: '반려 처리 실패 (dept_approved 상태가 아닙니다)' });
+
+    console.log(`[대상부서 반려] ${req.params.lid}: ${deptName} - ${comment}`);
+    res.json({ success: true, linkage });
+});
+
+// 대상부서 수정요청 (dept_approved → target_revision_requested)
+app.post('/api/target-dept/linkage/:lid/revision', (req, res) => {
+    const { comment } = req.body;
+    if (!comment) return res.status(400).json({ error: '수정요청 사유를 입력하세요.' });
+    const found = requestStore.findByLinkageId(req.params.lid);
+    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+
+    if (req.session.role === 'dept') {
+        if (found.linkage.toDept !== req.session.deptId) {
+            return res.status(403).json({ error: '대상부서만 수정요청할 수 있습니다.' });
+        }
+    }
+
+    const deptName = req.session.deptName || '관리자';
+    const linkage = requestStore.targetDeptRequestRevision(found.request.id, req.params.lid, comment, deptName);
+    if (!linkage) return res.status(400).json({ error: '수정요청 처리 실패 (dept_approved 상태가 아닙니다)' });
+
+    console.log(`[대상부서 수정요청] ${req.params.lid}: ${deptName} - ${comment}`);
+    res.json({ success: true, linkage });
+});
+
 // ── 관리자 조정자 최종 승인 API (2단계: dept_approved → approved / admin_rejected / admin_revision_requested) ──
 
 // 관리자 최종 승인 → 이메일 발송
@@ -2041,6 +2462,12 @@ app.post('/api/admin/linkage/:lid/approve', async (req, res) => {
     // 1. 승인 처리
     const linkage = requestStore.approveLinkage(targetReq.id, req.params.lid, comment || '');
     if (!linkage) return res.status(500).json({ error: '승인 처리 실패' });
+
+    // 1-b. 자동 연동: referral 외 승인 시 케이스 상태를 connected로 변경
+    if (targetLinkage.category !== 'referral') {
+        const connected = requestStore.autoConnectOnApproval(targetReq.id);
+        if (connected) console.log(`[자동연동] 연계 승인 → 케이스 ${targetReq.id} 상태를 connected로 변경`);
+    }
 
     // 2. referral인 경우 새 요청 레코드 생성
     if (targetLinkage.category === 'referral' && targetLinkage.targetService) {
@@ -2217,12 +2644,12 @@ app.get('/api/admin/stats', (req, res) => {
     });
     const avgDays = closedCount > 0 ? (totalTime / closedCount / 86400000).toFixed(1) : null;
 
-    // A-06: 미처리 요청 (3일 이상 open)
-    const threeDaysAgo = now.getTime() - 3 * 86400000;
+    // A-06: 연락 지연 알림 (접수 후 2일 이상 연락 미완료)
+    const twoDaysAgo = now.getTime() - 2 * 86400000;
     const overdue = all.filter(r => {
-        if (r.status !== 'open') return false;
+        if (r.status !== 'open' && r.status !== 'confirmed') return false;
         const created = r.createdAtISO ? new Date(r.createdAtISO).getTime() : requestStore.parseKoDate(r.createdAt);
-        return created > 0 && created < threeDaysAgo;
+        return created > 0 && created < twoDaysAgo;
     });
 
     res.json({ ...stats, daily, avgDays, overdue });
@@ -2266,23 +2693,35 @@ app.get('/api/admin/requests/:id', (req, res) => {
 // A-03: 상태 변경 (전진만 허용, referred는 별도 허용)
 app.patch('/api/admin/requests/:id/status', (req, res) => {
     const { status } = req.body;
-    const STEPS = ['open', 'confirmed', 'contacted', 'connected', 'closed'];
-    const valid = [...STEPS, 'referred'];
+    const valid = ['open', 'confirmed', 'contacted', 'connected', 'providing', 'closed', 'referred'];
     if (!valid.includes(status)) return res.status(400).json({ error: '유효하지 않은 상태입니다.' });
 
     const request = requestStore.findById(req.params.id);
     if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
-    if (request.status === 'closed' || request.status === 'referred') {
-        return res.status(400).json({ error: `"${request.status}" 상태에서는 상태를 변경할 수 없습니다.` });
-    }
-    if (status !== 'referred') {
-        const currentIdx = STEPS.indexOf(request.status);
-        const targetIdx = STEPS.indexOf(status);
-        if (targetIdx <= currentIdx) return res.status(400).json({ error: '이전 단계로 되돌릴 수 없습니다.' });
+    // 승인상태 기반 서비스상태 상한 검증
+    const CASE_STEPS = ['open', 'confirmed', 'contacted', 'connected', 'providing', 'closed', 'referred'];
+    const targetIdx = CASE_STEPS.indexOf(status);
+    if (request.linkages && request.linkages.length > 0) {
+        // 가장 진행된 연계의 승인상태 기준으로 상한 결정
+        let bestMaxIdx = 2; // 기본: contacted
+        for (const l of request.linkages) {
+            if (l.approvalStatus === 'approved') { bestMaxIdx = 6; break; }
+            if (l.approvalStatus === 'dept_approved') bestMaxIdx = Math.max(bestMaxIdx, 3);
+        }
+        if (targetIdx > bestMaxIdx) {
+            return res.status(400).json({ error: '연계 승인이 완료되지 않아 해당 상태로 변경할 수 없습니다.' });
+        }
     }
 
     const updated = requestStore.updateStatus(req.params.id, status);
+
+    // 자동 연동: closed → 승인된 연계 executionStatus 일괄 completed
+    if (status === 'closed') {
+        const cnt = requestStore.completeApprovedLinkages(req.params.id);
+        if (cnt > 0) console.log(`[자동연동] 케이스 ${req.params.id} 완료 → 승인된 연계 ${cnt}건 completed 처리`);
+    }
+
     res.json(updated);
 });
 
@@ -2318,13 +2757,19 @@ app.get('/api/admin/collaborations', (req, res) => {
 // A-09 + A-10: 서비스 인기도 + 카테고리 분포
 app.get('/api/admin/analytics', (req, res) => {
     const all = requestStore.listAll();
+    const now = new Date();
+
+    // 1. 서비스 랭킹
     const serviceCount = {};
     all.forEach(r => {
         const svc = r.serviceName || '기타';
         serviceCount[svc] = (serviceCount[svc] || 0) + 1;
     });
+    const serviceRanking = Object.entries(serviceCount)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count);
 
-    // 카테고리 매핑 (지식베이스 기반)
+    // 2. 카테고리 분포
     const categoryCount = {};
     all.forEach(r => {
         const svcName = r.serviceName || '';
@@ -2333,11 +2778,97 @@ app.get('/api/admin/analytics', (req, res) => {
         categoryCount[cat] = (categoryCount[cat] || 0) + 1;
     });
 
-    const serviceRanking = Object.entries(serviceCount)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count);
+    // 3. 상태별 분포
+    const statusDist = { open: 0, confirmed: 0, contacted: 0, connected: 0, providing: 0, closed: 0, referred: 0 };
+    all.forEach(r => { if (statusDist[r.status] !== undefined) statusDist[r.status]++; });
 
-    res.json({ serviceRanking, categoryCount });
+    // 4. 시간대별 접수 분포 (0~23시)
+    const hourlyDist = Array(24).fill(0);
+    all.forEach(r => {
+        const ts = r.createdAtISO ? new Date(r.createdAtISO) : null;
+        if (ts) hourlyDist[ts.getHours()]++;
+    });
+
+    // 5. 요일별 접수 분포 (일~토)
+    const weekdayDist = Array(7).fill(0);
+    all.forEach(r => {
+        const ts = r.createdAtISO ? new Date(r.createdAtISO) : null;
+        if (ts) weekdayDist[ts.getDay()]++;
+    });
+
+    // 6. 처리 소요일 분포 (종결 건만)
+    const durationBuckets = { '당일': 0, '1일': 0, '2일': 0, '3일': 0, '4~7일': 0, '7일+': 0 };
+    all.forEach(r => {
+        if (r.status !== 'closed' || !r.updatedAt || !r.createdAtISO) return;
+        const days = (new Date(r.updatedAt).getTime() - new Date(r.createdAtISO).getTime()) / 86400000;
+        if (days < 1) durationBuckets['당일']++;
+        else if (days < 2) durationBuckets['1일']++;
+        else if (days < 3) durationBuckets['2일']++;
+        else if (days < 4) durationBuckets['3일']++;
+        else if (days < 7) durationBuckets['4~7일']++;
+        else durationBuckets['7일+']++;
+    });
+
+    // 7. 서비스별 완료율
+    const serviceCompletion = {};
+    all.forEach(r => {
+        const svc = r.serviceName || '기타';
+        if (!serviceCompletion[svc]) serviceCompletion[svc] = { total: 0, closed: 0 };
+        serviceCompletion[svc].total++;
+        if (r.status === 'closed') serviceCompletion[svc].closed++;
+    });
+    const completionRanking = Object.entries(serviceCompletion)
+        .filter(([, v]) => v.total >= 2)
+        .map(([name, v]) => ({ name, total: v.total, closed: v.closed, rate: Math.round((v.closed / v.total) * 100) }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 10);
+
+    // 8. 연계 현황 분석
+    const linkageStats = { total: 0, pending: 0, approved: 0, rejected: 0, revision: 0 };
+    const deptLinkageCount = {};
+    all.forEach(r => {
+        (r.linkages || []).forEach(l => {
+            linkageStats.total++;
+            const as = l.approvalStatus || 'pending';
+            if (as === 'approved') linkageStats.approved++;
+            else if (as === 'rejected' || as === 'admin_rejected') linkageStats.rejected++;
+            else if (as === 'revision_requested' || as === 'admin_revision_requested') linkageStats.revision++;
+            else linkageStats.pending++;
+
+            const dept = l.toDept || l.targetService || '미지정';
+            deptLinkageCount[dept] = (deptLinkageCount[dept] || 0) + 1;
+        });
+    });
+    const deptLinkageRanking = Object.entries(deptLinkageCount)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+    // 9. 주간 추이 (최근 4주)
+    const weeklyTrend = [];
+    for (let w = 3; w >= 0; w--) {
+        const weekStart = new Date(now);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay() - w * 7);
+        weekStart.setHours(0, 0, 0, 0);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 7);
+        const label = `${weekStart.getMonth() + 1}/${weekStart.getDate()}~`;
+        const count = all.filter(r => {
+            const ts = r.createdAtISO ? new Date(r.createdAtISO).getTime() : 0;
+            return ts >= weekStart.getTime() && ts < weekEnd.getTime();
+        }).length;
+        weeklyTrend.push({ label, count });
+    }
+
+    // 10. KPI 비율
+    const kpi = analyticsStore.getKPI(30);
+
+    res.json({
+        serviceRanking, categoryCount, statusDist,
+        hourlyDist, weekdayDist, durationBuckets,
+        completionRanking, linkageStats, deptLinkageRanking,
+        weeklyTrend, kpi,
+    });
 });
 
 // KPI 통계

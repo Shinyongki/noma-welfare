@@ -1,9 +1,17 @@
 {
   "2026-02-28": {
-    "chat_request": 5,
+    "chat_request": 6,
     "rag_match": 3,
     "tts_request": 5,
-    "rag_no_match": 2,
-    "service_apply": 1
+    "rag_no_match": 3,
+    "service_apply": 3,
+    "referral_sent": 3
+  },
+  "2026-03-01": {
+    "chat_request": 35,
+    "rag_match": 23,
+    "tts_request": 35,
+    "rag_no_match": 12,
+    "service_apply": 3
   }
 }

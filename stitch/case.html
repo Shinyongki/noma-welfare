@@ -57,6 +57,24 @@
         </div>
     </div>
 
+    <!-- 케이스 목록 (requestId 없이 로그인 시) -->
+    <div id="state-case-list" class="hidden min-h-screen py-8 px-4">
+        <div class="max-w-2xl mx-auto animate-fade-up">
+            <div class="bg-gradient-to-br from-green-700 to-green-900 rounded-t-2xl px-6 py-5 text-white">
+                <h1 class="text-xl font-bold flex items-center gap-2">
+                    <span class="material-symbols-rounded" aria-hidden="true">folder_open</span>
+                    담당 케이스 목록
+                </h1>
+                <p class="text-green-200 text-sm mt-1">접수된 상담 케이스를 확인하고 처리하세요.</p>
+            </div>
+            <div class="bg-white rounded-b-2xl shadow-lg border border-gray-100 overflow-hidden">
+                <div id="case-list-body" class="p-4">
+                    <p class="text-gray-400 text-sm text-center py-8">불러오는 중...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 메인 콘텐츠 -->
     <div id="state-main" class="hidden min-h-screen py-8 px-4">
         <div class="max-w-lg mx-auto animate-fade-up">
@@ -341,12 +359,13 @@
         const caseToken = new URLSearchParams(location.search).get('token') || '';
         const tokenParam = caseToken ? `token=${caseToken}` : '';
         const appendToken = url => url + (url.includes('?') ? '&' : '?') + tokenParam;
-        const $loading = document.getElementById('state-loading');
-        const $error   = document.getElementById('state-error');
-        const $main    = document.getElementById('state-main');
+        const $loading   = document.getElementById('state-loading');
+        const $error     = document.getElementById('state-error');
+        const $main      = document.getElementById('state-main');
+        const $caseList  = document.getElementById('state-case-list');
 
         function show(el) {
-            [$loading, $error, $main].forEach(s => s.classList.add('hidden'));
+            [$loading, $error, $main, $caseList].forEach(s => s.classList.add('hidden'));
             el.classList.remove('hidden');
         }
 
@@ -432,8 +451,8 @@
         }
 
         // 상태 정의
-        const STEPS = ['open', 'confirmed', 'contacted', 'connected', 'closed'];
-        const STEP_LABELS = { open: '접수', confirmed: '확인', contacted: '연락', connected: '연결', closed: '완료' };
+        const STEPS = ['open', 'confirmed', 'contacted', 'connected', 'providing', 'closed'];
+        const STEP_LABELS = { open: '접수', confirmed: '확인', contacted: '연락', connected: '연결', providing: '제공중', closed: '종결' };
         const STEP_COLORS = {
             done: 'bg-green-600 text-white',
             current: 'bg-green-100 text-green-800 ring-2 ring-green-600',
@@ -444,7 +463,8 @@
             confirmed: '<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-600">확인</span>',
             contacted: '<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-600">연락</span>',
             connected: '<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-600">연결</span>',
-            closed:    '<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">완료</span>',
+            providing: '<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">제공중</span>',
+            closed:    '<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">종결</span>',
             referred:  '<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-600">연계</span>',
         };
 
@@ -717,19 +737,12 @@
                 const isApproved = l.approvalStatus === 'approved';
                 const isActive = isApproved && (l.executionStatus === 'email_sent' || l.executionStatus === 'in_progress');
 
-                // 부서 조정자 검토 영역 (pending 상태)
+                // 부서 조정자 검토 대기 안내 (pending 상태)
                 if (l.approvalStatus === 'pending') {
                     actionsHtml = `<div class="mt-2 pt-2 border-t border-yellow-200">
-                        <p class="text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1">
-                            <span class="material-symbols-rounded text-sm" aria-hidden="true">supervisor_account</span>부서 조정자 검토
+                        <p class="text-xs font-medium text-yellow-700 flex items-center gap-1">
+                            <span class="material-symbols-rounded text-sm" aria-hidden="true">hourglass_top</span>부서 조정자 검토 대기 중입니다
                         </p>
-                        <div class="flex gap-1.5">
-                            <button onclick="deptApproveLinkage('${l.id}')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1">
-                                <span class="material-symbols-rounded text-sm" aria-hidden="true">check_circle</span>승인
-                            </button>
-                            <button onclick="deptRejectLinkage('${l.id}')" class="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-colors">반려</button>
-                            <button onclick="deptRevisionLinkage('${l.id}')" class="px-3 py-1.5 bg-white border border-orange-300 text-orange-600 rounded-lg text-xs font-semibold hover:bg-orange-50 transition-colors">수정요청</button>
-                        </div>
                     </div>`;
                 }
                 // 담당자 재요청 (부서 조정자 반려/수정요청 시)
@@ -746,18 +759,12 @@
                         </button>
                     </div>`;
                 }
-                // 관리자 반환 → 부서 조정자 재검토
+                // 관리자 반환 → 부서 조정자 재검토 대기 안내
                 else if (l.approvalStatus === 'admin_rejected' || l.approvalStatus === 'admin_revision_requested') {
                     actionsHtml = `<div class="mt-2 pt-2 border-t border-red-200">
-                        <p class="text-xs font-semibold text-red-600 mb-1.5 flex items-center gap-1">
-                            <span class="material-symbols-rounded text-sm" aria-hidden="true">assignment_return</span>관리자에서 반환됨 - 부서 조정자 재검토 필요
+                        <p class="text-xs font-medium text-red-600 flex items-center gap-1">
+                            <span class="material-symbols-rounded text-sm" aria-hidden="true">assignment_return</span>관리자에서 반환됨 — 부서 조정자 재검토 대기 중
                         </p>
-                        <div class="flex gap-1.5">
-                            <button onclick="deptResubmitLinkage('${l.id}')" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1">
-                                <span class="material-symbols-rounded text-sm" aria-hidden="true">send</span>재검토 후 재제출
-                            </button>
-                            <button onclick="resubmitLinkage('${l.id}')" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 transition-colors">담당자에게 반환</button>
-                        </div>
                     </div>`;
                 }
                 else if (isActive) {
@@ -829,9 +836,13 @@
                     ? `<div class="flex-1 h-0.5 mx-1 ${i < effectiveIdx ? 'bg-green-500' : 'bg-gray-200'}"></div>`
                     : '';
 
+                const isClickable = i !== effectiveIdx;
+                const clickAttr = isClickable ? `onclick="advanceStatus('${step}')"` : '';
+                const cursorClass = isClickable ? 'cursor-pointer hover:scale-110 hover:ring-2 hover:ring-green-400' : '';
+
                 return `
                     <div class="flex flex-col items-center" style="min-width:48px">
-                        <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm ${stateClass}">
+                        <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm ${stateClass} ${cursorClass} transition-all" ${clickAttr} title="${isClickable ? STEP_LABELS[step] + '(으)로 변경' : '현재 단계'}">
                             <span class="material-symbols-rounded text-lg" aria-hidden="true">${icon}</span>
                         </div>
                         <span class="text-xs mt-1 ${i === effectiveIdx ? 'font-bold text-green-800' : 'text-gray-400'}">${STEP_LABELS[step]}</span>
@@ -840,7 +851,7 @@
                 `;
             }).join('');
 
-            // 다음 단계 버튼
+            // 다음 단계 버튼 (드롭다운 제거 — 스테퍼 원형 클릭으로 직접 변경 가능)
             const nextArea = document.getElementById('next-step-area');
             if (effectiveIdx < STEPS.length - 1) {
                 const nextStep = STEPS[effectiveIdx + 1];
@@ -849,6 +860,7 @@
                         <span class="material-symbols-rounded text-lg" aria-hidden="true">arrow_forward</span>
                         다음 단계: ${STEP_LABELS[nextStep]}
                     </button>
+                    <p class="text-xs text-gray-400 text-center mt-1.5">위 단계 아이콘을 클릭하면 원하는 단계로 바로 이동합니다</p>
                 `;
             } else {
                 nextArea.innerHTML = `
@@ -856,6 +868,7 @@
                         <span class="material-symbols-rounded text-green-600 text-2xl" aria-hidden="true">task_alt</span>
                         <p class="text-sm font-semibold text-green-700 mt-1">처리 완료</p>
                     </div>
+                    <p class="text-xs text-gray-400 text-center mt-1.5">위 단계 아이콘을 클릭하면 이전 단계로 되돌릴 수 있습니다</p>
                 `;
             }
         }
@@ -878,7 +891,7 @@
             el.scrollTop = el.scrollHeight;
         }
 
-        // 상태 진행 (전진만)
+        // 상태 변경
         window.advanceStatus = async function(nextStatus) {
             try {
                 const resp = await fetch(appendToken('/api/case/' + requestId + '/status'), {
@@ -896,6 +909,14 @@
             } catch {
                 showToast('상태 변경에 실패했습니다.');
             }
+        };
+
+        // 다른 단계로 직접 변경 (전진·후진 모두)
+        window.jumpStatus = async function() {
+            const select = document.getElementById('status-jump-select');
+            const target = select?.value;
+            if (!target) { showToast('변경할 단계를 선택하세요.'); return; }
+            await advanceStatus(target);
         };
 
         // 메모 추가
@@ -1107,64 +1128,6 @@
             } catch { showToast('재제출에 실패했습니다.'); }
         };
 
-        // ── 부서 조정자 승인/반려/수정요청 ──
-        window.deptApproveLinkage = async function(linkageId) {
-            const comment = prompt('승인 코멘트 (선택):') || '';
-            try {
-                const resp = await fetch(`/api/dept/linkage/${linkageId}/approve`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ comment }),
-                });
-                if (!resp.ok) { const err = await resp.json(); showToast(err.error); return; }
-                showToast('부서 조정자 승인 완료. 관리자 최종 승인 대기 상태입니다.', 'success');
-                if (await loadData()) render();
-            } catch { showToast('부서 조정자 승인에 실패했습니다.'); }
-        };
-
-        window.deptRejectLinkage = async function(linkageId) {
-            const comment = prompt('반려 사유를 입력하세요:');
-            if (comment === null) return;
-            try {
-                const resp = await fetch(`/api/dept/linkage/${linkageId}/reject`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ comment }),
-                });
-                if (!resp.ok) { const err = await resp.json(); showToast(err.error); return; }
-                if (await loadData()) render();
-            } catch { showToast('부서 조정자 반려에 실패했습니다.'); }
-        };
-
-        window.deptRevisionLinkage = async function(linkageId) {
-            const comment = prompt('수정 요청 사항을 입력하세요:');
-            if (comment === null) return;
-            try {
-                const resp = await fetch(`/api/dept/linkage/${linkageId}/revision`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ comment }),
-                });
-                if (!resp.ok) { const err = await resp.json(); showToast(err.error); return; }
-                if (await loadData()) render();
-            } catch { showToast('부서 조정자 수정 요청에 실패했습니다.'); }
-        };
-
-        // 부서 조정자가 관리자 반환 건 재검토 후 재제출
-        window.deptResubmitLinkage = async function(linkageId) {
-            const comment = prompt('재제출 코멘트 (선택):') || '';
-            try {
-                const resp = await fetch(`/api/dept/linkage/${linkageId}/resubmit`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ comment }),
-                });
-                if (!resp.ok) { const err = await resp.json(); showToast(err.error); return; }
-                showToast('관리자 최종 승인 대기 상태로 재제출되었습니다.', 'success');
-                if (await loadData()) render();
-            } catch { showToast('재제출에 실패했습니다.'); }
-        };
-
         window.addLinkageNote = async function(linkageId) {
             const input = document.getElementById('lnote-' + linkageId);
             const text = input.value.trim();
@@ -1212,6 +1175,11 @@
         };
 
         async function startApp() {
+            if (!requestId) {
+                // requestId 없으면 케이스 목록 표시
+                await loadCaseList();
+                return;
+            }
             await loadDepartments();
             if (await loadData()) {
                 await loadReferralServices();
@@ -1221,6 +1189,50 @@
                     toggleLinkageForm();
                     if (openLinkage === 'referral') switchLinkageTab('referral');
                 }
+            }
+        }
+
+        // ── 케이스 목록 ──
+        const STATUS_LABELS = {
+            open: { label: '접수', bg: 'bg-blue-100', text: 'text-blue-700' },
+            confirmed: { label: '확인', bg: 'bg-indigo-100', text: 'text-indigo-700' },
+            contacted: { label: '연락완료', bg: 'bg-purple-100', text: 'text-purple-700' },
+            connected: { label: '연계중', bg: 'bg-amber-100', text: 'text-amber-700' },
+            providing: { label: '제공중', bg: 'bg-emerald-100', text: 'text-emerald-700' },
+            closed: { label: '종결', bg: 'bg-green-100', text: 'text-green-700' },
+            referred: { label: '이관', bg: 'bg-gray-100', text: 'text-gray-600' },
+        };
+
+        async function loadCaseList() {
+            show($caseList);
+            const body = document.getElementById('case-list-body');
+            try {
+                const resp = await fetch('/api/staff/cases');
+                if (!resp.ok) throw new Error();
+                const cases = await resp.json();
+                if (cases.length === 0) {
+                    body.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">접수된 케이스가 없습니다.</p>';
+                    return;
+                }
+                body.innerHTML = `<p class="text-xs text-gray-400 mb-3">총 ${cases.length}건</p>` +
+                    cases.map(c => {
+                        const st = STATUS_LABELS[c.status] || STATUS_LABELS.open;
+                        const date = c.createdAt ? new Date(c.createdAt).toLocaleString('ko-KR', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
+                        return `<a href="/case/${c.id}" class="block border border-gray-100 rounded-xl p-4 mb-2 hover:bg-gray-50 hover:border-gray-200 transition-colors cursor-pointer">
+                            <div class="flex items-center gap-2 mb-1.5">
+                                <span class="font-semibold text-gray-800 text-sm">${escapeHtml(c.userName)}</span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${st.bg} ${st.text}">${st.label}</span>
+                                <span class="text-xs text-gray-400 ml-auto">${date}</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs text-gray-500">
+                                <span class="material-symbols-rounded text-sm" aria-hidden="true">support_agent</span>
+                                <span>${escapeHtml(c.serviceName)}</span>
+                                ${c.linkageCount > 0 ? `<span class="ml-auto inline-flex items-center gap-0.5 text-indigo-500"><span class="material-symbols-rounded text-sm" aria-hidden="true">link</span>${c.linkageCount}</span>` : ''}
+                            </div>
+                        </a>`;
+                    }).join('');
+            } catch {
+                body.innerHTML = '<p class="text-red-400 text-sm text-center py-8">케이스 목록을 불러올 수 없습니다.</p>';
             }
         }
 
