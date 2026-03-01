@@ -265,10 +265,8 @@
             /* 면책 텍스트 숨김 */
             .card-disclaimer { display: none; }
 
-            /* 히어로 칩: 풀너비, 세로 배치, 18px */
-            #hero-chips { flex-direction: column; }
-            .hero-chip { width: 100%; justify-content: center; }
-            .hero-chip span:last-child { font-size: 18px; }
+            /* 히어로 칩: 모바일에서 숨김 — 음성 대화에 집중 */
+            #hero-chips { display: none !important; }
 
             /* hero badge/subtitle/CTA → 이제 hidden 클래스로 처리 */
 
