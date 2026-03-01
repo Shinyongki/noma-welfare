@@ -9,10 +9,22 @@ const DATA_FILE = path.join(__dirname, 'requests.json');
 
 const BACKUP_FILE = DATA_FILE + '.bak';
 
+// ── 인메모리 캐시 (mtime 기반) ──
+let _cache = null;
+let _cacheMtime = 0;
+
 function readAll() {
     try {
         if (fs.existsSync(DATA_FILE)) {
-            return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+            const stat = fs.statSync(DATA_FILE);
+            const mtime = stat.mtimeMs;
+            if (_cache && mtime === _cacheMtime) {
+                return _cache;
+            }
+            const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+            _cache = data;
+            _cacheMtime = mtime;
+            return data;
         }
     } catch (e) {
         console.error('[DATA CORRUPTION] requests.json 파싱 실패:', e.message);
@@ -22,6 +34,8 @@ function readAll() {
                 const backup = JSON.parse(fs.readFileSync(BACKUP_FILE, 'utf-8'));
                 console.warn('[DATA RECOVERY] 백업에서 복구 성공');
                 fs.writeFileSync(DATA_FILE, JSON.stringify(backup, null, 2), 'utf-8');
+                _cache = backup;
+                _cacheMtime = Date.now();
                 return backup;
             } catch { /* 백업도 손상 */ }
         }
@@ -30,6 +44,8 @@ function readAll() {
         try { fs.renameSync(DATA_FILE, corruptFile); } catch {}
         console.error(`[DATA] 손상 파일 보존: ${corruptFile}`);
     }
+    _cache = {};
+    _cacheMtime = 0;
     return {};
 }
 
@@ -43,6 +59,9 @@ function writeAll(data) {
     const tmpFile = DATA_FILE + '.tmp';
     fs.writeFileSync(tmpFile, json, 'utf-8');
     fs.renameSync(tmpFile, DATA_FILE);
+    // 3. 캐시 갱신
+    _cache = data;
+    try { _cacheMtime = fs.statSync(DATA_FILE).mtimeMs; } catch { _cacheMtime = Date.now(); }
 }
 
 /** 새 요청 저장 */
@@ -564,15 +583,29 @@ export function getStats() {
     return { ...stats, serviceCount, categoryCount };
 }
 
-/** 연계 체인 추적 (순방향 + 역방향) */
+/** linkageId로 요청+연계 조회 (O(n) 순회 제거용 인덱스) */
+export function findByLinkageId(linkageId) {
+    const store = readAll();
+    for (const req of Object.values(store)) {
+        if (!req.linkages) continue;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (linkage) return { request: req, linkage };
+    }
+    return null;
+}
+
+/** 연계 체인 추적 (순방향 + 역방향, 순환참조 방어) */
 export function getReferralChain(id) {
     const store = readAll();
     const chain = [];
+    const visited = new Set();
 
     // 역방향: referredFrom을 따라 원본까지
     const backward = [];
     let cur = store[id];
-    while (cur && cur.referredFrom && store[cur.referredFrom]) {
+    visited.add(id);
+    while (cur && cur.referredFrom && store[cur.referredFrom] && !visited.has(cur.referredFrom)) {
+        visited.add(cur.referredFrom);
         cur = store[cur.referredFrom];
         backward.unshift({ id: cur.id, serviceName: cur.serviceName, createdAt: cur.createdAt, createdAtISO: cur.createdAtISO, status: cur.status });
     }
@@ -584,11 +617,13 @@ export function getReferralChain(id) {
         chain.push({ id: self.id, serviceName: self.serviceName, createdAt: self.createdAt, createdAtISO: self.createdAtISO, status: self.status, current: true });
     }
 
-    // 순방향: referrals를 따라 연계된 요청
+    // 순방향: referrals를 따라 연계된 요청 (순환참조 방어)
     function followForward(reqId) {
         const req = store[reqId];
         if (!req || !req.referrals) return;
         req.referrals.forEach(ref => {
+            if (!ref.newRequestId || visited.has(ref.newRequestId)) return;
+            visited.add(ref.newRequestId);
             const next = store[ref.newRequestId];
             if (next) {
                 chain.push({ id: next.id, serviceName: next.serviceName, createdAt: next.createdAt, createdAtISO: next.createdAtISO, status: next.status, reason: ref.reason });

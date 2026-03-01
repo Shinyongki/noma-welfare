@@ -332,6 +332,9 @@
     <script>
     (async function () {
         const requestId = location.pathname.split('/case/')[1];
+        const caseToken = new URLSearchParams(location.search).get('token') || '';
+        const tokenParam = caseToken ? `token=${caseToken}` : '';
+        const appendToken = url => url + (url.includes('?') ? '&' : '?') + tokenParam;
         const $loading = document.getElementById('state-loading');
         const $error   = document.getElementById('state-error');
         const $main    = document.getElementById('state-main');
@@ -439,7 +442,7 @@
         // 데이터 로드
         async function loadData() {
             try {
-                const resp = await fetch('/api/case/' + requestId);
+                const resp = await fetch(appendToken('/api/case/' + requestId));
                 if (!resp.ok) throw new Error();
                 caseData = await resp.json();
             } catch {
@@ -791,7 +794,7 @@
         // 상태 진행 (전진만)
         window.advanceStatus = async function(nextStatus) {
             try {
-                const resp = await fetch('/api/case/' + requestId + '/status', {
+                const resp = await fetch(appendToken('/api/case/' + requestId + '/status'), {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ status: nextStatus }),
@@ -818,7 +821,7 @@
             btn.disabled = true;
 
             try {
-                const resp = await fetch('/api/case/' + requestId + '/notes', {
+                const resp = await fetch(appendToken('/api/case/' + requestId + '/notes'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ note }),
@@ -981,7 +984,7 @@
             }
 
             try {
-                const resp = await fetch('/api/case/' + requestId + '/linkage', {
+                const resp = await fetch(appendToken('/api/case/' + requestId + '/linkage'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body),
@@ -995,7 +998,7 @@
 
         window.updateLinkageExec = async function(linkageId, status) {
             try {
-                const resp = await fetch(`/api/case/${requestId}/linkage/${linkageId}`, {
+                const resp = await fetch(appendToken(`/api/case/${requestId}/linkage/${linkageId}`), {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ executionStatus: status }),
@@ -1007,7 +1010,7 @@
 
         window.resubmitLinkage = async function(linkageId) {
             try {
-                const resp = await fetch(`/api/case/${requestId}/linkage/${linkageId}`, {
+                const resp = await fetch(appendToken(`/api/case/${requestId}/linkage/${linkageId}`), {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ resubmit: true }),
@@ -1080,7 +1083,7 @@
             const text = input.value.trim();
             if (!text) return;
             try {
-                const resp = await fetch(`/api/case/${requestId}/linkage/${linkageId}/notes`, {
+                const resp = await fetch(appendToken(`/api/case/${requestId}/linkage/${linkageId}/notes`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, author: '담당자', dept: '담당자' }),

@@ -193,6 +193,22 @@
             .kanban-container { flex-direction: column; }
             .kanban-body { max-height: 400px; }
         }
+
+        /* Phase 3: 고대비 모드 */
+        @media (prefers-contrast: more) {
+            .text-slate-400, .text-slate-500 { color: #1e293b !important; }
+            .border-slate-100, .border-slate-200 { border-color: #475569 !important; }
+        }
+
+        /* Phase 3: reduced-motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
     </style>
 </head>
 
@@ -1041,6 +1057,19 @@
         el.innerHTML = items.map(c => renderKanbanCard(c, isActionable)).join('');
     }
 
+    // 개별 카드 DOM만 업데이트 (전체 재렌더링 방지)
+    function updateSingleCard(linkageId) {
+        const cardEl = document.getElementById('kcard-' + linkageId);
+        if (!cardEl) return;
+        const collab = allCollabs.find(c => c.id === linkageId);
+        if (!collab) return;
+        const isActionable = collab.approvalStatus === 'dept_approved';
+        const tmp = document.createElement('div');
+        tmp.innerHTML = renderKanbanCard(collab, isActionable);
+        const newCard = tmp.firstElementChild;
+        cardEl.replaceWith(newCard);
+    }
+
     async function toggleCardExpand(linkageId, event) {
         if (event) event.stopPropagation();
         // If clicking inside expanded detail, don't collapse
@@ -1049,13 +1078,15 @@
         if (expandedCardId === linkageId) {
             // Collapse
             expandedCardId = null;
-            renderKanbanBoard(allCollabs);
+            updateSingleCard(linkageId);
             return;
         }
 
+        const prevExpanded = expandedCardId;
         expandedCardId = linkageId;
-        // Show loading state immediately
-        renderKanbanBoard(allCollabs);
+        // Collapse previous card, expand new one
+        if (prevExpanded) updateSingleCard(prevExpanded);
+        updateSingleCard(linkageId);
 
         // Fetch request data for this linkage
         const collab = allCollabs.find(c => c.id === linkageId);
@@ -1063,13 +1094,13 @@
             try {
                 const data = await api(`/api/admin/requests/${collab.requestId}`);
                 expandedCardData[linkageId] = data;
-                renderKanbanBoard(allCollabs);
+                updateSingleCard(linkageId);
                 // Scroll expanded card into view
                 const cardEl = document.getElementById('kcard-' + linkageId);
                 if (cardEl) cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } catch (e) {
                 expandedCardData[linkageId] = { error: true };
-                renderKanbanBoard(allCollabs);
+                updateSingleCard(linkageId);
             }
         }
     }
@@ -1259,9 +1290,9 @@
                 tbody.innerHTML = data.items.map(r => `
                     <tr class="hover:bg-slate-50 transition-colors">
                         <td class="px-4 py-3 font-mono text-xs text-slate-400">${shortId(r.id)}</td>
-                        <td class="px-4 py-3 font-medium">${r.userName || '-'}</td>
-                        <td class="px-4 py-3 hidden sm:table-cell text-slate-500">${r.userPhone || '-'}</td>
-                        <td class="px-4 py-3 max-w-[200px] truncate">${r.serviceName || '-'}</td>
+                        <td class="px-4 py-3 font-medium">${escapeHtml(r.userName || '-')}</td>
+                        <td class="px-4 py-3 hidden sm:table-cell text-slate-500">${escapeHtml(r.userPhone || '-')}</td>
+                        <td class="px-4 py-3 max-w-[200px] truncate">${escapeHtml(r.serviceName || '-')}</td>
                         <td class="px-4 py-3">${statusBadge(r.status)}</td>
                         <td class="px-4 py-3 hidden md:table-cell text-slate-500 text-xs">${formatDate(r)}</td>
                         <td class="px-4 py-3 text-center">
@@ -1830,6 +1861,10 @@
         loadDashboard();
         updateTopbarTime();
         setInterval(updateTopbarTime, 60000);
+        // 대시보드 자동 갱신 (30초)
+        setInterval(() => {
+            if (!document.hidden) loadDashboard();
+        }, 30000);
     }
 
     // ── Init: 인증 상태 확인 ──

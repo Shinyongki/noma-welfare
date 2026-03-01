@@ -6,6 +6,7 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>경상남도사회서비스원 AI 맞춤형 복지 내비게이터</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
@@ -298,6 +299,37 @@
             /* footer 확대 */
             footer p, footer a { font-size: 16px !important; }
         }
+
+        /* Phase 2: 색상 대비 개선 (WCAG 4.5:1) */
+        .text-slate-400 { color: #64748b !important; }
+
+        /* Phase 2: focus-visible indicator 복구 */
+        button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+            outline: 2px solid #98002E;
+            outline-offset: 2px;
+        }
+
+        /* sr-only 유틸리티 */
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0; }
+
+        /* Phase 3: 고대비 모드 */
+        @media (prefers-contrast: more) {
+            .text-slate-400, .text-slate-500 { color: #1e293b !important; }
+            .bg-bg-warm, .bg-bg-section { background-color: #fff !important; }
+            .border-stone-100, .border-stone-200 { border-color: #475569 !important; }
+            .text-primary { color: #7a0025 !important; }
+            .bg-primary\/10 { background-color: rgba(152,0,46,0.2) !important; }
+        }
+
+        /* Phase 3: reduced-motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
     </style>
 </head>
 
@@ -376,8 +408,10 @@
                                 </span>
                                 <span class="text-[10px] font-bold text-primary md:hidden leading-none">말하기</span>
                             </button>
-                            <input id="hero-input"
-                                class="w-full h-full bg-transparent border-none text-slate-800 placeholder:text-slate-400 text-lg md:text-lg px-4 md:px-5 focus:ring-0 focus:outline-none"
+                            <label for="hero-input" class="sr-only">복지 서비스 검색</label>
+                    <input id="hero-input"
+                                aria-label="어떤 도움이 필요하신가요? 복지 서비스를 검색하세요"
+                                class="w-full h-full bg-transparent border-none text-slate-800 placeholder:text-slate-400 text-lg md:text-lg px-4 md:px-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                                 placeholder="예: 퇴원 후 당장 돌봐줄 사람이 없어요" />
                             <button id="hero-submit"
                                 class="mr-2 md:mr-3 size-12 md:size-11 bg-primary rounded-full flex items-center justify-center text-white hover:bg-primary-light active:scale-95 transition-all shadow-md flex-shrink-0">
@@ -596,6 +630,9 @@
 
     <!-- ═══════════════════ FLOATING MIC BUTTON ═══════════════════ -->
     <div id="floating-mic-wrap" style="position:fixed;bottom:2rem;right:1.5rem;z-index:999;display:none;align-items:center;gap:0.75rem;">
+        <button id="tts-toggle" title="음성 읽기 켜기/끄기" style="width:40px;height:40px;border-radius:50%;border:2px solid #d1d5db;background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+            <span class="material-symbols-outlined" aria-hidden="true" style="font-size:20px;color:#98002E;">volume_up</span>
+        </button>
         <div id="mic-tooltip" class="bg-white text-slate-700 text-sm font-semibold px-4 py-2.5 rounded-2xl shadow-lg border border-stone-200 whitespace-nowrap animate-fade-in" style="display:none;">
             여기를 눌러 말씀해 주세요
             <div style="position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:6px solid white;"></div>
@@ -665,13 +702,13 @@
     </div>
 
     <!-- ═══════════════════ DRAWER OPT-IN CONSENT MODAL ═══════════════════ -->
-    <div id="consent-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div id="consent-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="consent-modal-title">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-up">
             <div class="p-6 text-center">
                 <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span class="material-symbols-outlined text-primary text-3xl" aria-hidden="true">bookmark_add</span>
                 </div>
-                <h3 class="text-lg font-bold text-slate-800 mb-3">서비스를 저장할까요?</h3>
+                <h3 id="consent-modal-title" class="text-lg font-bold text-slate-800 mb-3">서비스를 저장할까요?</h3>
                 <p class="text-sm text-slate-600 leading-relaxed break-keep mb-1">
                     다음에 다시 보실 수 있도록<br/>이 컴퓨터에 <b>익명의 표식</b>을 남겨둘게요.
                 </p>
@@ -687,22 +724,24 @@
     </div>
 
     <!-- ═══════════════════ SERVICE REQUEST MODAL ═══════════════════ -->
-    <div id="service-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div id="service-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="service-modal-title">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-up">
             <!-- Modal Header -->
             <div class="bg-gradient-to-r from-primary to-deep-purple px-6 py-5 text-white">
-                <h3 class="text-lg font-bold">상담 신청하기</h3>
+                <h3 id="service-modal-title" class="text-lg font-bold">상담 신청하기</h3>
                 <p id="modal-service-name" class="text-white/80 text-sm mt-1"></p>
             </div>
             <!-- Modal Body -->
             <div class="p-6 space-y-5">
                 <div id="modal-step-name">
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">성함을 입력해 주세요</label>
-                    <input id="modal-name-input" type="text" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="홍길동" />
+                    <label for="modal-name-input" class="block text-sm font-semibold text-slate-700 mb-2">성함을 입력해 주세요</label>
+                    <input id="modal-name-input" type="text" autocomplete="name" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="홍길동" />
+                    <p id="modal-name-error" class="hidden text-xs text-red-500 mt-1.5">성함을 입력해 주세요.</p>
                 </div>
                 <div id="modal-step-phone" class="hidden">
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">연락 받으실 전화번호</label>
-                    <input id="modal-phone-input" type="tel" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="010-1234-5678" />
+                    <label for="modal-phone-input" class="block text-sm font-semibold text-slate-700 mb-2">연락 받으실 전화번호</label>
+                    <input id="modal-phone-input" type="tel" inputmode="tel" autocomplete="tel" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="010-1234-5678" />
+                    <p id="modal-phone-error" class="hidden text-xs text-red-500 mt-1.5">올바른 전화번호를 입력해 주세요. (예: 010-1234-5678)</p>
                 </div>
                 <div id="modal-step-confirm" class="hidden text-center py-4">
                     <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -763,6 +802,9 @@
             modalConfirmText: $('modal-confirm-text'),
             modalCancel: $('modal-cancel'),
             modalNext: $('modal-next'),
+            modalNameError: $('modal-name-error'),
+            modalPhoneError: $('modal-phone-error'),
+            consentModal: $('consent-modal'),
             // Floating Mic
             floatingMic: $('floating-mic'),
             floatingMicWrap: $('floating-mic-wrap'),
@@ -776,6 +818,9 @@
         let currentAudio = null;
         let currentUtterance = null;
         let sectionsRevealed = false;
+        // TTS 자동재생 토글 (localStorage 기반)
+        const TTS_KEY = 'noma_tts_enabled';
+        let ttsEnabled = localStorage.getItem(TTS_KEY) !== 'false'; // 기본: 켜짐
 
         // ── Progressive Reveal: 아래 섹션 순차 공개 ──
         function revealBelowFoldSections() {
@@ -827,10 +872,11 @@
 
         // ── Utility: Basic markdown to HTML ──
         function md(text) {
-            return text
+            const html = text
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/\n/g, '<br/>');
+            return typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(html) : html;
         }
 
         // ── Card Colors Pool ──
@@ -1047,14 +1093,22 @@
         // ══════════════════════════════════════════
 
         // Clean chatHistory before sending to API: strip noma-card blocks and limit length
+        // Anchor 방식: 첫 2턴(맥락 고정) + 최근 6턴 = 최대 8턴 유지
         function prepareMessagesForAPI() {
             const MAX_HISTORY = 8;
-            return chatHistory.slice(-MAX_HISTORY).map(m => ({
+            const ANCHOR_COUNT = 2;
+            const clean = m => ({
                 role: m.role,
                 content: m.role === 'model'
                     ? m.content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim()
                     : m.content
-            }));
+            });
+            if (chatHistory.length <= MAX_HISTORY) {
+                return chatHistory.map(clean);
+            }
+            const anchor = chatHistory.slice(0, ANCHOR_COUNT).map(clean);
+            const recent = chatHistory.slice(-(MAX_HISTORY - ANCHOR_COUNT)).map(clean);
+            return [...anchor, ...recent];
         }
 
         async function performSearch(query) {
@@ -1295,8 +1349,8 @@
                 // Smooth scroll to results
                 DOM.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-                // TTS: 항상 음성으로 읽어주기 (시니어 최적화)
-                if (fullResponse) {
+                // TTS: 토글 설정에 따라 음성으로 읽어주기 (시니어 최적화)
+                if (fullResponse && ttsEnabled) {
                     await speakText(extractSpeakableText(fullResponse));
                 }
 
@@ -1421,7 +1475,21 @@
         // ── SERVICE REQUEST MODAL ──
         // ══════════════════════════════════════
 
+        const APPLY_KEY = 'noma_applied_services';
+        function getAppliedServices() {
+            try { return JSON.parse(sessionStorage.getItem(APPLY_KEY) || '[]'); } catch { return []; }
+        }
+        function markApplied(serviceName) {
+            const list = getAppliedServices();
+            if (!list.includes(serviceName)) list.push(serviceName);
+            sessionStorage.setItem(APPLY_KEY, JSON.stringify(list));
+        }
+
         function openServiceModal(serviceName) {
+            if (getAppliedServices().includes(serviceName)) {
+                showToast('이미 해당 서비스를 신청하셨습니다.');
+                return;
+            }
             modalState = { step: 'name', serviceName, name: '', phone: '' };
             DOM.modalServiceName.textContent = serviceName;
             DOM.modalStepName.classList.remove('hidden');
@@ -1453,7 +1521,12 @@
         DOM.modalNext.addEventListener('click', async () => {
             if (modalState.step === 'name') {
                 const name = DOM.modalNameInput.value.trim();
-                if (!name) { DOM.modalNameInput.focus(); return; }
+                if (!name) {
+                    DOM.modalNameError.classList.remove('hidden');
+                    DOM.modalNameInput.focus();
+                    return;
+                }
+                DOM.modalNameError.classList.add('hidden');
                 modalState.name = name;
                 modalState.step = 'phone';
                 DOM.modalStepName.classList.add('hidden');
@@ -1462,7 +1535,13 @@
                 setTimeout(() => DOM.modalPhoneInput.focus(), 100);
             } else if (modalState.step === 'phone') {
                 const phone = DOM.modalPhoneInput.value.trim();
-                if (!phone) { DOM.modalPhoneInput.focus(); return; }
+                const phoneRegex = /^0\d{1,2}-?\d{3,4}-?\d{4}$/;
+                if (!phone || !phoneRegex.test(phone)) {
+                    DOM.modalPhoneError.classList.remove('hidden');
+                    DOM.modalPhoneInput.focus();
+                    return;
+                }
+                DOM.modalPhoneError.classList.add('hidden');
                 modalState.phone = phone;
                 DOM.modalNext.textContent = '처리 중...';
                 DOM.modalNext.disabled = true;
@@ -1485,10 +1564,12 @@
                     });
                     if (!res.ok) throw new Error('API failed');
 
+                    markApplied(modalState.serviceName);
                     modalState.step = 'confirm';
                     DOM.modalStepPhone.classList.add('hidden');
                     DOM.modalStepConfirm.classList.remove('hidden');
-                    DOM.modalConfirmText.innerHTML = `<b>${modalState.name}</b>님, <b>${modalState.serviceName}</b> 담당 기관에 상담 요청을 보냈습니다.<br/>2~3일 내로 <b>${modalState.phone}</b>으로 연락드릴 예정입니다.<br/><span class="text-[10px] text-slate-400 mt-2 inline-block">잠시 후 처음 화면으로 돌아갑니다...</span>`;
+                    const escH = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+                    DOM.modalConfirmText.innerHTML = `<b>${escH(modalState.name)}</b>님, <b>${escH(modalState.serviceName)}</b> 담당 기관에 상담 요청을 보냈습니다.<br/>2~3일 내로 <b>${escH(modalState.phone)}</b>으로 연락드릴 예정입니다.<br/><span class="text-[10px] text-slate-500 mt-2 inline-block">잠시 후 처음 화면으로 돌아갑니다...</span>`;
                     DOM.modalNext.classList.add('hidden');
                     DOM.modalCancel.textContent = '닫기';
 
@@ -1647,6 +1728,7 @@
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
 
+            let voiceSubmitTimer = null;
             recognition.onresult = event => {
                 const text = event.results[0][0].transcript;
                 if (activeInput) {
@@ -1654,7 +1736,16 @@
                     activeInput.value = text;
                     activeInput.dispatchEvent(new Event('input'));
                     if (wasHeroInput) {
-                        setTimeout(() => handleHeroSubmit(), 300);
+                        // 확인 토스트(3초) 후 자동 제출 절충안
+                        if (voiceSubmitTimer) clearTimeout(voiceSubmitTimer);
+                        showToast(`"${text.length > 20 ? text.slice(0, 20) + '…' : text}" — 3초 후 검색합니다. 수정하려면 입력창을 클릭하세요.`);
+                        voiceSubmitTimer = setTimeout(() => { voiceSubmitTimer = null; handleHeroSubmit(); }, 3000);
+                        // 사용자가 입력창에 포커스하면 자동 제출 취소
+                        const cancelHandler = () => {
+                            if (voiceSubmitTimer) { clearTimeout(voiceSubmitTimer); voiceSubmitTimer = null; showToast('자동 검색이 취소되었습니다.'); }
+                            DOM.heroInput.removeEventListener('focus', cancelHandler);
+                        };
+                        DOM.heroInput.addEventListener('focus', cancelHandler);
                     }
                 }
             };
@@ -1678,6 +1769,15 @@
             recognition.onerror = event => {
                 console.warn('Speech recognition error:', event.error);
                 isRecognitionRunning = false;
+                const errorMessages = {
+                    'not-allowed': '마이크 사용 권한이 필요합니다. 브라우저 설정에서 마이크를 허용해 주세요.',
+                    'no-speech': '음성이 감지되지 않았습니다. 다시 말씀해 주세요.',
+                    'network': '네트워크 연결을 확인해 주세요.',
+                    'audio-capture': '마이크를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인해 주세요.',
+                    'aborted': null,
+                };
+                const msg = errorMessages[event.error];
+                if (msg) showToast(msg);
             };
 
             DOM.heroMic.addEventListener('click', e => { e.preventDefault(); startListening(DOM.heroInput, DOM.heroMic); });
@@ -1703,6 +1803,31 @@
             }
 
             // 플로팅 마이크는 첫 검색 후에만 표시 (초기에는 히어로 CTA 사용)
+
+            // ── TTS 토글 버튼 ──
+            const ttsToggle = $('tts-toggle');
+            if (ttsToggle) {
+                function updateTtsToggleUI() {
+                    const icon = ttsToggle.querySelector('.material-symbols-outlined');
+                    if (ttsEnabled) {
+                        icon.textContent = 'volume_up';
+                        ttsToggle.style.borderColor = '#98002E';
+                        ttsToggle.title = '음성 읽기 끄기';
+                    } else {
+                        icon.textContent = 'volume_off';
+                        ttsToggle.style.borderColor = '#d1d5db';
+                        ttsToggle.title = '음성 읽기 켜기';
+                    }
+                }
+                updateTtsToggleUI();
+                ttsToggle.addEventListener('click', () => {
+                    ttsEnabled = !ttsEnabled;
+                    localStorage.setItem(TTS_KEY, ttsEnabled);
+                    updateTtsToggleUI();
+                    if (!ttsEnabled && isSpeaking) stopSpeaking();
+                    showToast(ttsEnabled ? '음성 읽기가 켜졌습니다.' : '음성 읽기가 꺼졌습니다.');
+                });
+            }
         } else {
             DOM.heroMic.style.display = 'none';
         }
@@ -1979,6 +2104,54 @@
                 $('consent-modal').classList.add('hidden');
                 pendingBookmark = null;
             }
+        });
+
+        // ── 모달 포커스 트래핑 + ESC 닫기 ──
+        function trapFocus(modalEl) {
+            const focusable = modalEl.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            modalEl._trapHandler = e => {
+                if (e.key === 'Tab') {
+                    if (e.shiftKey) {
+                        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+                    } else {
+                        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+                    }
+                }
+            };
+            modalEl.addEventListener('keydown', modalEl._trapHandler);
+        }
+        function releaseFocus(modalEl) {
+            if (modalEl._trapHandler) {
+                modalEl.removeEventListener('keydown', modalEl._trapHandler);
+                delete modalEl._trapHandler;
+            }
+        }
+
+        // ESC 키로 모달 닫기
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Escape') return;
+            if (!DOM.serviceModal.classList.contains('hidden')) {
+                if (modalState.step === 'confirm') { resetToHome(); } else { DOM.serviceModal.classList.add('hidden'); }
+                releaseFocus(DOM.serviceModal);
+            } else if (!DOM.consentModal.classList.contains('hidden')) {
+                DOM.consentModal.classList.add('hidden');
+                pendingBookmark = null;
+                releaseFocus(DOM.consentModal);
+            }
+        });
+
+        // 모달 열릴 때 포커스 트래핑 활성화 (MutationObserver)
+        [DOM.serviceModal, DOM.consentModal].forEach(modal => {
+            new MutationObserver(() => {
+                if (!modal.classList.contains('hidden')) {
+                    trapFocus(modal);
+                } else {
+                    releaseFocus(modal);
+                }
+            }).observe(modal, { attributes: true, attributeFilter: ['class'] });
         });
 
         // ── Scroll-based Progressive Reveal ──

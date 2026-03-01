@@ -10,6 +10,8 @@ import { EdgeTTS } from '@andresaya/edge-tts';
 import nodemailer from 'nodemailer';
 import session from 'express-session';
 import crypto from 'crypto';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import * as requestStore from './data/requestStore.mjs';
 import * as analyticsStore from './data/analyticsStore.mjs';
 
@@ -18,11 +20,53 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app = express();
+
+// ── 보안 HTTP 헤더 (helmet) ──
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
+            imgSrc: ["'self'", "data:", "blob:"],
+            connectSrc: ["'self'"],
+            mediaSrc: ["'self'", "blob:"],
+            workerSrc: ["'self'", "blob:"],
+        },
+    },
+    crossOriginEmbedderPolicy: false,
+}));
+
 app.use(cors({
     origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : true,
     credentials: true,
 }));
 app.use(express.json({ limit: '1mb' }));
+
+// ── Rate Limiting ──
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.' },
+});
+const chatLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: '채팅 요청이 너무 빈번합니다. 1분 후 다시 시도해 주세요.' },
+});
+const ttsLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'TTS 요청이 너무 빈번합니다. 잠시 후 다시 시도해 주세요.' },
+});
+app.use('/api/', apiLimiter);
 
 // ── 세션 및 인증 ──
 app.use(session({
@@ -37,10 +81,49 @@ app.use(session({
     },
 }));
 
+// ── 일회성 토큰 저장소 (case.html 이메일 링크용) ──
+const caseTokens = new Map(); // token → { requestId, createdAt }
+const CASE_TOKEN_TTL = 72 * 60 * 60 * 1000; // 72시간
+
+function generateCaseToken(requestId) {
+    const token = crypto.randomBytes(32).toString('hex');
+    caseTokens.set(token, { requestId, createdAt: Date.now() });
+    return token;
+}
+
+function validateCaseToken(token, requestId) {
+    const entry = caseTokens.get(token);
+    if (!entry) return false;
+    if (Date.now() - entry.createdAt > CASE_TOKEN_TTL) {
+        caseTokens.delete(token);
+        return false;
+    }
+    return entry.requestId === requestId;
+}
+
+// 만료 토큰 정리 (1시간 간격)
+setInterval(() => {
+    const now = Date.now();
+    for (const [token, entry] of caseTokens) {
+        if (now - entry.createdAt > CASE_TOKEN_TTL) caseTokens.delete(token);
+    }
+}, 60 * 60 * 1000);
+
 // 인증 미들웨어
 function requireAuth(req, res, next) {
     if (req.session?.authenticated) return next();
     res.status(401).json({ error: '인증이 필요합니다. /api/auth/login으로 로그인하세요.' });
+}
+
+// case API 전용 인증: 세션 또는 토큰
+function requireCaseAuth(req, res, next) {
+    if (req.session?.authenticated) return next();
+    const token = req.query.token || req.headers['x-case-token'];
+    const requestId = req.params.requestId || req.params.id;
+    if (token && requestId && validateCaseToken(token, requestId)) {
+        return next();
+    }
+    res.status(401).json({ error: '인증이 필요합니다. 이메일 링크를 통해 접근하거나 로그인하세요.' });
 }
 
 // 로그인 API
@@ -182,6 +265,14 @@ const synonymMap = {
     '기기': ['보조기기', '장애인보조기기', '댁내장비'],
     '보조기기': ['보조기기', '장애인보조기기', '기기대여'],
     '안심': ['응급안전안심', '안부확인', '고독사예방'],
+    // Phase 2 보강: 누락 키워드
+    '먹': ['가사지원', '일상돌봄', '식사'],
+    '돈': ['긴급생활지원', '생활지원', '경제적지원'],
+    '가난': ['긴급생활지원', '생활지원', '수급자'],
+    '재활': ['직업재활', '재활서비스', '장애인복지'],
+    '상담': ['상담지원', '돌봄', '복지상담'],
+    '컨설팅': ['상담지원', '사례관리', '복지상담'],
+    '이동': ['이동지원', '활동지원', '장애인복지'],
 };
 
 // ── 부서별 사업 프로파일 및 배정 근거 ──
@@ -474,7 +565,7 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.use('/.well-known', (req, res) => res.status(200).end());
 
 // Noma 챗봇 API (대국민 복지 상담 전용)
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', chatLimiter, async (req, res) => {
     const { messages, systemPrompt, pageContext } = req.body;
     if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ error: "messages array required" });
@@ -482,11 +573,12 @@ app.post('/api/chat', async (req, res) => {
     const lastUserMessage = messages[messages.length - 1]?.content || "";
 
     // RAG: Search relevant services (한국어 조사 제거 + 복합어 분해 + 유의어 확장 + 관련도 스코어링)
-    const rawWords = lastUserMessage.split(/[\s,?!.]+/).filter(w => w.length > 1);
+    const rawWords = lastUserMessage.split(/[\s,?!.]+/).filter(w => w.length > 0);
+    const strippedWords = rawWords.map(w => stripKoreanSuffixes(w));
     const searchTerms = [...new Set([
-        ...rawWords.map(w => stripKoreanSuffixes(w)).filter(w => w.length > 1),
+        ...strippedWords.filter(w => w.length > 1 || synonymMap[w]),
         // 어미 제거로 사라진 단어 중 synonymMap에 있는 원형 복구 (예: "아이" → "아"로 잘못 제거 방지)
-        ...rawWords.filter(w => synonymMap[w] && !rawWords.map(r => stripKoreanSuffixes(r)).filter(r => r.length > 1).includes(w))
+        ...rawWords.filter(w => synonymMap[w] && !strippedWords.filter(r => r.length > 1 || synonymMap[r]).includes(w))
     ])];
 
     // 유의어/개념 확장: 일상어 → 지식베이스 키워드
@@ -833,6 +925,11 @@ const emailTransporter = nodemailer.createTransport({
 // 수신자 주소 — .env의 EMAIL_RECIPIENT 환경변수로 관리
 const DEV_RECIPIENT = process.env.EMAIL_RECIPIENT || 'admin@example.com';
 
+// 이메일 헤더 인젝션 방어 (줄바꿈 제거)
+function sanitizeEmailHeader(str) {
+    return String(str).replace(/[\r\n]/g, ' ').trim();
+}
+
 // ── 대화 요약 생성 (Gemini 비스트리밍 호출) ──
 async function summarizeChatHistory(chatHistory) {
     if (!chatHistory || chatHistory.length < 2) return null;
@@ -945,6 +1042,21 @@ ${conversationText.slice(0, 2000)}
 app.post('/api/service-request/connect', async (req, res) => {
     const { serviceName, userName, userPhone, chatHistory } = req.body;
 
+    // 입력 검증
+    if (!serviceName || !String(serviceName).trim()) {
+        return res.status(400).json({ error: '서비스명은 필수입니다.' });
+    }
+    if (!userName || !String(userName).trim()) {
+        return res.status(400).json({ error: '성함은 필수입니다.' });
+    }
+    if (!userPhone || !String(userPhone).trim()) {
+        return res.status(400).json({ error: '전화번호는 필수입니다.' });
+    }
+    const phoneRegex = /^0\d{1,2}-?\d{3,4}-?\d{4}$/;
+    if (!phoneRegex.test(String(userPhone).trim())) {
+        return res.status(400).json({ error: '올바른 전화번호 형식이 아닙니다. (예: 010-1234-5678)' });
+    }
+
     // 디버그: 수신 데이터 확인
     console.log('[수신 데이터]', JSON.stringify({ serviceName, userName, userPhone, chatHistoryLength: chatHistory?.length || 0 }));
 
@@ -982,9 +1094,10 @@ app.post('/api/service-request/connect', async (req, res) => {
         assignedDept: deptInfo ? { name: deptInfo.dept, id: deptInfo.deptId, phone: deptInfo.phone } : null,
     });
 
-    const subject = `[상담 신청] ${serviceName} - 노마 AI 복지 내비게이터`;
-    const caseUrl = `${BASE_URL}/case/${requestId}`;
-    const referralUrl = `${BASE_URL}/referral/${requestId}`;
+    const subject = sanitizeEmailHeader(`[상담 신청] ${serviceName} - 노마 AI 복지 내비게이터`);
+    const caseToken = generateCaseToken(requestId);
+    const caseUrl = `${BASE_URL}/case/${requestId}?token=${caseToken}`;
+    const referralUrl = `${BASE_URL}/referral/${requestId}?token=${caseToken}`;
     const htmlContent = buildServiceRequestEmailHTML({ serviceName, userName, userPhone, now, caseUrl, referralUrl, conversationSummary, assignmentRationale, deptInfo });
 
     try {
@@ -1118,9 +1231,11 @@ app.post('/api/referral/:requestId/send', async (req, res) => {
 });
 
 // 연계 이메일 HTML 빌더
-function buildReferralEmailHTML({ request, targetService, reason, newRequestId, chain }) {
-    const caseUrl = `${BASE_URL}/case/${newRequestId}`;
-    const referralUrl = `${BASE_URL}/referral/${newRequestId}`;
+function buildReferralEmailHTML({ request, targetService, reason, newRequestId, chain, caseToken }) {
+    const esc = (str) => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const tokenQuery = caseToken ? `?token=${caseToken}` : '';
+    const caseUrl = `${BASE_URL}/case/${newRequestId}${tokenQuery}`;
+    const referralUrl = `${BASE_URL}/referral/${newRequestId}${tokenQuery}`;
 
     // 연계 경로 HTML 생성 (chain이 2건 이상이면 거쳐간 기관 표시)
     let chainHTML = '';
@@ -1135,7 +1250,7 @@ function buildReferralEmailHTML({ request, targetService, reason, newRequestId, 
             return '<div style="display:flex;align-items:center;gap:8px;">' +
                 (i > 0 ? '<div style="color:#999;font-size:18px;margin:0 4px;">&#8594;</div>' : '') +
                 '<div style="padding:8px 14px;background:' + bg + ';border:' + border + ';border-radius:8px;font-size:13px;color:' + color + ';font-weight:' + (isCurrent ? 'bold' : 'normal') + ';">' +
-                c.serviceName +
+                esc(c.serviceName) +
                 '<span style="margin-left:6px;font-size:11px;color:' + statusColor + ';">(' + statusLabel + ')</span>' +
                 '</div></div>';
         }).join('');
@@ -1144,7 +1259,7 @@ function buildReferralEmailHTML({ request, targetService, reason, newRequestId, 
         const targetStep = '<div style="display:flex;align-items:center;gap:8px;">' +
             '<div style="color:#999;font-size:18px;margin:0 4px;">&#8594;</div>' +
             '<div style="padding:8px 14px;background:#E8F5E9;border:2px solid #2E7D32;border-radius:8px;font-size:13px;color:#1B5E20;font-weight:bold;">' +
-            targetService +
+            esc(targetService) +
             '<span style="margin-left:6px;font-size:11px;color:#2E7D32;">(현재)</span>' +
             '</div></div>';
 
@@ -1170,23 +1285,23 @@ function buildReferralEmailHTML({ request, targetService, reason, newRequestId, 
         // 연계 사유 배너 (주황색)
         '<div style="margin-bottom:24px;padding:16px;background:#FFF3E0;border-left:4px solid #FF9800;border-radius:4px;">',
         '<p style="margin:0 0 4px;font-size:13px;color:#E65100;font-weight:bold;">연계 사유</p>',
-        '<p style="margin:0;font-size:14px;color:#333;">' + reason + '</p>',
+        '<p style="margin:0;font-size:14px;color:#333;">' + esc(reason) + '</p>',
         '</div>',
         // 연계 대상 서비스
         '<div style="margin-bottom:20px;padding:14px;background:#E3F2FD;border-radius:8px;">',
         '<p style="margin:0;font-size:13px;color:#1565C0;">연계 대상 서비스</p>',
-        '<p style="margin:6px 0 0;font-size:17px;font-weight:bold;color:#0D47A1;">' + targetService + '</p>',
+        '<p style="margin:6px 0 0;font-size:17px;font-weight:bold;color:#0D47A1;">' + esc(targetService) + '</p>',
         '</div>',
         // 연계 경로 (거쳐간 모든 기관)
         chainHTML,
         // 원래 요청 정보
         '<p style="font-size:13px;color:#666;margin-bottom:8px;">신청자 정보</p>',
         '<table style="width:100%;border-collapse:collapse;font-size:14px;">',
-        '<tr><td style="padding:8px 0;color:#666;width:110px;">최초 신청 서비스</td><td style="padding:8px 0;font-weight:bold;">' + (chain && chain.length > 0 ? chain[0].serviceName : request.serviceName) + '</td></tr>',
-        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">직전 연계 서비스</td><td style="padding:8px 0;font-weight:bold;">' + request.serviceName + '</td></tr>',
-        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">신청자 성함</td><td style="padding:8px 0;font-weight:bold;">' + request.userName + '</td></tr>',
-        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">연락처</td><td style="padding:8px 0;font-weight:bold;">' + request.userPhone + '</td></tr>',
-        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">최초 접수 일시</td><td style="padding:8px 0;">' + (chain && chain.length > 0 ? (chain[0].createdAt || request.createdAt) : request.createdAt) + '</td></tr>',
+        '<tr><td style="padding:8px 0;color:#666;width:110px;">최초 신청 서비스</td><td style="padding:8px 0;font-weight:bold;">' + esc(chain && chain.length > 0 ? chain[0].serviceName : request.serviceName) + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">직전 연계 서비스</td><td style="padding:8px 0;font-weight:bold;">' + esc(request.serviceName) + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">신청자 성함</td><td style="padding:8px 0;font-weight:bold;">' + esc(request.userName) + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">연락처</td><td style="padding:8px 0;font-weight:bold;">' + esc(request.userPhone) + '</td></tr>',
+        '<tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;color:#666;">최초 접수 일시</td><td style="padding:8px 0;">' + esc(chain && chain.length > 0 ? (chain[0].createdAt || request.createdAt) : request.createdAt) + '</td></tr>',
         '</table>',
         // 상담 처리 버튼 (메인 CTA)
         '<div style="margin-top:28px;text-align:center;">',
@@ -1219,13 +1334,15 @@ async function synthesizeTTS(text, retries = 2) {
     return null;
 }
 
-app.post('/api/tts', async (req, res) => {
+app.post('/api/tts', ttsLimiter, async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'text required' });
+    const MAX_TTS_LENGTH = 500;
+    const ttsText = String(text).slice(0, MAX_TTS_LENGTH);
     analyticsStore.track('tts_request');
 
     try {
-        const audioBase64 = await synthesizeTTS(text);
+        const audioBase64 = await synthesizeTTS(ttsText);
         if (audioBase64) {
             res.json({ audioContent: audioBase64 });
         } else {
@@ -1239,7 +1356,7 @@ app.post('/api/tts', async (req, res) => {
 
 // ── 보호된 API 인증 적용 ──
 // case 페이지: 이메일 링크에서 접근하므로 토큰 기반 또는 세션 인증
-app.use('/api/case', requireAuth);
+app.use('/api/case', requireCaseAuth);
 app.use('/api/dept', requireAuth);
 app.use('/api/admin', requireAuth);
 app.use('/api/staff', requireAuth);
@@ -1733,26 +1850,29 @@ app.post('/api/admin/linkage/:lid/approve', async (req, res) => {
     }
 
     // 3. 이메일 발송
-    const caseUrl = `${BASE_URL}/case/${targetReq.id}`;
+    const emailCaseToken = generateCaseToken(targetReq.id);
+    const caseUrl = `${BASE_URL}/case/${targetReq.id}?token=${emailCaseToken}`;
     let subject, html;
 
     if (targetLinkage.category === 'referral') {
         const chain = requestStore.getReferralChain(targetReq.id);
         const refreshedLinkage = requestStore.findById(targetReq.id)?.linkages?.find(l => l.id === req.params.lid);
         const newRequestId = refreshedLinkage?.newRequestId;
-        subject = `[서비스 연계] ${targetLinkage.targetService} ← ${targetReq.serviceName} - 노마 AI`;
+        const refToken = newRequestId ? generateCaseToken(newRequestId) : emailCaseToken;
+        subject = sanitizeEmailHeader(`[서비스 연계] ${targetLinkage.targetService} ← ${targetReq.serviceName} - 노마 AI`);
         html = buildReferralEmailHTML({
             request: targetReq,
             targetService: targetLinkage.targetService,
             reason: targetLinkage.reason,
             newRequestId: newRequestId || null,
             chain,
+            caseToken: refToken,
         });
     } else {
         const fromDeptName = getDeptName(targetLinkage.fromDept);
         const toDeptName = getDeptName(targetLinkage.toDept);
         const typeName = COLLAB_TYPE_NAMES[targetLinkage.type] || '자문 요청';
-        subject = `[협업 요청] ${typeName} - ${fromDeptName} → ${toDeptName}`;
+        subject = sanitizeEmailHeader(`[협업 요청] ${typeName} - ${fromDeptName} → ${toDeptName}`);
         html = buildCollaborationEmailHTML({
             request: targetReq, collab: targetLinkage,
             fromDeptName, toDeptName, typeName, caseUrl,
@@ -1775,7 +1895,7 @@ app.post('/api/admin/linkage/:lid/approve', async (req, res) => {
     } catch (err) {
         console.error('[승인 후 이메일 발송 실패]', err.message);
         // 승인은 됐지만 이메일 실패
-        requestStore.updateLinkage(targetReq.id, req.params.lid, { executionStatus: 'email_sent' });
+        requestStore.updateLinkage(targetReq.id, req.params.lid, { executionStatus: 'email_failed' });
         res.json({ success: true, emailError: true, linkage });
     }
 });
@@ -2016,4 +2136,13 @@ process.on('uncaughtException', (err) => {
 
 app.listen(PORT, () => {
     console.log(`Noma API Server running on http://localhost:${PORT}`);
+
+    // SMTP 연결 검증
+    if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+        emailTransporter.verify()
+            .then(() => console.log('[SMTP] 메일 서버 연결 확인 완료'))
+            .catch(err => console.error('[SMTP] 메일 서버 연결 실패:', err.message));
+    } else {
+        console.warn('[SMTP] SMTP_USER 또는 SMTP_PASSWORD 환경변수가 설정되지 않았습니다.');
+    }
 });
