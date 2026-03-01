@@ -739,6 +739,24 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         });
     }
 
+    // SSE 연결 상태 추적 및 타임아웃
+    let clientDisconnected = false;
+    const SSE_TIMEOUT_MS = 120000; // 2분 타임아웃
+
+    const sseTimeout = setTimeout(() => {
+        if (!clientDisconnected) {
+            console.warn('[Chat] SSE 연결 타임아웃 (120초)');
+            clientDisconnected = true;
+            try { res.end(); } catch (_) {}
+        }
+    }, SSE_TIMEOUT_MS);
+
+    req.on('close', () => {
+        clientDisconnected = true;
+        clearTimeout(sseTimeout);
+        console.log('[Chat] 클라이언트 연결 끊김 감지');
+    });
+
     try {
         res.writeHead(200, {
             'Content-Type': 'text/event-stream; charset=utf-8',
@@ -762,7 +780,9 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
             fillerText = '혼자 계시면 걱정되시죠. 도움될 수 있는 서비스를 찾아볼게요...';
         }
 
-        res.write(`data: ${JSON.stringify({ type: 'filler', text: fillerText })}\n\n`);
+        if (!clientDisconnected) {
+            res.write(`data: ${JSON.stringify({ type: 'filler', text: fillerText })}\n\n`);
+        }
 
         const defaultSystemPrompt = `당신은 경상남도사회서비스원의 AI 맞춤형 복지 내비게이터 '노마(Noma)'입니다.
 도민의 어려움을 듣고, 가장 적합한 복지 서비스를 친절하게 안내하는 것이 당신의 유일한 역할입니다.
@@ -933,6 +953,7 @@ ${deptProfiles}`;
 
                 let accumulatedResponse = '';
                 for await (const chunk of responseStream) {
+                    if (clientDisconnected) break;
                     if (chunk.text) {
                         accumulatedResponse += chunk.text;
                         // 응답에 시스템 프롬프트 노출 감지 시 경고 로그 (스트리밍은 이미 전송되므로 로그만)
@@ -945,8 +966,11 @@ ${deptProfiles}`;
                     console.warn('[Security] 응답에서 시스템 프롬프트 노출 패턴 감지됨');
                 }
 
-                res.write(`data: [DONE]\n\n`);
-                res.end();
+                clearTimeout(sseTimeout);
+                if (!clientDisconnected) {
+                    res.write(`data: [DONE]\n\n`);
+                    res.end();
+                }
                 return; // 성공 시 종료
             } catch (e) {
                 lastError = e;
@@ -961,20 +985,32 @@ ${deptProfiles}`;
         }
 
         // 모든 시도 실패
+        clearTimeout(sseTimeout);
         const errMsg = lastError?.message || '';
         console.error("Chat Error:", errMsg);
-        const is429 = errMsg.includes('429');
-        const userMsg = is429
-            ? "요청이 너무 많아 잠시 제한되었습니다. 10초 후 다시 시도해 주세요."
-            : "AI 응답 중 오류가 발생했습니다.";
-        res.write(`data: ${JSON.stringify({ type: 'error', error: userMsg })}\n\n`);
-        res.write(`data: [DONE]\n\n`);
-        res.end();
+        if (!clientDisconnected) {
+            const is429 = errMsg.includes('429');
+            const userMsg = is429
+                ? "요청이 너무 많아 잠시 제한되었습니다. 10초 후 다시 시도해 주세요."
+                : "AI 응답 중 오류가 발생했습니다.";
+            res.write(`data: ${JSON.stringify({ type: 'error', error: userMsg })}\n\n`);
+            res.write(`data: [DONE]\n\n`);
+            res.end();
+        }
     } catch (e) {
+        clearTimeout(sseTimeout);
+        if (clientDisconnected) {
+            console.log('[Chat] 스트리밍 중단됨 (클라이언트 연결 끊김 또는 타임아웃)');
+            return;
+        }
         console.error("Chat Fatal Error:", e.message);
-        res.write(`data: ${JSON.stringify({ type: 'error', error: "AI 응답 중 오류가 발생했습니다." })}\n\n`);
-        res.write(`data: [DONE]\n\n`);
-        res.end();
+        if (!clientDisconnected) {
+            try {
+                res.write(`data: ${JSON.stringify({ type: 'error', error: "AI 응답 중 오류가 발생했습니다." })}\n\n`);
+                res.write(`data: [DONE]\n\n`);
+                res.end();
+            } catch (_) {}
+        }
     }
 });
 
@@ -1628,6 +1664,24 @@ ${kbSummary}
 ${deptProfiles}
 ${caseContext}`;
 
+    // SSE 연결 상태 추적 및 타임아웃
+    let clientDisconnected = false;
+    const SSE_TIMEOUT_MS = 120000; // 2분 타임아웃
+
+    const sseTimeout = setTimeout(() => {
+        if (!clientDisconnected) {
+            console.warn('[Staff Chat] SSE 연결 타임아웃 (120초)');
+            clientDisconnected = true;
+            try { res.end(); } catch (_) {}
+        }
+    }, SSE_TIMEOUT_MS);
+
+    req.on('close', () => {
+        clientDisconnected = true;
+        clearTimeout(sseTimeout);
+        console.log('[Staff Chat] 클라이언트 연결 끊김 감지');
+    });
+
     try {
         res.writeHead(200, {
             'Content-Type': 'text/event-stream; charset=utf-8',
@@ -1649,14 +1703,23 @@ ${caseContext}`;
                 });
 
                 for await (const chunk of responseStream) {
+                    if (clientDisconnected) break;
                     if (chunk.text) {
                         res.write(`data: ${JSON.stringify({ type: 'stream', text: chunk.text })}\n\n`);
                     }
                 }
-                res.write(`data: [DONE]\n\n`);
-                res.end();
+                clearTimeout(sseTimeout);
+                if (!clientDisconnected) {
+                    res.write(`data: [DONE]\n\n`);
+                    res.end();
+                }
                 return;
             } catch (e) {
+                if (clientDisconnected) {
+                    clearTimeout(sseTimeout);
+                    console.log('[Staff Chat] 스트리밍 중단됨 (클라이언트 연결 끊김 또는 타임아웃)');
+                    return;
+                }
                 if (e.message?.includes('429') && attempt < 2) {
                     await new Promise(r => setTimeout(r, 3000));
                     continue;
@@ -1665,10 +1728,19 @@ ${caseContext}`;
             }
         }
     } catch (e) {
+        clearTimeout(sseTimeout);
+        if (clientDisconnected) {
+            console.log('[Staff Chat] 스트리밍 중단됨 (클라이언트 연결 끊김 또는 타임아웃)');
+            return;
+        }
         console.error('[Staff Chat Error]', e.message);
-        res.write(`data: ${JSON.stringify({ type: 'error', error: 'AI 응답 중 오류가 발생했습니다.' })}\n\n`);
-        res.write(`data: [DONE]\n\n`);
-        res.end();
+        if (!clientDisconnected) {
+            try {
+                res.write(`data: ${JSON.stringify({ type: 'error', error: 'AI 응답 중 오류가 발생했습니다.' })}\n\n`);
+                res.write(`data: [DONE]\n\n`);
+                res.end();
+            } catch (_) {}
+        }
     }
 });
 

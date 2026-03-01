@@ -233,7 +233,7 @@
 
             /* 카드 서비스명 24px, summary 숨김 */
             #cards-grid h3 { font-size: 24px; }
-            #cards-grid .text-slate-500.text-\[13px\] { display: none; }
+            #cards-grid .card-summary { display: none; }
 
             /* CTA 버튼 확대 20px */
             .btn-apply {
@@ -426,6 +426,7 @@
                     <input id="hero-input"
                                 aria-label="어떤 도움이 필요하신가요? 복지 서비스를 검색하세요"
                                 autocomplete="off"
+                                inputmode="search"
                                 class="w-full h-full bg-transparent border-none text-slate-800 placeholder:text-slate-400 text-lg md:text-lg px-4 md:px-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                                 placeholder="예: 퇴원 후 당장 돌봐줄 사람이 없어요" />
                             <button id="hero-submit"
@@ -465,7 +466,7 @@
                             <span class="material-symbols-outlined text-white text-xl" aria-hidden="true">smart_toy</span>
                         </div>
                         <div class="flex-1">
-                            <p class="text-xs font-bold text-primary mb-1.5">노마(Noma) AI 분석 결과</p>
+                            <p class="text-sm font-bold text-primary mb-1.5">노마(Noma) AI 분석 결과</p>
                             <div id="ai-summary-text" class="bg-white rounded-2xl rounded-tl-md px-5 py-4 shadow-sm border border-stone-200 text-[15px] text-slate-700 leading-relaxed break-keep"></div>
                         </div>
                     </div>
@@ -671,15 +672,15 @@
         <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
                 <h5 class="font-bold text-slate-800 mb-1.5 text-sm">경상남도사회서비스원</h5>
-                <p class="text-xs text-slate-500 leading-relaxed">
+                <p class="text-sm text-slate-500 leading-relaxed">
                     경상남도 창원시 성산구 창원대로 524 경남사회적경제혁신타운 본관동 2층<br/>
                     대표전화: 055-230-8200
                 </p>
             </div>
             <div class="flex gap-5">
-                <a class="text-xs text-slate-500 hover:text-primary" href="#">개인정보처리방침</a>
-                <a class="text-xs text-slate-500 hover:text-primary" href="#">이용약관</a>
-                <a class="text-xs text-slate-500 hover:text-primary" href="#">사이트맵</a>
+                <a class="text-sm text-slate-500 hover:text-primary" href="#">개인정보처리방침</a>
+                <a class="text-sm text-slate-500 hover:text-primary" href="#">이용약관</a>
+                <a class="text-sm text-slate-500 hover:text-primary" href="#">사이트맵</a>
             </div>
         </div>
     </footer>
@@ -766,7 +767,7 @@
             <div class="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
                 <div id="modal-step-name">
                     <label for="modal-name-input" class="block text-sm font-semibold text-slate-700 mb-2">성함을 입력해 주세요</label>
-                    <input id="modal-name-input" type="text" autocomplete="name" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="홍길동" />
+                    <input id="modal-name-input" type="text" inputmode="text" autocomplete="name" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="홍길동" />
                     <p id="modal-name-error" class="hidden text-xs text-red-500 mt-1.5" role="alert" aria-live="assertive">성함을 입력해 주세요.</p>
                 </div>
                 <div id="modal-step-phone" class="hidden">
@@ -958,7 +959,7 @@
                             <span class="material-symbols-outlined step-chevron text-stone-400 ml-auto" aria-hidden="true">expand_more</span>
                         </div>
                         <div class="step-body${isFirst ? ' open' : ''}">
-                            <div class="text-slate-600 text-[13px] leading-relaxed break-keep pl-0.5">
+                            <div class="text-slate-600 text-sm leading-relaxed break-keep pl-0.5">
                                 ${step.isContact ? linkifyPhone(step.content) : step.content}
                             </div>
                         </div>
@@ -985,7 +986,7 @@
                     </button>
                 </div>
                 <h3 class="text-lg font-bold text-slate-800 mb-1 relative z-10 break-keep">${data.serviceName || ''}</h3>
-                <p class="text-slate-500 text-[13px] mb-4 leading-relaxed relative z-10 break-keep">${data.summary || ''}</p>
+                <p class="card-summary text-slate-500 text-sm mb-4 leading-relaxed relative z-10 break-keep">${data.summary || ''}</p>
 
                 <div class="stepper relative z-10 mb-4">
                     ${stepsHTML}
@@ -997,7 +998,7 @@
                         이 서비스 상담 신청
                         <span class="material-symbols-outlined text-base" aria-hidden="true">arrow_outward</span>
                     </button>
-                    <p class="card-disclaimer text-[10px] text-slate-400 text-center mt-2 leading-snug">버튼을 누르면 담당 기관에 정보가 전달되며,<br/>2~3일 내 전화 연락드립니다.</p>
+                    <p class="card-disclaimer text-xs text-slate-400 text-center mt-2 leading-snug">버튼을 누르면 담당 기관에 정보가 전달되며,<br/>2~3일 내 전화 연락드립니다.</p>
                 </div>
             `;
             return card;
@@ -1061,7 +1062,7 @@
                             <div class="flex items-start justify-between gap-3">
                                 <div class="flex-1 min-w-0">
                                     <h4 class="font-bold text-slate-800 text-[15px] mb-1.5 group-hover:text-primary transition-colors break-keep">${s.name}</h4>
-                                    <p class="text-xs text-slate-500 leading-relaxed line-clamp-2 break-keep">${s.summary}</p>
+                                    <p class="text-sm text-slate-500 leading-relaxed line-clamp-2 break-keep">${s.summary}</p>
                                 </div>
                                 <div class="flex items-center gap-1 flex-shrink-0">
                                     <button class="browse-bookmark p-1 rounded text-stone-300 hover:text-primary transition-colors" data-service-name="${s.name}" data-summary="${(s.summary || '').replace(/"/g, '&quot;')}" data-agency="${(s.agency || '').replace(/"/g, '&quot;')}" title="내 서랍에 담기" onclick="event.stopPropagation()">
@@ -1072,15 +1073,15 @@
                             </div>
                             <!-- Expandable Detail -->
                             <div class="browse-detail hidden mt-4 pt-4 border-t border-stone-100 space-y-3 text-sm">
-                                ${s.target ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">group</span><div><span class="font-semibold text-slate-700">지원 대상</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.target}</p></div></div>` : ''}
-                                ${s.benefits ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">featured_seasonal_and_gifts</span><div><span class="font-semibold text-slate-700">지원 내용</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.benefits}</p></div></div>` : ''}
-                                ${s.method ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">edit_document</span><div><span class="font-semibold text-slate-700">신청 방법</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.method}</p></div></div>` : ''}
-                                ${s.agency ? `<p class="text-[11px] text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-xs" aria-hidden="true">account_balance</span>담당: ${s.agency}</p>` : ''}
+                                ${s.target ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">group</span><div><span class="font-semibold text-slate-700">지원 대상</span><p class="text-slate-500 text-sm mt-0.5 leading-relaxed break-keep">${s.target}</p></div></div>` : ''}
+                                ${s.benefits ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">featured_seasonal_and_gifts</span><div><span class="font-semibold text-slate-700">지원 내용</span><p class="text-slate-500 text-sm mt-0.5 leading-relaxed break-keep">${s.benefits}</p></div></div>` : ''}
+                                ${s.method ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">edit_document</span><div><span class="font-semibold text-slate-700">신청 방법</span><p class="text-slate-500 text-sm mt-0.5 leading-relaxed break-keep">${s.method}</p></div></div>` : ''}
+                                ${s.agency ? `<p class="text-xs text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-xs" aria-hidden="true">account_balance</span>담당: ${s.agency}</p>` : ''}
                                 <button class="browse-apply w-full bg-primary hover:bg-primary-light text-white font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm mt-2" data-service="${s.name}">
                                     이 사업 상담 신청하기
                                     <span class="material-symbols-outlined text-base" aria-hidden="true">arrow_outward</span>
                                 </button>
-                                <p class="text-[10px] text-slate-400 text-center leading-snug">버튼을 누르시면 담당 기관에 이메일로 정보가 전달되며,<br/>2~3일 내로 전화 연락을 드릴 예정입니다.</p>
+                                <p class="text-xs text-slate-400 text-center leading-snug">버튼을 누르시면 담당 기관에 이메일로 정보가 전달되며,<br/>2~3일 내로 전화 연락을 드릴 예정입니다.</p>
                             </div>
                         </div>
                     `).join('')}
@@ -1705,7 +1706,7 @@
                     DOM.modalStepConfirm.classList.remove('hidden');
                     updateModalStepper('confirm');
                     const escH = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
-                    DOM.modalConfirmText.innerHTML = `<b>${escH(modalState.name)}</b>님, <b>${escH(modalState.serviceName)}</b> 담당 기관에 상담 요청을 보냈습니다.<br/>2~3일 내로 <b>${escH(modalState.phone)}</b>으로 연락드릴 예정입니다.<br/><span class="text-[10px] text-slate-500 mt-2 inline-block">잠시 후 처음 화면으로 돌아갑니다...</span>`;
+                    DOM.modalConfirmText.innerHTML = `<b>${escH(modalState.name)}</b>님, <b>${escH(modalState.serviceName)}</b> 담당 기관에 상담 요청을 보냈습니다.<br/>2~3일 내로 <b>${escH(modalState.phone)}</b>으로 연락드릴 예정입니다.<br/><span class="text-xs text-slate-500 mt-2 inline-block">잠시 후 처음 화면으로 돌아갑니다...</span>`;
                     DOM.modalNext.classList.add('hidden');
                     DOM.modalCancel.textContent = '닫기';
 
@@ -2131,7 +2132,7 @@
                         <div class="flex-1 min-w-0">
                             <h4 class="font-bold text-slate-800 text-sm mb-1 break-keep">${item.serviceName}</h4>
                             <p class="text-xs text-slate-500 leading-relaxed break-keep line-clamp-2">${item.summary}</p>
-                            ${item.agency ? `<p class="text-[10px] text-slate-400 mt-1.5 flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]" aria-hidden="true">account_balance</span>${item.agency}</p>` : ''}
+                            ${item.agency ? `<p class="text-xs text-slate-400 mt-1.5 flex items-center gap-0.5"><span class="material-symbols-outlined text-xs" aria-hidden="true">account_balance</span>${item.agency}</p>` : ''}
                         </div>
                         <div class="flex flex-col gap-1 flex-shrink-0">
                             <button class="drawer-item-apply p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors" data-service="${item.serviceName}" title="상담 신청">
