@@ -9,6 +9,85 @@ const DATA_FILE = path.join(__dirname, 'requests.json');
 
 const BACKUP_FILE = DATA_FILE + '.bak';
 
+// ── PII 암호화 (AES-256-GCM) ──
+const PII_FIELDS = ['userName', 'userPhone'];
+const ENCRYPTION_ALGO = 'aes-256-gcm';
+let _encryptionKey = null;
+
+function getEncryptionKey() {
+    if (_encryptionKey !== null) return _encryptionKey;
+    const keyHex = process.env.ENCRYPTION_KEY;
+    if (!keyHex || keyHex.length !== 64) {
+        if (!keyHex) {
+            console.warn('[PII] ENCRYPTION_KEY 환경변수 미설정 — 개인정보가 평문으로 저장됩니다.');
+        } else {
+            console.warn('[PII] ENCRYPTION_KEY는 64자리 hex 문자열이어야 합니다 — 평문 저장.');
+        }
+        _encryptionKey = false;
+        return false;
+    }
+    _encryptionKey = Buffer.from(keyHex, 'hex');
+    return _encryptionKey;
+}
+
+function encryptField(value) {
+    const key = getEncryptionKey();
+    if (!key || typeof value !== 'string') return value;
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv(ENCRYPTION_ALGO, key, iv);
+    let encrypted = cipher.update(value, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    const tag = cipher.getAuthTag().toString('hex');
+    return `enc:${iv.toString('hex')}:${tag}:${encrypted}`;
+}
+
+function decryptField(value) {
+    const key = getEncryptionKey();
+    if (!key || typeof value !== 'string' || !value.startsWith('enc:')) return value;
+    try {
+        const [, ivHex, tagHex, encrypted] = value.split(':');
+        const decipher = crypto.createDecipheriv(ENCRYPTION_ALGO, key, Buffer.from(ivHex, 'hex'));
+        decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+    } catch {
+        return value;
+    }
+}
+
+function decryptRequest(req) {
+    if (!req || !getEncryptionKey()) return req;
+    for (const field of PII_FIELDS) {
+        if (req[field]) req[field] = decryptField(req[field]);
+    }
+    return req;
+}
+
+function encryptRequestCopy(req) {
+    if (!req || !getEncryptionKey()) return req;
+    const copy = { ...req };
+    for (const field of PII_FIELDS) {
+        if (copy[field]) copy[field] = encryptField(copy[field]);
+    }
+    return copy;
+}
+
+function decryptStore(store) {
+    for (const id of Object.keys(store)) {
+        decryptRequest(store[id]);
+    }
+    return store;
+}
+
+function encryptStoreForWrite(store) {
+    const out = {};
+    for (const id of Object.keys(store)) {
+        out[id] = encryptRequestCopy(store[id]);
+    }
+    return out;
+}
+
 // ── 인메모리 캐시 (mtime 기반) ──
 let _cache = null;
 let _cacheMtime = 0;
@@ -22,6 +101,7 @@ function readAll() {
                 return _cache;
             }
             const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+            decryptStore(data);
             _cache = data;
             _cacheMtime = mtime;
             return data;
@@ -34,6 +114,7 @@ function readAll() {
                 const backup = JSON.parse(fs.readFileSync(BACKUP_FILE, 'utf-8'));
                 console.warn('[DATA RECOVERY] 백업에서 복구 성공');
                 fs.writeFileSync(DATA_FILE, JSON.stringify(backup, null, 2), 'utf-8');
+                decryptStore(backup);
                 _cache = backup;
                 _cacheMtime = Date.now();
                 return backup;
@@ -50,7 +131,8 @@ function readAll() {
 }
 
 function writeAll(data) {
-    const json = JSON.stringify(data, null, 2);
+    const dataForDisk = encryptStoreForWrite(data);
+    const json = JSON.stringify(dataForDisk, null, 2);
     // 1. 기존 파일을 백업
     if (fs.existsSync(DATA_FILE)) {
         try { fs.copyFileSync(DATA_FILE, BACKUP_FILE); } catch {}
@@ -361,6 +443,17 @@ export function deptResubmitLinkage(requestId, linkageId, comment) {
     return linkage;
 }
 
+// 유효한 approvalStatus 전이 맵
+const APPROVAL_TRANSITIONS = {
+    'pending': ['dept_approved', 'rejected', 'revision_requested'],
+    'dept_approved': ['approved', 'admin_rejected', 'admin_revision_requested'],
+    'revision_requested': ['pending'],
+    'rejected': [],
+    'approved': [],
+    'admin_rejected': ['dept_approved'],
+    'admin_revision_requested': ['dept_approved'],
+};
+
 /** 연계 상태 변경 (실행 상태 등) */
 export function updateLinkage(requestId, linkageId, updates) {
     const store = readAll();
@@ -368,6 +461,10 @@ export function updateLinkage(requestId, linkageId, updates) {
     if (!req || !req.linkages) return null;
     const linkage = req.linkages.find(l => l.id === linkageId);
     if (!linkage) return null;
+    if (updates.approvalStatus !== undefined && updates.approvalStatus !== linkage.approvalStatus) {
+        const allowed = APPROVAL_TRANSITIONS[linkage.approvalStatus] || [];
+        if (!allowed.includes(updates.approvalStatus)) return null;
+    }
     if (updates.executionStatus !== undefined) linkage.executionStatus = updates.executionStatus;
     if (updates.newRequestId !== undefined) linkage.newRequestId = updates.newRequestId;
     if (updates.approvalStatus !== undefined) linkage.approvalStatus = updates.approvalStatus;

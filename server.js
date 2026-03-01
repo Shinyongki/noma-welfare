@@ -1770,6 +1770,19 @@ app.patch('/api/case/:requestId/collaboration/:collabId', (req, res) => {
     if (!validStatuses.includes(status)) {
         return res.status(400).json({ error: '유효하지 않은 상태입니다.' });
     }
+    const currentReq = requestStore.findById(req.params.requestId);
+    const currentLinkage = currentReq?.linkages?.find(l => l.id === req.params.collabId);
+    if (!currentLinkage) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+    const EXEC_TRANSITIONS = {
+        'null': ['in_progress', 'declined'],
+        'email_sent': ['in_progress', 'declined'],
+        'in_progress': ['completed', 'declined'],
+    };
+    const curExec = String(currentLinkage.executionStatus);
+    const allowed = EXEC_TRANSITIONS[curExec];
+    if (!allowed || !allowed.includes(status)) {
+        return res.status(400).json({ error: `"${currentLinkage.executionStatus}" 상태에서 "${status}"로 변경할 수 없습니다.` });
+    }
     const linkage = requestStore.updateLinkage(req.params.requestId, req.params.collabId, { executionStatus: status });
     if (!linkage) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
     res.json(linkage);
@@ -1969,10 +1982,13 @@ app.post('/api/admin/linkage/:lid/approve', async (req, res) => {
             userPhone: targetReq.userPhone,
             createdAt: now,
             createdAtISO: new Date().toISOString(),
-            status: 'referred',
+            status: 'open',
             referredFrom: targetReq.id,
             referrals: [],
         });
+
+        // 원본 요청 상태를 referred로 변경
+        requestStore.updateStatus(targetReq.id, 'referred');
 
         // 원래 요청에 연계 기록 추가 (기존 호환)
         requestStore.addReferral(targetReq.id, {
@@ -2174,13 +2190,26 @@ app.get('/api/admin/requests/:id', (req, res) => {
     res.json({ ...request, linkages: request.linkages || [], chain });
 });
 
-// A-03: 상태 변경
+// A-03: 상태 변경 (전진만 허용, referred는 별도 허용)
 app.patch('/api/admin/requests/:id/status', (req, res) => {
     const { status } = req.body;
-    const valid = ['open', 'confirmed', 'contacted', 'connected', 'closed', 'referred'];
+    const STEPS = ['open', 'confirmed', 'contacted', 'connected', 'closed'];
+    const valid = [...STEPS, 'referred'];
     if (!valid.includes(status)) return res.status(400).json({ error: '유효하지 않은 상태입니다.' });
+
+    const request = requestStore.findById(req.params.id);
+    if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+
+    if (request.status === 'closed' || request.status === 'referred') {
+        return res.status(400).json({ error: `"${request.status}" 상태에서는 상태를 변경할 수 없습니다.` });
+    }
+    if (status !== 'referred') {
+        const currentIdx = STEPS.indexOf(request.status);
+        const targetIdx = STEPS.indexOf(status);
+        if (targetIdx <= currentIdx) return res.status(400).json({ error: '이전 단계로 되돌릴 수 없습니다.' });
+    }
+
     const updated = requestStore.updateStatus(req.params.id, status);
-    if (!updated) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
     res.json(updated);
 });
 
