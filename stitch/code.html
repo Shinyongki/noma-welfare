@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport" />
     <title>경상남도사회서비스원 AI 맞춤형 복지 내비게이터</title>
     <link rel="stylesheet" href="/css/tailwind.css">
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
@@ -32,6 +32,16 @@
             50% { box-shadow: 0 0 0 18px rgba(152, 0, 46, 0); }
         }
         .mic-breathe { animation: mic-breathe 2.5s ease-in-out infinite; }
+        /* Recording pulse animation */
+        @keyframes rec-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+        }
+        .mic-recording {
+            animation: rec-pulse 1.2s ease-in-out infinite !important;
+            background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+        }
+        .mic-recording .material-symbols-outlined { color: white !important; }
         /* Below-fold fade-up reveal */
         .reveal-fade-up {
             opacity: 0;
@@ -294,6 +304,17 @@
                 scroll-behavior: auto !important;
             }
         }
+
+        /* safe-area-inset for notch devices */
+        #floating-mic-wrap {
+            bottom: calc(2rem + env(safe-area-inset-bottom)) !important;
+        }
+        .noma-toast {
+            bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+        }
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            footer { padding-bottom: calc(2.5rem + env(safe-area-inset-bottom)); }
+        }
     </style>
 </head>
 
@@ -312,27 +333,27 @@
             </div>
             <h2 class="text-slate-800 text-lg md:text-xl font-extrabold tracking-tight">경상남도사회서비스원</h2>
         </a>
-        <div class="flex items-center gap-3">
+        <nav class="flex items-center gap-3" aria-label="주요 메뉴">
             <a class="px-5 py-2 bg-green-600 text-white text-sm font-semibold rounded-full hover:bg-green-700 transition-colors flex items-center gap-1.5" href="tel:055-230-8200">
                 <span class="material-symbols-outlined text-base" aria-hidden="true">call</span>
                 전화 문의
             </a>
-            <button class="text-slate-700" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
+            <button class="text-slate-700" aria-label="메뉴 열기" aria-expanded="false" aria-controls="mobile-menu" onclick="const m=document.getElementById('mobile-menu');m.classList.toggle('hidden');this.setAttribute('aria-expanded',!m.classList.contains('hidden'))">
                 <span class="material-symbols-outlined text-2xl" aria-hidden="true">menu</span>
             </button>
-        </div>
+        </nav>
     </header>
     <!-- Mobile Menu -->
     <div id="mobile-menu" class="hidden fixed inset-0 z-[60] bg-black/40" onclick="this.classList.add('hidden')">
-        <div class="bg-white w-64 h-full p-6 space-y-4" onclick="event.stopPropagation()">
-            <a class="block text-slate-700 font-medium py-2" href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').classList.add('hidden');revealBelowFoldSections();setTimeout(()=>document.getElementById('browse-section')?.scrollIntoView({behavior:'smooth'}),100)">전체 서비스</a>
-            <a class="block text-slate-700 font-medium py-2" href="#">자주 묻는 질문</a>
-            <button id="btn-my-drawer" class="relative block text-slate-700 font-medium py-2 flex items-center gap-2" onclick="document.getElementById('mobile-menu').classList.add('hidden');openMyDrawer()">
+        <nav class="bg-white w-64 h-full p-6 space-y-4" aria-label="모바일 메뉴" onclick="event.stopPropagation()">
+            <a class="block text-slate-700 font-medium py-2" role="menuitem" href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').classList.add('hidden');revealBelowFoldSections();setTimeout(()=>document.getElementById('browse-section')?.scrollIntoView({behavior:'smooth'}),100)">전체 서비스</a>
+            <a class="block text-slate-700 font-medium py-2" role="menuitem" href="#">자주 묻는 질문</a>
+            <button id="btn-my-drawer" class="relative block text-slate-700 font-medium py-2 flex items-center gap-2" role="menuitem" onclick="document.getElementById('mobile-menu').classList.add('hidden');openMyDrawer()">
                 <span class="material-symbols-outlined text-lg" aria-hidden="true">bookmark</span>내 서랍
                 <span id="drawer-badge" class="hidden absolute -top-1 -right-2 bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
             </button>
-            <a class="block text-primary font-bold py-2" href="tel:055-230-8200">전화 문의</a>
-        </div>
+            <a class="block text-primary font-bold py-2" role="menuitem" href="tel:055-230-8200">전화 문의</a>
+        </nav>
     </div>
 
     <!-- ═══════════════════ MAIN ═══════════════════ -->
@@ -352,7 +373,7 @@
                     </p>
                     <!-- 음성 중심 CTA (모든 화면에서 기본 표시) -->
                     <div id="hero-voice-cta-wrap" class="flex flex-col items-center gap-4 mt-8">
-                        <button id="hero-voice-cta" class="mic-breathe w-32 h-32 rounded-full bg-gradient-to-br from-primary to-deep-purple text-white shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
+                        <button id="hero-voice-cta" class="mic-breathe w-32 h-32 rounded-full bg-gradient-to-br from-primary to-deep-purple text-white shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform" aria-label="음성으로 대화하기" aria-pressed="false">
                             <span class="material-symbols-outlined style=" aria-hidden="true"font-size:64px">mic</span>
                         </button>
                         <p class="text-slate-800 text-xl font-bold mt-2">말씀해 주세요</p>
@@ -366,7 +387,7 @@
                     <div class="relative group">
                         <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/15 to-primary/20 rounded-full blur-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-500"></div>
                         <div class="relative flex items-center w-full h-16 md:h-[3.5rem] bg-white rounded-full shadow-lg shadow-stone-200/60 ring-1 ring-stone-200/80 transition-all focus-within:ring-2 focus-within:ring-primary/60 focus-within:shadow-xl overflow-hidden">
-                            <button id="hero-mic" class="pl-4 md:pl-7 text-primary hover:text-primary-light flex flex-col items-center justify-center hover:scale-110 transition-all gap-0.5" title="음성으로 입력">
+                            <button id="hero-mic" class="pl-4 md:pl-7 text-primary hover:text-primary-light flex flex-col items-center justify-center hover:scale-110 transition-all gap-0.5" title="음성으로 입력" aria-label="음성으로 입력" aria-pressed="false">
                                 <span class="w-11 h-11 md:w-auto md:h-auto rounded-full bg-primary/10 md:bg-transparent flex items-center justify-center">
                                     <span class="material-symbols-outlined text-[30px] md:text-[28px]" aria-hidden="true">mic</span>
                                 </span>
@@ -375,6 +396,7 @@
                             <label for="hero-input" class="sr-only">복지 서비스 검색</label>
                     <input id="hero-input"
                                 aria-label="어떤 도움이 필요하신가요? 복지 서비스를 검색하세요"
+                                autocomplete="off"
                                 class="w-full h-full bg-transparent border-none text-slate-800 placeholder:text-slate-400 text-lg md:text-lg px-4 md:px-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                                 placeholder="예: 퇴원 후 당장 돌봐줄 사람이 없어요" />
                             <button id="hero-submit"
@@ -601,7 +623,7 @@
             여기를 눌러 말씀해 주세요
             <div style="position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:6px solid white;"></div>
         </div>
-        <button id="floating-mic" title="음성으로 대화하기">
+        <button id="floating-mic" title="음성으로 대화하기" aria-label="음성으로 대화하기" aria-pressed="false">
             <span class="material-symbols-outlined style=" aria-hidden="true"font-size:36px">mic</span>
             <span class="mic-status">
                 <span class="material-symbols-outlined style=" aria-hidden="true"font-size:14px;color:#98002E">volume_off</span>
@@ -1625,7 +1647,9 @@
             try {
                 recognition.start();
                 isRecognitionRunning = true;
-                btnEl.classList.add('animate-pulse', '!text-red-500');
+                btnEl.classList.add('animate-pulse', '!text-red-500', 'mic-recording');
+                btnEl.setAttribute('aria-pressed', 'true');
+                btnEl.setAttribute('aria-label', '녹음 중 - 눌러서 중지');
                 const icon = btnEl.querySelector('.material-symbols-outlined');
                 if (icon) icon.textContent = 'graphic_eq';
                 updateFloatingMicState();
@@ -1765,7 +1789,9 @@
 
             recognition.onend = () => {
                 isRecognitionRunning = false;
-                DOM.heroMic.classList.remove('animate-pulse', '!text-red-500');
+                DOM.heroMic.classList.remove('animate-pulse', '!text-red-500', 'mic-recording');
+                DOM.heroMic.setAttribute('aria-pressed', 'false');
+                DOM.heroMic.setAttribute('aria-label', '음성으로 입력');
                 const icon = DOM.heroMic.querySelector('.material-symbols-outlined');
                 if (icon) icon.textContent = 'mic';
                 activeInput = null;
@@ -1774,7 +1800,9 @@
                 // 히어로 음성 CTA 버튼 상태 리셋
                 const heroVoiceCta = $('hero-voice-cta');
                 if (heroVoiceCta) {
-                    heroVoiceCta.classList.remove('animate-pulse');
+                    heroVoiceCta.classList.remove('animate-pulse', 'mic-recording');
+                    heroVoiceCta.setAttribute('aria-pressed', 'false');
+                    heroVoiceCta.setAttribute('aria-label', '음성으로 대화하기');
                     heroVoiceCta.querySelector('.material-symbols-outlined').textContent = 'mic';
                 }
             };
@@ -1801,7 +1829,9 @@
                 heroVoiceCta.addEventListener('click', () => {
                     startListening(DOM.heroInput, DOM.heroMic);
                     // CTA 버튼 시각 피드백
-                    heroVoiceCta.classList.add('animate-pulse');
+                    heroVoiceCta.classList.add('animate-pulse', 'mic-recording');
+                    heroVoiceCta.setAttribute('aria-pressed', 'true');
+                    heroVoiceCta.setAttribute('aria-label', '녹음 중 - 눌러서 중지');
                     heroVoiceCta.querySelector('.material-symbols-outlined').textContent = 'graphic_eq';
                 });
             }
@@ -1852,9 +1882,13 @@
             const statusIcon = DOM.floatingMic.querySelector('.mic-status .material-symbols-outlined');
             if (isRecognitionRunning) {
                 DOM.floatingMic.classList.add('listening');
+                DOM.floatingMic.setAttribute('aria-pressed', 'true');
+                DOM.floatingMic.setAttribute('aria-label', '녹음 중 - 눌러서 중지');
                 if (icon) icon.textContent = 'graphic_eq';
             } else {
                 DOM.floatingMic.classList.remove('listening');
+                DOM.floatingMic.setAttribute('aria-pressed', 'false');
+                DOM.floatingMic.setAttribute('aria-label', '음성으로 대화하기');
                 if (icon) icon.textContent = 'mic';
             }
             if (statusIcon) {

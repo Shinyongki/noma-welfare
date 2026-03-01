@@ -131,7 +131,8 @@ app.post('/api/auth/login', (req, res) => {
     const { password } = req.body;
     const adminPassword = process.env.ADMIN_PASSWORD;
     if (!adminPassword) {
-        return res.status(500).json({ error: 'ADMIN_PASSWORD 환경변수가 설정되지 않았습니다.' });
+        console.error('[Auth] ADMIN_PASSWORD 환경변수가 설정되지 않았습니다.');
+        return res.status(500).json({ error: '서버 설정 오류가 발생했습니다. 관리자에게 문의하세요.' });
     }
     if (password === adminPassword) {
         req.session.authenticated = true;
@@ -1060,6 +1061,22 @@ app.post('/api/service-request/connect', async (req, res) => {
     // 디버그: 수신 데이터 확인
     console.log('[수신 데이터]', JSON.stringify({ serviceName, userName, userPhone, chatHistoryLength: chatHistory?.length || 0 }));
 
+    // 중복 신청 방지: 같은 이름+전화번호+서비스로 24시간 내 중복 신청 차단
+    const recentRequests = requestStore.listAll();
+    const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const normalizedPhone = String(userPhone).trim().replace(/-/g, '');
+    const duplicate = recentRequests.find(r => {
+        const rPhone = String(r.userPhone || '').trim().replace(/-/g, '');
+        const rTime = r.createdAtISO ? new Date(r.createdAtISO).getTime() : 0;
+        return r.userName === String(userName).trim()
+            && rPhone === normalizedPhone
+            && r.serviceName === String(serviceName).trim()
+            && rTime > twentyFourHoursAgo;
+    });
+    if (duplicate) {
+        return res.status(409).json({ error: '동일한 서비스에 대해 최근 24시간 내 이미 신청하셨습니다. 잠시 후 다시 시도해 주세요.' });
+    }
+
     // 대화 요약 + 배정 근거 동시 생성 (실패해도 이메일은 정상 발송)
     let conversationSummary = null;
     let assignmentRationale = null;
@@ -1337,7 +1354,10 @@ async function synthesizeTTS(text, retries = 2) {
 app.post('/api/tts', ttsLimiter, async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'text required' });
-    const MAX_TTS_LENGTH = 500;
+    const MAX_TTS_LENGTH = 2000;
+    if (String(text).length > MAX_TTS_LENGTH) {
+        return res.status(400).json({ error: `텍스트가 너무 깁니다. 최대 ${MAX_TTS_LENGTH}자까지 허용됩니다.` });
+    }
     const ttsText = String(text).slice(0, MAX_TTS_LENGTH);
     analyticsStore.track('tts_request');
 
@@ -1363,11 +1383,17 @@ app.use('/api/staff', requireAuth);
 
 // ── Case API Routes (담당자 처리 페이지용) ──
 
+const MAX_REFERRAL_CHAIN_DEPTH = 10;
+function getSafeReferralChain(requestId) {
+    const chain = requestStore.getReferralChain(requestId);
+    return chain.slice(0, MAX_REFERRAL_CHAIN_DEPTH);
+}
+
 // 상세 조회 + 연계 체인 + linkages
 app.get('/api/case/:requestId', (req, res) => {
     const request = requestStore.findById(req.params.requestId);
     if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
-    const chain = requestStore.getReferralChain(req.params.requestId);
+    const chain = getSafeReferralChain(req.params.requestId);
     res.json({ ...request, linkages: request.linkages || [], chain });
 });
 
@@ -1855,7 +1881,7 @@ app.post('/api/admin/linkage/:lid/approve', async (req, res) => {
     let subject, html;
 
     if (targetLinkage.category === 'referral') {
-        const chain = requestStore.getReferralChain(targetReq.id);
+        const chain = getSafeReferralChain(targetReq.id);
         const refreshedLinkage = requestStore.findById(targetReq.id)?.linkages?.find(l => l.id === req.params.lid);
         const newRequestId = refreshedLinkage?.newRequestId;
         const refToken = newRequestId ? generateCaseToken(newRequestId) : emailCaseToken;
@@ -2034,7 +2060,7 @@ app.get('/api/admin/requests', (req, res) => {
 app.get('/api/admin/requests/:id', (req, res) => {
     const request = requestStore.findById(req.params.id);
     if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
-    const chain = requestStore.getReferralChain(req.params.id);
+    const chain = getSafeReferralChain(req.params.id);
     res.json({ ...request, linkages: request.linkages || [], chain });
 });
 

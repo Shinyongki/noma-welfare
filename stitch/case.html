@@ -61,6 +61,12 @@
     <div id="state-main" class="hidden min-h-screen py-8 px-4">
         <div class="max-w-lg mx-auto animate-fade-up">
 
+            <!-- 토큰 만료 안내 배너 -->
+            <div id="token-expiry-banner" class="hidden mb-3 px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700">
+                <span class="material-symbols-rounded text-base" aria-hidden="true">timer</span>
+                <span id="token-expiry-text">링크 유효 시간: 계산 중...</span>
+            </div>
+
             <!-- A. 헤더 (녹색 그라데이션) -->
             <div class="bg-gradient-to-br from-green-700 to-green-900 rounded-t-2xl px-6 py-5 text-white">
                 <h1 class="text-xl font-bold flex items-center gap-2">
@@ -320,6 +326,15 @@
         </div>
     </div>
 
+    <!-- 토큰 만료 오버레이 -->
+    <div id="token-expired-overlay" class="hidden fixed inset-0 z-[200] bg-gray-900/60 flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm mx-4 text-center animate-fade-up">
+            <span class="material-symbols-rounded text-5xl text-red-400 block mb-3" aria-hidden="true">link_off</span>
+            <h2 class="text-lg font-bold text-gray-800 mb-2">링크가 만료되었습니다</h2>
+            <p class="text-sm text-gray-500">이 페이지의 접근 토큰이 만료되었습니다.<br>새 링크를 요청하거나 관리자에게 문의하세요.</p>
+        </div>
+    </div>
+
     <script>
     (async function () {
         const requestId = location.pathname.split('/case/')[1];
@@ -352,6 +367,68 @@
             toast.textContent = message;
             document.body.appendChild(toast);
             setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        // ── 토큰 만료 타이머 ──
+        const TOKEN_DEFAULT_TTL = 24 * 60 * 60 * 1000; // 기본 24시간 (서버 미제공 시)
+        const TOKEN_WARN_THRESHOLD = 5 * 60 * 1000; // 5분 전 경고
+        let tokenExpiryTime = null;
+        let tokenTimerInterval = null;
+        let tokenWarned = false;
+        let tokenExpired = false;
+
+        function startTokenTimer(expiresAt) {
+            if (!caseToken) return; // 세션 인증이면 타이머 불필요
+            tokenExpiryTime = expiresAt || (Date.now() + TOKEN_DEFAULT_TTL);
+            const banner = document.getElementById('token-expiry-banner');
+            banner.classList.remove('hidden');
+            tokenTimerInterval = setInterval(updateTokenTimer, 1000);
+            updateTokenTimer();
+        }
+
+        function updateTokenTimer() {
+            const remaining = tokenExpiryTime - Date.now();
+            const banner = document.getElementById('token-expiry-banner');
+            const textEl = document.getElementById('token-expiry-text');
+
+            if (remaining <= 0) {
+                clearInterval(tokenTimerInterval);
+                if (!tokenExpired) {
+                    tokenExpired = true;
+                    textEl.textContent = '링크가 만료되었습니다';
+                    banner.className = 'mb-3 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-red-100 border border-red-300 text-red-700';
+                    disablePage();
+                }
+                return;
+            }
+
+            const hours = Math.floor(remaining / (60 * 60 * 1000));
+            const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+            const seconds = Math.floor((remaining % (60 * 1000)) / 1000);
+            const timeStr = hours > 0
+                ? `${hours}시간 ${String(minutes).padStart(2, '0')}분 ${String(seconds).padStart(2, '0')}초`
+                : `${minutes}분 ${String(seconds).padStart(2, '0')}초`;
+            textEl.textContent = `링크 유효 시간: ${timeStr}`;
+
+            if (remaining <= TOKEN_WARN_THRESHOLD) {
+                banner.className = 'mb-3 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-red-50 border border-red-300 text-red-600 animate-pulse';
+                if (!tokenWarned) {
+                    tokenWarned = true;
+                    showToast('링크 만료까지 5분 미만 남았습니다.', 'warn');
+                }
+            } else if (remaining <= 30 * 60 * 1000) {
+                banner.className = 'mb-3 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 bg-amber-50 border border-amber-300 text-amber-700';
+            }
+        }
+
+        function disablePage() {
+            document.getElementById('token-expired-overlay').classList.remove('hidden');
+            document.querySelectorAll('#state-main button, #state-main input, #state-main textarea, #state-main select, #state-main a').forEach(el => {
+                el.disabled = true;
+                el.style.pointerEvents = 'none';
+                el.tabIndex = -1;
+            });
+            showToast('링크가 만료되었습니다. 새 링크를 요청하세요.', 'error');
         }
 
         // 상태 정의
@@ -1139,6 +1216,7 @@
             if (await loadData()) {
                 await loadReferralServices();
                 render();
+                startTokenTimer(caseData.expiresAt ? new Date(caseData.expiresAt).getTime() : null);
                 if (openLinkage) {
                     toggleLinkageForm();
                     if (openLinkage === 'referral') switchLinkageTab('referral');

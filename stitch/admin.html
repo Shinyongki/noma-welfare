@@ -84,10 +84,16 @@
             background: #F8FAFC; border-radius: 0.75rem;
             border: 1px solid #E2E8F0;
             display: flex; flex-direction: column;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
         .kanban-col.kanban-highlight {
             border-color: #93C5FD;
             box-shadow: 0 0 0 1px #93C5FD, 0 4px 12px rgba(59,130,246,0.08);
+        }
+        .kanban-col.drag-over {
+            border-color: #6366F1;
+            box-shadow: 0 0 0 2px #6366F1, 0 4px 16px rgba(99,102,241,0.15);
+            background: #EEF2FF;
         }
         .kanban-header {
             padding: 0.75rem 1rem; border-bottom: 1px solid #E2E8F0;
@@ -104,6 +110,7 @@
             padding: 0.5rem; flex: 1;
             overflow-y: auto; max-height: 600px;
             display: flex; flex-direction: column; gap: 0.5rem;
+            min-height: 60px;
         }
         .kanban-card {
             background: #fff; border-radius: 0.5rem;
@@ -119,12 +126,22 @@
             border-color: #6366F1; cursor: default;
             box-shadow: 0 4px 16px rgba(99,102,241,0.12);
         }
+        .kanban-card.dragging {
+            opacity: 0.4; transform: scale(0.97);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+        .kanban-card.bulk-selected {
+            border-color: #6366F1;
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.3);
+            background: #F5F3FF;
+        }
         .kanban-card .card-summary { pointer-events: none; }
         .kanban-card .card-detail {
             display: none; border-top: 1px solid #E2E8F0;
             margin-top: 0.75rem; padding-top: 0.75rem;
         }
         .kanban-card.expanded .card-detail { display: block; }
+        .kanban-card .bulk-checkbox { pointer-events: auto; }
 
         /* Approval Timeline */
         .approval-timeline { position: relative; padding-left: 1.5rem; }
@@ -148,10 +165,35 @@
         .kanban-stat { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
         .kanban-stat:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 
-        /* Responsive: stack columns vertically on mobile */
+        /* Responsive: horizontal scroll on tablet, stack on mobile */
+        @media (max-width: 1023px) and (min-width: 641px) {
+            .kanban-container {
+                overflow-x: auto; -webkit-overflow-scrolling: touch;
+                scroll-snap-type: x mandatory; padding-bottom: 0.5rem;
+            }
+            .kanban-col { min-width: 280px; flex: 0 0 280px; scroll-snap-align: start; }
+        }
         @media (max-width: 640px) {
             .kanban-container { flex-direction: column; }
+            .kanban-col { min-width: 0; }
             .kanban-body { max-height: 400px; }
+            .kanban-card { padding: 0.875rem; font-size: 0.875rem; }
+        }
+
+        /* Bulk action bar */
+        .bulk-bar {
+            position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+            z-index: 55; background: #1E293B; color: #fff;
+            border-radius: 0.75rem; padding: 0.625rem 1rem;
+            display: flex; align-items: center; gap: 0.75rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            animation: fade-in 0.2s ease-out;
+            max-width: calc(100% - 2rem);
+        }
+        .bulk-bar button {
+            padding: 0.375rem 0.75rem; border-radius: 0.375rem;
+            font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+            transition: background 0.15s;
         }
 
         /* Phase 3: 고대비 모드 */
@@ -501,10 +543,24 @@
                     </div>
                 </div>
 
+                <!-- Bulk action bar (hidden by default) -->
+                <div id="bulk-bar" class="bulk-bar" style="display:none">
+                    <span id="bulk-count" class="text-sm font-semibold whitespace-nowrap">0건 선택</span>
+                    <select id="bulk-status-select" class="rounded border-slate-600 bg-slate-700 text-white text-xs py-1 px-2">
+                        <option value="">상태 변경...</option>
+                        <option value="pending">부서 대기</option>
+                        <option value="dept_approved">관리자 승인 대기</option>
+                        <option value="approved">처리 완료</option>
+                        <option value="rejected">반려/반환</option>
+                    </select>
+                    <button onclick="bulkChangeStatus()" class="bg-indigo-500 hover:bg-indigo-600 text-white">적용</button>
+                    <button onclick="clearBulkSelection()" class="bg-slate-600 hover:bg-slate-500 text-white">취소</button>
+                </div>
+
                 <!-- Kanban board -->
                 <div id="collab-kanban" class="kanban-container">
                     <!-- Column 1: 부서 대기 -->
-                    <div id="col-pending" class="kanban-col">
+                    <div id="col-pending" class="kanban-col" data-col="pending" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'pending')">
                         <div class="kanban-header text-yellow-700">
                             <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
                             부서 대기
@@ -515,7 +571,7 @@
                         </div>
                     </div>
                     <!-- Column 2: 관리자 승인 대기 (highlighted) -->
-                    <div id="col-dept-approved" class="kanban-col kanban-highlight">
+                    <div id="col-dept-approved" class="kanban-col kanban-highlight" data-col="dept_approved" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'dept_approved')">
                         <div class="kanban-header text-blue-700">
                             <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
                             관리자 승인 대기
@@ -526,7 +582,7 @@
                         </div>
                     </div>
                     <!-- Column 3: 처리 완료 -->
-                    <div id="col-approved" class="kanban-col">
+                    <div id="col-approved" class="kanban-col" data-col="approved" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'approved')">
                         <div class="kanban-header text-green-700">
                             <span class="w-2.5 h-2.5 rounded-full bg-green-400"></span>
                             처리 완료
@@ -537,7 +593,7 @@
                         </div>
                     </div>
                     <!-- Column 4: 반려/반환 -->
-                    <div id="col-rejected" class="kanban-col">
+                    <div id="col-rejected" class="kanban-col" data-col="rejected" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'rejected')">
                         <div class="kanban-header text-red-600">
                             <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
                             반려/반환
@@ -578,6 +634,8 @@
     let charts = {};
     let sidebarOpen = false;
     let allCollabs = [];
+    let draggedLinkageId = null;
+    let bulkSelected = new Set();
 
     // ── Status helpers ──
     const STATUS_MAP = {
@@ -990,10 +1048,13 @@
             </div>`;
         }
 
+        const isBulkSelected = bulkSelected.has(c.id);
+
         return `
-        <div id="kcard-${c.id}" class="kanban-card ${isExpanded ? 'expanded' : ''}" onclick="toggleCardExpand('${c.id}', event)">
+        <div id="kcard-${c.id}" class="kanban-card ${isExpanded ? 'expanded' : ''} ${isBulkSelected ? 'bulk-selected' : ''}" draggable="true" ondragstart="onDragStart(event, '${c.id}')" ondragend="onDragEnd(event)" onclick="toggleCardExpand('${c.id}', event)">
             <div class="card-summary">
                 <div class="flex items-center gap-1.5 mb-1.5">
+                    <input type="checkbox" class="bulk-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 flex-shrink-0" ${isBulkSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleBulkSelect('${c.id}', this.checked)" />
                     <span class="badge ${approvalSt.bg} ${approvalSt.text}" style="font-size:10px;padding:1px 6px">${approvalSt.label}</span>
                     <span class="text-[10px] text-slate-400">${catLabel} · ${typeName}</span>
                     <span class="text-[10px] text-slate-400 ml-auto">${dateStr}</span>
@@ -1032,8 +1093,9 @@
 
     async function toggleCardExpand(linkageId, event) {
         if (event) event.stopPropagation();
-        // If clicking inside expanded detail, don't collapse
+        // If clicking inside expanded detail or checkbox, don't collapse
         if (event && event.target.closest('.card-detail')) return;
+        if (event && event.target.closest('.bulk-checkbox')) return;
 
         if (expandedCardId === linkageId) {
             // Collapse
@@ -1194,6 +1256,13 @@
         renderKanbanColumn('body-dept-approved', cols.dept_approved, true);
         renderKanbanColumn('body-approved', cols.approved, false);
         renderKanbanColumn('body-rejected', cols.rejected, false);
+
+        // Clean stale bulk selections and update bar
+        const validIds = new Set(filtered.map(c => c.id));
+        for (const id of bulkSelected) {
+            if (!validIds.has(id)) bulkSelected.delete(id);
+        }
+        updateBulkBar();
     }
 
     async function loadCollabPanel() {
@@ -1233,6 +1302,153 @@
         } catch (e) {
             alert('메모 추가 실패');
         }
+    }
+
+    // ── Drag & Drop ──
+    function onDragStart(event, linkageId) {
+        draggedLinkageId = linkageId;
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', linkageId);
+        requestAnimationFrame(() => {
+            const el = document.getElementById('kcard-' + linkageId);
+            if (el) el.classList.add('dragging');
+        });
+    }
+
+    function onDragEnd(event) {
+        if (draggedLinkageId) {
+            const el = document.getElementById('kcard-' + draggedLinkageId);
+            if (el) el.classList.remove('dragging');
+        }
+        draggedLinkageId = null;
+        document.querySelectorAll('.kanban-col').forEach(col => col.classList.remove('drag-over'));
+    }
+
+    function onDragOver(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        const col = event.currentTarget;
+        if (!col.classList.contains('drag-over')) col.classList.add('drag-over');
+    }
+
+    function onDragLeave(event) {
+        const col = event.currentTarget;
+        if (!col.contains(event.relatedTarget)) col.classList.remove('drag-over');
+    }
+
+    async function onDrop(event, targetStatus) {
+        event.preventDefault();
+        const col = event.currentTarget;
+        col.classList.remove('drag-over');
+        const linkageId = event.dataTransfer.getData('text/plain');
+        if (!linkageId) return;
+
+        const collab = allCollabs.find(c => c.id === linkageId);
+        if (!collab) return;
+
+        const currentStatus = collab.approvalStatus || 'pending';
+        if (currentStatus === targetStatus) return;
+
+        await changeLinkageApprovalStatus(linkageId, targetStatus);
+    }
+
+    async function changeLinkageApprovalStatus(linkageId, targetStatus) {
+        const endpointMap = {
+            approved: 'approve',
+            rejected: 'reject',
+            admin_revision_requested: 'revision',
+        };
+
+        try {
+            if (targetStatus === 'approved') {
+                const resp = await fetch(`/api/admin/linkage/${linkageId}/approve`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comment: '칸반 드래그 이동' }),
+                });
+                if (!resp.ok) throw new Error();
+            } else if (targetStatus === 'rejected') {
+                const resp = await fetch(`/api/admin/linkage/${linkageId}/reject`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comment: '칸반 드래그 이동' }),
+                });
+                if (!resp.ok) throw new Error();
+            } else if (targetStatus === 'pending' || targetStatus === 'dept_approved') {
+                const resp = await fetch(`/api/admin/linkage/${linkageId}/revision`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comment: '칸반 드래그 이동 (상태 재설정)' }),
+                });
+                if (!resp.ok) throw new Error();
+            }
+            expandedCardId = null;
+            loadCollabPanel();
+        } catch (e) {
+            alert('상태 변경 실패');
+        }
+    }
+
+    // ── Bulk Actions ──
+    function toggleBulkSelect(linkageId, checked) {
+        if (checked) {
+            bulkSelected.add(linkageId);
+        } else {
+            bulkSelected.delete(linkageId);
+        }
+        const card = document.getElementById('kcard-' + linkageId);
+        if (card) card.classList.toggle('bulk-selected', checked);
+        updateBulkBar();
+    }
+
+    function updateBulkBar() {
+        const bar = document.getElementById('bulk-bar');
+        const count = bulkSelected.size;
+        if (count > 0) {
+            bar.style.display = 'flex';
+            document.getElementById('bulk-count').textContent = count + '건 선택';
+        } else {
+            bar.style.display = 'none';
+        }
+    }
+
+    function clearBulkSelection() {
+        bulkSelected.clear();
+        document.querySelectorAll('.kanban-card.bulk-selected').forEach(el => el.classList.remove('bulk-selected'));
+        document.querySelectorAll('.bulk-checkbox').forEach(cb => cb.checked = false);
+        updateBulkBar();
+    }
+
+    async function bulkChangeStatus() {
+        const targetStatus = document.getElementById('bulk-status-select').value;
+        if (!targetStatus) { alert('변경할 상태를 선택하세요.'); return; }
+        if (bulkSelected.size === 0) return;
+
+        const ids = [...bulkSelected];
+        const confirmMsg = `${ids.length}건의 항목을 일괄 변경하시겠습니까?`;
+        if (!confirm(confirmMsg)) return;
+
+        const endpointForStatus = (status) => {
+            if (status === 'approved') return 'approve';
+            if (status === 'rejected') return 'reject';
+            return 'revision';
+        };
+        const endpoint = endpointForStatus(targetStatus);
+        const comment = '일괄 상태 변경';
+
+        let failCount = 0;
+        for (const linkageId of ids) {
+            try {
+                const resp = await fetch(`/api/admin/linkage/${linkageId}/${endpoint}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comment }),
+                });
+                if (!resp.ok) failCount++;
+            } catch { failCount++; }
+        }
+        if (failCount > 0) alert(`${failCount}건 처리 실패`);
+        bulkSelected.clear();
+        updateBulkBar();
+        document.getElementById('bulk-status-select').value = '';
+        expandedCardId = null;
+        loadCollabPanel();
     }
 
     // ── Requests ──
