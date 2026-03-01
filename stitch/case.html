@@ -4,19 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>상담 처리 - 노마 AI</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/tailwind.css">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['"Pretendard Variable"', 'sans-serif'] }
-                }
-            }
-        }
-    </script>
     <style>
         body { font-family: 'Pretendard Variable', sans-serif; }
         .material-symbols-rounded { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
@@ -342,6 +333,25 @@
         function show(el) {
             [$loading, $error, $main].forEach(s => s.classList.add('hidden'));
             el.classList.remove('hidden');
+        }
+
+        // 토스트 알림 (alert 대체)
+        function showToast(message, type = 'error') {
+            const existing = document.querySelector('.case-toast');
+            if (existing) existing.remove();
+            const colors = {
+                error: 'bg-red-600',
+                success: 'bg-green-600',
+                warn: 'bg-amber-600',
+                info: 'bg-blue-600',
+            };
+            const toast = document.createElement('div');
+            toast.className = `case-toast fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] ${colors[type] || colors.error} text-white text-sm font-medium px-5 py-3 rounded-xl shadow-lg animate-fade-up`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3000);
         }
 
         // 상태 정의
@@ -801,7 +811,7 @@
                 });
                 if (!resp.ok) {
                     const err = await resp.json();
-                    alert(err.error || '상태 변경에 실패했습니다.');
+                    showToast(err.error || '상태 변경에 실패했습니다.');
                     return;
                 }
                 caseData = await resp.json();
