@@ -435,15 +435,59 @@
                             </button>
                         </div>
                     </div>
-                    <!-- Example Chips (2개만) -->
+                    <!-- Example Chips -->
                     <div id="hero-chips" class="mt-5 flex flex-wrap justify-center gap-2.5">
-                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="퇴원 후 당장 돌봐줄 사람이 없어요">
-                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">medical_services</span>
-                            <span class="text-slate-600 text-sm font-medium">#퇴원 후 돌봄이 필요해요</span>
-                        </button>
+                        <!-- 공공돌봄 -->
                         <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="긴급 돌봄이 필요해요">
                             <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">emergency_home</span>
                             <span class="text-slate-600 text-sm font-medium">#긴급 돌봄</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="퇴원 후 당장 돌봐줄 사람이 없어요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">medical_services</span>
+                            <span class="text-slate-600 text-sm font-medium">#퇴원 후 돌봄</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="혼자 사는 어르신 안전 관리">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">elderly_woman</span>
+                            <span class="text-slate-600 text-sm font-medium">#독거어르신 안전</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="혼자 병원에 가기 어려워요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">local_hospital</span>
+                            <span class="text-slate-600 text-sm font-medium">#병원 동행</span>
+                        </button>
+                        <!-- 민간지원 -->
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="복지시설 경영 컨설팅이 필요합니다">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">business_center</span>
+                            <span class="text-slate-600 text-sm font-medium">#복지시설 경영컨설팅</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="복지시설 안전점검을 받고 싶습니다">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">verified_user</span>
+                            <span class="text-slate-600 text-sm font-medium">#시설 안전점검</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="장기요양기관 평가 준비를 도와주세요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">analytics</span>
+                            <span class="text-slate-600 text-sm font-medium">#요양기관 평가지원</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="사회복지시설 대체인력 지원이 필요합니다">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">group</span>
+                            <span class="text-slate-600 text-sm font-medium">#대체인력 지원</span>
+                        </button>
+                        <!-- 국공립시설 -->
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="장애인 보조기기 지원받고 싶어요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">accessible_forward</span>
+                            <span class="text-slate-600 text-sm font-medium">#장애인 보조기기</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="장애인 직업훈련이나 재활 프로그램 알려주세요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">work</span>
+                            <span class="text-slate-600 text-sm font-medium">#장애인 직업재활</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="어린이집 입소 문의합니다">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">child_care</span>
+                            <span class="text-slate-600 text-sm font-medium">#어린이집 보육</span>
+                        </button>
+                        <!-- 연구·정책 -->
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="사회서비스 정책연구나 데이터 분석에 대해 알고 싶어요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">science</span>
+                            <span class="text-slate-600 text-sm font-medium">#사회서비스 정책연구</span>
                         </button>
                     </div>
                 </div>

@@ -5,6 +5,7 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
+    "build": "tailwindcss -c tailwind.config.cjs -i ./src/tailwind.css -o ./stitch/css/tailwind.css --minify",
     "start": "node server.js",
     "build:css": "tailwindcss -c tailwind.config.cjs -i ./src/tailwind.css -o ./stitch/css/tailwind.css --minify",
     "watch:css": "tailwindcss -c tailwind.config.cjs -i ./src/tailwind.css -o ./stitch/css/tailwind.css --watch"
