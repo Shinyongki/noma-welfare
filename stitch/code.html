@@ -402,7 +402,7 @@
         <section id="results-section" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 pb-8 hidden">
             <div class="max-w-5xl mx-auto">
                 <!-- AI Summary Bubble -->
-                <div id="ai-summary-area" class="mb-8 hidden">
+                <div id="ai-summary-area" class="mb-8 hidden" aria-live="polite" aria-atomic="true">
                     <div class="flex items-start gap-3 max-w-3xl">
                         <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary to-deep-purple flex items-center justify-center shadow-md">
                             <span class="material-symbols-outlined text-white text-xl" aria-hidden="true">smart_toy</span>
@@ -427,7 +427,7 @@
                 </div>
 
                 <!-- Cards Grid -->
-                <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+                <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5" aria-live="polite"></div>
 
                 <!-- Loading Skeletons -->
                 <div id="cards-skeleton" class="hidden grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -700,12 +700,12 @@
                 <div id="modal-step-name">
                     <label for="modal-name-input" class="block text-sm font-semibold text-slate-700 mb-2">성함을 입력해 주세요</label>
                     <input id="modal-name-input" type="text" autocomplete="name" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="홍길동" />
-                    <p id="modal-name-error" class="hidden text-xs text-red-500 mt-1.5">성함을 입력해 주세요.</p>
+                    <p id="modal-name-error" class="hidden text-xs text-red-500 mt-1.5" role="alert" aria-live="assertive">성함을 입력해 주세요.</p>
                 </div>
                 <div id="modal-step-phone" class="hidden">
                     <label for="modal-phone-input" class="block text-sm font-semibold text-slate-700 mb-2">연락 받으실 전화번호</label>
                     <input id="modal-phone-input" type="tel" inputmode="tel" autocomplete="tel" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="010-1234-5678" />
-                    <p id="modal-phone-error" class="hidden text-xs text-red-500 mt-1.5">올바른 전화번호를 입력해 주세요. (예: 010-1234-5678)</p>
+                    <p id="modal-phone-error" class="hidden text-xs text-red-500 mt-1.5" role="alert" aria-live="assertive">올바른 전화번호를 입력해 주세요. (예: 010-1234-5678)</p>
                 </div>
                 <div id="modal-step-confirm" class="hidden text-center py-4">
                     <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1098,7 +1098,20 @@
 
             try {
                 const controller = new AbortController();
+                let userCancelled = false;
                 const timeout = setTimeout(() => controller.abort(), 30000);
+
+                // 스트리밍 취소 버튼 표시
+                let cancelBtn = $('btn-cancel-stream');
+                if (!cancelBtn) {
+                    cancelBtn = document.createElement('button');
+                    cancelBtn.id = 'btn-cancel-stream';
+                    cancelBtn.className = 'mt-3 px-4 py-2 bg-white border border-stone-300 text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors inline-flex items-center gap-1.5';
+                    cancelBtn.innerHTML = '<span class="material-symbols-outlined text-base" aria-hidden="true">stop_circle</span>응답 중지';
+                }
+                cancelBtn.onclick = () => { userCancelled = true; controller.abort(); cancelBtn.remove(); };
+                DOM.aiSummaryArea.classList.remove('hidden');
+                DOM.aiSummaryArea.appendChild(cancelBtn);
 
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -1174,6 +1187,9 @@
                         } catch (e) { /* partial chunk */ }
                     }
                 }
+
+                // 취소 버튼 제거
+                const cb = $('btn-cancel-stream'); if (cb) cb.remove();
 
                 // ── 응답 완료 후 처리 ──
 
@@ -1319,9 +1335,22 @@
                 }
 
             } catch (err) {
-                chatHistory.pop(); // 실패한 사용자 메시지 제거
                 console.error('Search error:', err);
                 DOM.cardsSkeleton.classList.add('hidden');
+                const cb2 = $('btn-cancel-stream'); if (cb2) cb2.remove();
+
+                // 사용자가 직접 취소한 경우: 부분 응답 유지 + 안내
+                if (userCancelled) {
+                    DOM.aiSummaryArea.classList.remove('hidden');
+                    if (!$('stream-output')?.textContent?.trim()) {
+                        DOM.aiSummaryText.innerHTML = '<p class="text-slate-500">응답이 중지되었습니다.</p>';
+                    }
+                    showToast('응답이 중지되었습니다.');
+                    DOM.discoverMore.classList.remove('hidden');
+                    return;
+                }
+
+                chatHistory.pop(); // 실패한 사용자 메시지 제거
 
                 const isTimeout = err.name === 'AbortError';
                 DOM.aiSummaryArea.classList.remove('hidden');
@@ -1351,6 +1380,7 @@
             const query = DOM.heroInput.value.trim();
             if (!query) return;
             DOM.heroInput.value = '';
+            history.pushState({ view: 'search', query }, '', '?q=' + encodeURIComponent(query));
             performSearch(query);
         }
 
@@ -1402,10 +1432,29 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         // Expose globally for logo click
-        window.resetToHome = resetToHome;
+        window.resetToHome = function() {
+            history.pushState({ view: 'home' }, '', '/');
+            resetToHome();
+        };
 
         // New search button
-        DOM.btnNewSearch.addEventListener('click', resetToHome);
+        DOM.btnNewSearch.addEventListener('click', () => {
+            history.pushState({ view: 'home' }, '', '/');
+            resetToHome();
+        });
+
+        // ── History API: 뒤로가기/앞으로가기 지원 ──
+        window.addEventListener('popstate', (e) => {
+            const state = e.state;
+            if (!state || state.view === 'home') {
+                resetToHome();
+            } else if (state.view === 'search' && state.query) {
+                DOM.heroInput.value = '';
+                performSearch(state.query);
+            }
+        });
+        // 초기 상태 설정
+        history.replaceState({ view: 'home' }, '', location.pathname + location.search);
 
         // Browse scroll from discover section
         const btnBrowseScroll = $('btn-browse-scroll');
@@ -1991,6 +2040,8 @@
             if (existing) existing.remove();
             const toast = document.createElement('div');
             toast.className = 'noma-toast fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] bg-slate-800 text-white text-sm font-medium px-5 py-3 rounded-full shadow-lg animate-fade-up';
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
             toast.textContent = message;
             document.body.appendChild(toast);
             setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 2000);

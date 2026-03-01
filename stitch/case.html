@@ -817,7 +817,7 @@
                 caseData = await resp.json();
                 render();
             } catch {
-                alert('상태 변경에 실패했습니다.');
+                showToast('상태 변경에 실패했습니다.');
             }
         };
 
@@ -841,7 +841,7 @@
                 input.value = '';
                 renderNotes(caseData.notes || []);
             } catch {
-                alert('메모 추가에 실패했습니다.');
+                showToast('메모 추가에 실패했습니다.');
             }
             btn.disabled = false;
         };
@@ -978,18 +978,18 @@
 
         window.submitLinkage = async function() {
             const reason = document.getElementById('linkage-reason').value.trim();
-            if (!reason) { alert('사유를 입력하세요.'); return; }
+            if (!reason) { showToast('사유를 입력하세요.', 'warn'); return; }
 
             let body;
             if (linkageTab === 'collaboration') {
                 const fromDept = document.getElementById('linkage-from').value;
                 const toDept = document.getElementById('linkage-to').value;
                 const type = document.querySelector('input[name="linkage-type"]:checked')?.value || 'consultation';
-                if (fromDept === toDept) { alert('같은 부서에는 요청할 수 없습니다.'); return; }
+                if (fromDept === toDept) { showToast('같은 부서에는 요청할 수 없습니다.', 'warn'); return; }
                 body = { category: 'collaboration', type, fromDept, toDept, reason };
             } else {
                 const targetService = document.getElementById('linkage-target-service').value;
-                if (!targetService) { alert('대상 서비스를 선택하세요.'); return; }
+                if (!targetService) { showToast('대상 서비스를 선택하세요.', 'warn'); return; }
                 body = { category: 'referral', type: 'service_referral', targetService, reason };
             }
 
@@ -999,11 +999,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body),
                 });
-                if (!resp.ok) { const err = await resp.json(); alert(err.error); return; }
+                if (!resp.ok) { const err = await resp.json(); showToast(err.error); return; }
                 document.getElementById('linkage-reason').value = '';
                 document.getElementById('linkage-form').classList.add('hidden');
                 if (await loadData()) render();
-            } catch { alert('연계 요청에 실패했습니다.'); }
+            } catch { showToast('연계 요청에 실패했습니다.'); }
         };
 
         window.updateLinkageExec = async function(linkageId, status) {
@@ -1015,7 +1015,7 @@
                 });
                 if (!resp.ok) throw new Error();
                 if (await loadData()) render();
-            } catch { alert('상태 변경에 실패했습니다.'); }
+            } catch { showToast('상태 변경에 실패했습니다.'); }
         };
 
         window.resubmitLinkage = async function(linkageId) {
@@ -1027,7 +1027,7 @@
                 });
                 if (!resp.ok) throw new Error();
                 if (await loadData()) render();
-            } catch { alert('재제출에 실패했습니다.'); }
+            } catch { showToast('재제출에 실패했습니다.'); }
         };
 
         // ── 부서 조정자 승인/반려/수정요청 ──
@@ -1039,10 +1039,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ comment }),
                 });
-                if (!resp.ok) { const err = await resp.json(); alert(err.error); return; }
-                alert('부서 조정자 승인 완료. 관리자 최종 승인 대기 상태입니다.');
+                if (!resp.ok) { const err = await resp.json(); showToast(err.error); return; }
+                showToast('부서 조정자 승인 완료. 관리자 최종 승인 대기 상태입니다.', 'success');
                 if (await loadData()) render();
-            } catch { alert('부서 조정자 승인에 실패했습니다.'); }
+            } catch { showToast('부서 조정자 승인에 실패했습니다.'); }
         };
 
         window.deptRejectLinkage = async function(linkageId) {
@@ -1054,9 +1054,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ comment }),
                 });
-                if (!resp.ok) { const err = await resp.json(); alert(err.error); return; }
+                if (!resp.ok) { const err = await resp.json(); showToast(err.error); return; }
                 if (await loadData()) render();
-            } catch { alert('부서 조정자 반려에 실패했습니다.'); }
+            } catch { showToast('부서 조정자 반려에 실패했습니다.'); }
         };
 
         window.deptRevisionLinkage = async function(linkageId) {
@@ -1068,9 +1068,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ comment }),
                 });
-                if (!resp.ok) { const err = await resp.json(); alert(err.error); return; }
+                if (!resp.ok) { const err = await resp.json(); showToast(err.error); return; }
                 if (await loadData()) render();
-            } catch { alert('부서 조정자 수정 요청에 실패했습니다.'); }
+            } catch { showToast('부서 조정자 수정 요청에 실패했습니다.'); }
         };
 
         // 부서 조정자가 관리자 반환 건 재검토 후 재제출
@@ -1082,10 +1082,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ comment }),
                 });
-                if (!resp.ok) { const err = await resp.json(); alert(err.error); return; }
-                alert('관리자 최종 승인 대기 상태로 재제출되었습니다.');
+                if (!resp.ok) { const err = await resp.json(); showToast(err.error); return; }
+                showToast('관리자 최종 승인 대기 상태로 재제출되었습니다.', 'success');
                 if (await loadData()) render();
-            } catch { alert('재제출에 실패했습니다.'); }
+            } catch { showToast('재제출에 실패했습니다.'); }
         };
 
         window.addLinkageNote = async function(linkageId) {
@@ -1101,7 +1101,7 @@
                 if (!resp.ok) throw new Error();
                 input.value = '';
                 if (await loadData()) render();
-            } catch { alert('메모 추가에 실패했습니다.'); }
+            } catch { showToast('메모 추가에 실패했습니다.'); }
         };
 
         // URL 파라미터로 연계 폼 자동 열기
