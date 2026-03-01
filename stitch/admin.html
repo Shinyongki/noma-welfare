@@ -122,10 +122,6 @@
             border-color: #CBD5E1;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
-        .kanban-card.expanded {
-            border-color: #6366F1; cursor: default;
-            box-shadow: 0 4px 16px rgba(99,102,241,0.12);
-        }
         .kanban-card.dragging {
             opacity: 0.4; transform: scale(0.97);
             box-shadow: 0 8px 24px rgba(0,0,0,0.12);
@@ -136,32 +132,42 @@
             background: #F5F3FF;
         }
         .kanban-card .card-summary { pointer-events: none; }
-        .kanban-card .card-detail {
-            border-top: 1px solid #E2E8F0;
-            margin-top: 0.75rem; padding-top: 0.75rem;
-            max-height: 0; overflow: hidden; opacity: 0;
-            transition: max-height 0.35s ease, opacity 0.25s ease, margin-top 0.25s ease, padding-top 0.25s ease;
-            margin-top: 0; padding-top: 0; border-top-color: transparent;
-        }
-        .kanban-card.expanded .card-detail {
-            max-height: 800px; opacity: 1;
-            margin-top: 0.75rem; padding-top: 0.75rem;
-            border-top-color: #E2E8F0;
-        }
-        .kanban-card .card-compact-extra {
-            max-height: 0; overflow: hidden; opacity: 0;
-            transition: max-height 0.3s ease, opacity 0.2s ease;
-        }
-        .kanban-card.expanded .card-compact-extra {
-            max-height: 200px; opacity: 1;
-        }
-        .kanban-card .expand-icon {
-            transition: transform 0.25s ease;
-        }
-        .kanban-card.expanded .expand-icon {
-            transform: rotate(180deg);
-        }
         .kanban-card .bulk-checkbox { pointer-events: auto; }
+
+        /* Kanban Detail Modal */
+        .kanban-modal-overlay {
+            position: fixed; inset: 0; z-index: 70;
+            background: rgba(0,0,0,0.45); backdrop-filter: blur(3px);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .kanban-modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .kanban-modal-panel {
+            background: #fff; border-radius: 1rem;
+            width: 100%; max-width: 740px; max-height: 85vh;
+            margin: 1rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+            display: flex; flex-direction: column;
+            transform: translateY(16px) scale(0.97);
+            opacity: 0;
+            transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease;
+        }
+        .kanban-modal-overlay.active .kanban-modal-panel {
+            transform: translateY(0) scale(1); opacity: 1;
+        }
+        .kanban-modal-header {
+            flex-shrink: 0;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #E2E8F0;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .kanban-modal-body {
+            flex: 1; overflow-y: auto; padding: 1.5rem;
+        }
+        @media (max-width: 640px) {
+            .kanban-modal-panel { max-width: 100%; margin: 0.5rem; max-height: 90vh; }
+        }
 
         /* Approval Timeline */
         .approval-timeline { position: relative; padding-left: 1.5rem; }
@@ -773,6 +779,24 @@
         </div>
     </div>
 
+    <!-- Kanban Card Detail Modal -->
+    <div id="kanban-detail-modal" class="kanban-modal-overlay" onclick="onKanbanModalOverlayClick(event)">
+        <div class="kanban-modal-panel" onclick="event.stopPropagation()">
+            <div class="kanban-modal-header">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                    <span id="kanban-modal-status" class="badge bg-slate-100 text-slate-600" style="font-size:11px">-</span>
+                    <h3 id="kanban-modal-title" class="text-base font-bold text-slate-800 truncate">상세 정보</h3>
+                </div>
+                <button onclick="closeKanbanModal()" class="p-1.5 hover:bg-slate-100 rounded-lg flex-shrink-0 ml-3" aria-label="닫기">
+                    <span class="material-symbols-outlined text-slate-500" aria-hidden="true">close</span>
+                </button>
+            </div>
+            <div id="kanban-modal-body" class="kanban-modal-body">
+                <p class="text-slate-400 text-sm text-center py-8">로딩 중...</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Case Detail Slide-Over Panel -->
     <div id="case-panel-overlay" class="case-panel-overlay" onclick="closeCasePanel()"></div>
     <div id="case-panel-drawer" class="case-panel-drawer" role="dialog" aria-modal="true" aria-label="케이스 상세">
@@ -1159,7 +1183,6 @@
 
     // ── Linkage Coordination Panel (Kanban) ──
     let collabSearchTimer = null;
-    let expandedCardId = null;
     let expandedCardData = {};
     let collabViewMode = 'kanban'; // 'kanban' or 'table'
     let tableSortKey = 'date';
@@ -1206,9 +1229,6 @@
 
     function renderKanbanCard(c, isActionable) {
         const approvalSt = c.approvalStatus ? (APPROVAL_STATUS_MAP[c.approvalStatus] || APPROVAL_STATUS_MAP.pending) : APPROVAL_STATUS_MAP.pending;
-        const typeName = COLLAB_TYPE_MAP[c.type] || '자문';
-        const catLabel = c.category === 'referral' ? '서비스연계' : '부서협업';
-        const isExpanded = expandedCardId === c.id;
 
         let directionHtml = '';
         if (c.category === 'referral' && c.targetService) {
@@ -1220,31 +1240,17 @@
         }
 
         const dateStr = new Date(c.createdAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'});
-
-        const ed = expandedCardData[c.id];
         const isBulkSelected = bulkSelected.has(c.id);
 
         return `
-        <div id="kcard-${c.id}" class="kanban-card ${isExpanded ? 'expanded' : ''} ${isBulkSelected ? 'bulk-selected' : ''}" draggable="true" ondragstart="onDragStart(event, '${c.id}')" ondragend="onDragEnd(event)" onclick="toggleCardExpand('${c.id}', event)">
+        <div id="kcard-${c.id}" class="kanban-card ${isBulkSelected ? 'bulk-selected' : ''}" draggable="true" ondragstart="onDragStart(event, '${c.id}')" ondragend="onDragEnd(event)" onclick="openKanbanModal('${c.id}', event)">
             <div class="card-summary">
                 <div class="flex items-center gap-1.5">
                     <input type="checkbox" class="bulk-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 flex-shrink-0" ${isBulkSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleBulkSelect('${c.id}', this.checked)" />
                     <span class="badge ${approvalSt.bg} ${approvalSt.text}" style="font-size:10px;padding:1px 6px">${approvalSt.label}</span>
                     <span class="flex-1 min-w-0 flex items-center gap-1 truncate">${directionHtml || `<span class="text-xs text-slate-500 truncate">${escapeHtml(c.userName || '-')}</span>`}</span>
                     <span class="text-[10px] text-slate-400 flex-shrink-0">${dateStr}</span>
-                    <span class="material-symbols-outlined expand-icon text-slate-400 flex-shrink-0" aria-hidden="true" style="font-size:16px">expand_more</span>
                 </div>
-            </div>
-            <div class="card-detail">
-                <div class="mb-2">
-                    <div class="flex items-center gap-1.5 mb-1">
-                        <span class="text-[10px] text-slate-400">${catLabel} · ${typeName}</span>
-                    </div>
-                    ${directionHtml ? `<p class="text-xs text-slate-500 truncate">${escapeHtml(c.userName || '-')} · ${escapeHtml(c.serviceName || '-')}</p>` : `<p class="text-xs text-slate-500 truncate">${escapeHtml(c.serviceName || '-')}</p>`}
-                    ${c.reason ? `<p class="text-[11px] text-slate-400 mt-0.5">${escapeHtml(c.reason)}</p>` : ''}
-                </div>
-                ${renderApprovalStepper(c.approvalStatus)}
-                ${isExpanded && ed ? renderExpandedDetail(c, ed) : (isExpanded ? '<p class="text-xs text-slate-400 py-2">로딩 중...</p>' : '')}
             </div>
         </div>`;
     }
@@ -1259,79 +1265,260 @@
         el.innerHTML = items.map(c => renderKanbanCard(c, isActionable)).join('');
     }
 
-    // 개별 카드 DOM만 업데이트 (전체 재렌더링 방지)
-    function updateSingleCard(linkageId) {
-        const cardEl = document.getElementById('kcard-' + linkageId);
-        if (!cardEl) return;
-        const collab = allCollabs.find(c => c.id === linkageId);
-        if (!collab) return;
-        const isActionable = collab.approvalStatus === 'dept_approved';
-        const tmp = document.createElement('div');
-        tmp.innerHTML = renderKanbanCard(collab, isActionable);
-        const newCard = tmp.firstElementChild;
-        cardEl.replaceWith(newCard);
-    }
+    // ── Kanban Detail Modal ──
+    let kanbanModalOpen = false;
+    let kanbanModalLinkageId = null;
 
-    async function toggleCardExpand(linkageId, event) {
+    async function openKanbanModal(linkageId, event) {
         if (event) event.stopPropagation();
-        // If clicking inside expanded detail or checkbox, don't collapse
-        if (event && event.target.closest('.card-detail')) return;
         if (event && event.target.closest('.bulk-checkbox')) return;
 
-        const cardEl = document.getElementById('kcard-' + linkageId);
-
-        if (expandedCardId === linkageId) {
-            // Collapse current card via class toggle (preserves transition)
-            expandedCardId = null;
-            if (cardEl) cardEl.classList.remove('expanded');
-            return;
-        }
-
-        // Collapse previously expanded card
-        const prevExpanded = expandedCardId;
-        if (prevExpanded) {
-            const prevEl = document.getElementById('kcard-' + prevExpanded);
-            if (prevEl) prevEl.classList.remove('expanded');
-        }
-
-        expandedCardId = linkageId;
-
-        // Re-render card to populate detail content, then expand
-        updateSingleCard(linkageId);
-        // Use rAF to ensure DOM is updated before adding expanded class for transition
-        requestAnimationFrame(() => {
-            const newCardEl = document.getElementById('kcard-' + linkageId);
-            if (newCardEl) newCardEl.classList.add('expanded');
-        });
-
-        // Fetch request data for this linkage
         const collab = allCollabs.find(c => c.id === linkageId);
-        if (collab && collab.requestId && !expandedCardData[linkageId]) {
+        if (!collab) return;
+
+        kanbanModalLinkageId = linkageId;
+        kanbanModalOpen = true;
+
+        const modal = document.getElementById('kanban-detail-modal');
+        const body = document.getElementById('kanban-modal-body');
+
+        // Set header info
+        const approvalSt = collab.approvalStatus ? (APPROVAL_STATUS_MAP[collab.approvalStatus] || APPROVAL_STATUS_MAP.pending) : APPROVAL_STATUS_MAP.pending;
+        const statusBadgeEl = document.getElementById('kanban-modal-status');
+        statusBadgeEl.className = 'badge ' + approvalSt.bg + ' ' + approvalSt.text;
+        statusBadgeEl.style.fontSize = '11px';
+        statusBadgeEl.textContent = approvalSt.label;
+
+        let titleText = collab.userName || '-';
+        if (collab.category === 'referral' && collab.targetService) {
+            titleText = collab.targetService;
+        } else if (collab.fromDept && collab.toDept) {
+            titleText = getDeptName(collab.fromDept) + ' → ' + getDeptName(collab.toDept);
+        }
+        document.getElementById('kanban-modal-title').textContent = titleText;
+
+        body.innerHTML = '<p class="text-slate-400 text-sm text-center py-8">로딩 중...</p>';
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+        // Fetch request data
+        if (collab.requestId && !expandedCardData[linkageId]) {
             try {
                 const data = await api(`/api/admin/requests/${collab.requestId}`);
                 expandedCardData[linkageId] = data;
-                updateSingleCard(linkageId);
-                requestAnimationFrame(() => {
-                    const updatedEl = document.getElementById('kcard-' + linkageId);
-                    if (updatedEl) {
-                        updatedEl.classList.add('expanded');
-                        updatedEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
-                });
             } catch (e) {
                 expandedCardData[linkageId] = { error: true };
-                updateSingleCard(linkageId);
-                requestAnimationFrame(() => {
-                    const updatedEl = document.getElementById('kcard-' + linkageId);
-                    if (updatedEl) updatedEl.classList.add('expanded');
-                });
             }
+        }
+
+        // Render modal content
+        renderKanbanModalContent(linkageId);
+    }
+
+    function renderKanbanModalContent(linkageId) {
+        const collab = allCollabs.find(c => c.id === linkageId);
+        if (!collab) return;
+
+        const body = document.getElementById('kanban-modal-body');
+        const ed = expandedCardData[linkageId];
+        const typeName = COLLAB_TYPE_MAP[collab.type] || '자문';
+        const catLabel = collab.category === 'referral' ? '서비스연계' : '부서협업';
+
+        let directionHtml = '';
+        if (collab.category === 'referral' && collab.targetService) {
+            directionHtml = `<span class="font-semibold text-blue-700">${escapeHtml(collab.targetService)}</span>`;
+        } else if (collab.fromDept && collab.toDept) {
+            directionHtml = `<span class="font-semibold text-indigo-700">${getDeptName(collab.fromDept)}</span>
+                <span class="material-symbols-outlined text-slate-400" aria-hidden="true" style="font-size:14px">arrow_forward</span>
+                <span class="font-semibold text-green-700">${getDeptName(collab.toDept)}</span>`;
+        }
+
+        let html = '';
+
+        // Category / Type / Direction info
+        html += `<div class="mb-4 pb-4 border-b border-slate-100">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-xs text-slate-400">${catLabel} · ${typeName}</span>
+                <span class="text-xs text-slate-400 ml-auto">${new Date(collab.createdAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+            </div>
+            ${directionHtml ? `<div class="flex items-center gap-1.5 text-sm mb-2">${directionHtml}</div>` : ''}
+            <p class="text-sm text-slate-600">${escapeHtml(collab.userName || '-')} · ${escapeHtml(collab.serviceName || '-')}</p>
+            ${collab.reason ? `<p class="text-sm text-slate-500 mt-1">${escapeHtml(collab.reason)}</p>` : ''}
+        </div>`;
+
+        // Approval stepper
+        html += `<div class="mb-4">${renderApprovalStepper(collab.approvalStatus)}</div>`;
+
+        // Expanded detail content (same as before, but rendered in modal)
+        if (ed) {
+            html += renderModalExpandedDetail(collab, ed);
         } else {
-            // Data already cached, scroll into view
-            requestAnimationFrame(() => {
-                const el = document.getElementById('kcard-' + linkageId);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            html += '<p class="text-sm text-slate-400 text-center py-4">로딩 중...</p>';
+        }
+
+        body.innerHTML = html;
+    }
+
+    function renderModalExpandedDetail(linkage, requestData) {
+        if (requestData.error) return '<p class="text-sm text-red-400 text-center py-4">데이터를 불러올 수 없습니다.</p>';
+
+        const isActionable = linkage.approvalStatus === 'dept_approved';
+        const notes = linkage.notes || [];
+
+        let html = '';
+
+        // 1. Approval timeline
+        if (linkage.approvalHistory && linkage.approvalHistory.length > 0) {
+            html += `<div class="mb-5">
+                <h5 class="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
+                    <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">timeline</span>승인 이력
+                </h5>
+                ${renderApprovalTimeline(linkage.approvalHistory)}
+            </div>`;
+        }
+
+        // 2. Request info
+        html += `<div class="mb-5 p-4 bg-slate-50 rounded-lg">
+            <h5 class="text-xs font-bold text-slate-500 mb-2">원본 요청 정보</h5>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+                <div><span class="text-slate-400">이름:</span> <span class="font-medium">${escapeHtml(requestData.userName || '-')}</span></div>
+                <div><span class="text-slate-400">전화:</span> <span class="font-medium">${requestData.userPhone || '-'}</span></div>
+                <div class="col-span-2"><span class="text-slate-400">서비스:</span> <span class="font-medium">${escapeHtml(requestData.serviceName || '-')}</span></div>
+            </div>
+            ${requestData.conversationSummary ? `<div class="mt-3 pt-3 border-t border-slate-200">
+                <span class="text-xs font-semibold text-purple-600">AI 요약:</span>
+                <p class="text-sm text-slate-600 mt-1">${escapeHtml(requestData.conversationSummary)}</p>
+            </div>` : ''}
+        </div>`;
+
+        // 3. Notes
+        html += `<div class="mb-5">
+            <h5 class="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
+                <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">sticky_note_2</span>메모 (${notes.length})
+            </h5>
+            ${notes.length > 0 ? '<div class="space-y-1.5 max-h-[180px] overflow-y-auto mb-3">' + notes.map(n => `
+                <div class="text-sm p-2.5 bg-amber-50 rounded-lg">
+                    <span class="font-semibold text-indigo-600">${escapeHtml(n.dept || n.author || '관리자')}</span>
+                    <span class="text-slate-600 ml-1">${escapeHtml(n.text)}</span>
+                    <span class="text-slate-300 ml-1 text-xs">${new Date(n.createdAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                </div>
+            `).join('') + '</div>' : '<p class="text-sm text-slate-400 mb-3">메모 없음</p>'}
+            <div class="flex gap-2">
+                <input id="kb-note-${linkage.id}" type="text" placeholder="메모 입력..." class="flex-1 rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary" onkeydown="if(event.key==='Enter')addKanbanNoteFromModal('${requestData.id}','${linkage.id}')" />
+                <button onclick="addKanbanNoteFromModal('${requestData.id}','${linkage.id}')" class="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors">추가</button>
+            </div>
+        </div>`;
+
+        // 4. Action buttons (only for dept_approved)
+        if (isActionable) {
+            html += `<div class="mb-5 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <textarea id="kb-comment-${linkage.id}" rows="2" placeholder="코멘트 입력 (선택)..." class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 mb-3 focus:ring-primary focus:border-primary resize-none"></textarea>
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="kanbanApproveFromModal('${linkage.id}')" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 flex items-center gap-1.5 transition-colors">
+                        <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">check_circle</span>최종 승인
+                    </button>
+                    <button onclick="kanbanRejectFromModal('${linkage.id}')" class="px-4 py-2 bg-white border border-red-300 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors">반려</button>
+                    <button onclick="kanbanRevisionFromModal('${linkage.id}')" class="px-4 py-2 bg-white border border-orange-300 text-orange-600 rounded-lg text-sm font-semibold hover:bg-orange-50 transition-colors">수정요청</button>
+                </div>
+            </div>`;
+        }
+
+        // 5. 케이스 상세 패널 열기 버튼
+        html += `<button onclick="closeKanbanModal();openCasePanel('${requestData.id}')" class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm font-semibold text-green-700 hover:bg-green-100 transition-colors">
+            <span class="material-symbols-outlined" style="font-size:18px" aria-hidden="true">assignment</span>담당자 처리 페이지 보기
+        </button>`;
+
+        return html;
+    }
+
+    function closeKanbanModal() {
+        kanbanModalOpen = false;
+        kanbanModalLinkageId = null;
+        const modal = document.getElementById('kanban-detail-modal');
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    function onKanbanModalOverlayClick(event) {
+        if (event.target === event.currentTarget) {
+            closeKanbanModal();
+        }
+    }
+
+    // Modal-specific action wrappers (close modal after action, reload panel)
+    async function addKanbanNoteFromModal(requestId, linkageId) {
+        const input = document.getElementById('kb-note-' + linkageId);
+        const text = input?.value.trim();
+        if (!text) return;
+        try {
+            await fetch(`/api/case/${requestId}/linkage/${linkageId}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, author: '관리자', dept: '관리자' }),
             });
+            const data = await api(`/api/admin/requests/${requestId}`);
+            const updatedLinkage = (data.linkages || []).find(l => l.id === linkageId);
+            if (updatedLinkage) {
+                const collab = allCollabs.find(c => c.id === linkageId);
+                if (collab) Object.assign(collab, { notes: updatedLinkage.notes });
+            }
+            expandedCardData[linkageId] = data;
+            renderKanbanModalContent(linkageId);
+        } catch (e) {
+            alert('메모 추가 실패');
+        }
+    }
+
+    async function kanbanApproveFromModal(linkageId) {
+        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
+        try {
+            const resp = await fetch(`/api/admin/linkage/${linkageId}/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment }),
+            });
+            if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || ''); }
+            closeKanbanModal();
+            delete expandedCardData[linkageId];
+            loadCollabPanel();
+        } catch (e) {
+            alert('승인 처리 실패');
+        }
+    }
+
+    async function kanbanRejectFromModal(linkageId) {
+        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
+        if (!comment) { alert('반려 사유를 입력하세요.'); return; }
+        try {
+            const resp = await fetch(`/api/admin/linkage/${linkageId}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment }),
+            });
+            if (!resp.ok) throw new Error();
+            closeKanbanModal();
+            delete expandedCardData[linkageId];
+            loadCollabPanel();
+        } catch (e) {
+            alert('반려 처리 실패');
+        }
+    }
+
+    async function kanbanRevisionFromModal(linkageId) {
+        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
+        if (!comment) { alert('수정 요청 사항을 입력하세요.'); return; }
+        try {
+            const resp = await fetch(`/api/admin/linkage/${linkageId}/revision`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment }),
+            });
+            if (!resp.ok) throw new Error();
+            closeKanbanModal();
+            delete expandedCardData[linkageId];
+            loadCollabPanel();
+        } catch (e) {
+            alert('수정 요청 실패');
         }
     }
 
@@ -1366,78 +1553,6 @@
             </div>`;
         });
         html += '</div>';
-        return html;
-    }
-
-    function renderExpandedDetail(linkage, requestData) {
-        if (requestData.error) return '<p class="text-xs text-red-400">데이터를 불러올 수 없습니다.</p>';
-
-        const isActionable = linkage.approvalStatus === 'dept_approved';
-        const notes = linkage.notes || [];
-
-        let html = '';
-
-        // 1. Approval timeline
-        if (linkage.approvalHistory && linkage.approvalHistory.length > 0) {
-            html += `<div class="mb-3">
-                <h5 class="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1">
-                    <span class="material-symbols-outlined style=" aria-hidden="true"font-size:14px">timeline</span>승인 이력
-                </h5>
-                ${renderApprovalTimeline(linkage.approvalHistory)}
-            </div>`;
-        }
-
-        // 2. Request info
-        html += `<div class="mb-3 p-2.5 bg-slate-50 rounded-lg">
-            <h5 class="text-[11px] font-bold text-slate-500 mb-1.5">원본 요청</h5>
-            <div class="grid grid-cols-2 gap-1 text-xs">
-                <div><span class="text-slate-400">이름:</span> <span class="font-medium">${escapeHtml(requestData.userName || '-')}</span></div>
-                <div><span class="text-slate-400">전화:</span> <span class="font-medium">${requestData.userPhone || '-'}</span></div>
-                <div class="col-span-2"><span class="text-slate-400">서비스:</span> <span class="font-medium">${escapeHtml(requestData.serviceName || '-')}</span></div>
-            </div>
-            ${requestData.conversationSummary ? `<div class="mt-1.5 pt-1.5 border-t border-slate-200">
-                <span class="text-[10px] font-semibold text-purple-600">AI 요약:</span>
-                <p class="text-[11px] text-slate-600 mt-0.5">${escapeHtml(requestData.conversationSummary)}</p>
-            </div>` : ''}
-        </div>`;
-
-        // 3. Notes
-        html += `<div class="mb-3">
-            <h5 class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center gap-1">
-                <span class="material-symbols-outlined style=" aria-hidden="true"font-size:14px">sticky_note_2</span>메모 (${notes.length})
-            </h5>
-            ${notes.length > 0 ? '<div class="space-y-1 max-h-[120px] overflow-y-auto mb-2">' + notes.map(n => `
-                <div class="text-[11px] p-1.5 bg-amber-50 rounded">
-                    <span class="font-semibold text-indigo-600">${escapeHtml(n.dept || n.author || '관리자')}</span>
-                    <span class="text-slate-600 ml-1">${escapeHtml(n.text)}</span>
-                    <span class="text-slate-300 ml-1">${new Date(n.createdAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
-                </div>
-            `).join('') + '</div>' : '<p class="text-[11px] text-slate-400 mb-2">메모 없음</p>'}
-            <div class="flex gap-1">
-                <input id="kb-note-${linkage.id}" type="text" placeholder="메모 입력..." class="flex-1 rounded border-slate-300 text-xs py-1 px-2 focus:ring-primary focus:border-primary" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'){event.stopPropagation();addKanbanNote('${requestData.id}','${linkage.id}')}" />
-                <button onclick="event.stopPropagation();addKanbanNote('${requestData.id}','${linkage.id}')" class="px-2 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700">추가</button>
-            </div>
-        </div>`;
-
-        // 4. Action buttons (only for dept_approved)
-        if (isActionable) {
-            html += `<div class="mb-3 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
-                <textarea id="kb-comment-${linkage.id}" rows="2" placeholder="코멘트 입력 (선택)..." class="w-full rounded border-slate-300 text-xs py-1.5 px-2 mb-2 focus:ring-primary focus:border-primary resize-none" onclick="event.stopPropagation()"></textarea>
-                <div class="flex gap-1.5 flex-wrap">
-                    <button onclick="event.stopPropagation();kanbanApprove('${linkage.id}')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 flex items-center gap-1">
-                        <span class="material-symbols-outlined style=" aria-hidden="true"font-size:14px">check_circle</span>최종 승인
-                    </button>
-                    <button onclick="event.stopPropagation();kanbanReject('${linkage.id}')" class="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50">반려</button>
-                    <button onclick="event.stopPropagation();kanbanRevision('${linkage.id}')" class="px-3 py-1.5 bg-white border border-orange-300 text-orange-600 rounded-lg text-xs font-semibold hover:bg-orange-50">수정요청</button>
-                </div>
-            </div>`;
-        }
-
-        // 5. 케이스 상세 패널 열기 버튼
-        html += `<button onclick="event.stopPropagation();openCasePanel('${requestData.id}')" class="w-full flex items-center gap-1.5 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-xs font-semibold text-green-700 hover:bg-green-100 transition-colors">
-            <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">assignment</span>케이스 상세 보기
-        </button>`;
-
         return html;
     }
 
@@ -1632,30 +1747,6 @@
         if (requestId) openDetail(requestId);
     }
 
-    async function addKanbanNote(requestId, linkageId) {
-        const input = document.getElementById('kb-note-' + linkageId);
-        const text = input?.value.trim();
-        if (!text) return;
-        try {
-            await fetch(`/api/case/${requestId}/linkage/${linkageId}/notes`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text, author: '관리자', dept: '관리자' }),
-            });
-            // Re-fetch expanded data
-            const data = await api(`/api/admin/requests/${requestId}`);
-            const updatedLinkage = (data.linkages || []).find(l => l.id === linkageId);
-            if (updatedLinkage) {
-                const collab = allCollabs.find(c => c.id === linkageId);
-                if (collab) Object.assign(collab, { notes: updatedLinkage.notes });
-            }
-            expandedCardData[linkageId] = data;
-            renderKanbanBoard(allCollabs);
-        } catch (e) {
-            alert('메모 추가 실패');
-        }
-    }
-
     // ── Drag & Drop ──
     function onDragStart(event, linkageId) {
         draggedLinkageId = linkageId;
@@ -1731,7 +1822,6 @@
                 });
                 if (!resp.ok) throw new Error();
             }
-            expandedCardId = null;
             loadCollabPanel();
         } catch (e) {
             alert('상태 변경 실패');
@@ -1802,7 +1892,6 @@
         bulkSelected.clear();
         updateBulkBar();
         document.getElementById('bulk-status-select').value = '';
-        expandedCardId = null;
         loadCollabPanel();
     }
 
@@ -2088,60 +2177,6 @@
     }
 
     // ── 연계 조정 (관리자 승인/반려/수정요청) ──
-    // Kanban inline versions (read comment from textarea)
-    async function kanbanApprove(linkageId) {
-        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
-        try {
-            const resp = await fetch(`/api/admin/linkage/${linkageId}/approve`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ comment }),
-            });
-            if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || ''); }
-            expandedCardId = null;
-            delete expandedCardData[linkageId];
-            loadCollabPanel();
-        } catch (e) {
-            alert('승인 처리 실패');
-        }
-    }
-
-    async function kanbanReject(linkageId) {
-        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
-        if (!comment) { alert('반려 사유를 입력하세요.'); return; }
-        try {
-            const resp = await fetch(`/api/admin/linkage/${linkageId}/reject`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ comment }),
-            });
-            if (!resp.ok) throw new Error();
-            expandedCardId = null;
-            delete expandedCardData[linkageId];
-            loadCollabPanel();
-        } catch (e) {
-            alert('반려 처리 실패');
-        }
-    }
-
-    async function kanbanRevision(linkageId) {
-        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
-        if (!comment) { alert('수정 요청 사항을 입력하세요.'); return; }
-        try {
-            const resp = await fetch(`/api/admin/linkage/${linkageId}/revision`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ comment }),
-            });
-            if (!resp.ok) throw new Error();
-            expandedCardId = null;
-            delete expandedCardData[linkageId];
-            loadCollabPanel();
-        } catch (e) {
-            alert('수정 요청 실패');
-        }
-    }
-
     // Legacy prompt-based versions (used by dashboard detail modal)
     async function approveLinkage(linkageId, event) {
         if (event) event.stopPropagation();
@@ -2394,10 +2429,12 @@
         document.body.style.overflow = '';
     }
 
-    // ESC key handler for case panel
+    // ESC key handler for modals/panels (most recent layer first)
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && casePanelOpen) {
-            closeCasePanel();
+        if (e.key === 'Escape') {
+            if (casePanelOpen) { closeCasePanel(); return; }
+            if (kanbanModalOpen) { closeKanbanModal(); return; }
+            if (!document.getElementById('detail-modal').classList.contains('hidden')) { closeModal(); return; }
         }
     });
 
