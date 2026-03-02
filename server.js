@@ -21,6 +21,9 @@ dotenv.config();
 
 const app = express();
 
+// ── 리버스 프록시 신뢰 (Render 등 클라우드 배포 시 필수) ──
+app.set('trust proxy', 1);
+
 // ── 보안 HTTP 헤더 (helmet) ──
 app.use(helmet({
     contentSecurityPolicy: {
