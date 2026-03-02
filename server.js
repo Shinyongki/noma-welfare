@@ -804,32 +804,24 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     expandedTerms.forEach(t => subTerms.delete(t));
     const subTermsArray = [...subTerms].filter(t => t.length >= 2);
 
+    // 검색어를 가중치별로 통합하여 1회 순회로 스코어링
+    const weightedTerms = [];
+    searchTerms.forEach(t => weightedTerms.push({ term: t, w: 1.0 }));
+    expandedTerms.forEach(t => weightedTerms.push({ term: t, w: 0.7 }));
+    subTermsArray.forEach(t => weightedTerms.push({ term: t, w: 0.5 }));
+
     const scoredServices = welfareKB.map(service => {
         let score = 0;
         const name = service['사업명'] || '';
         const keywords = service['키워드 태그'] || '';
         const content = service['지원 내용'] || '';
         const target = service['지원 대상'] || '';
-        searchTerms.forEach(term => {
-            if (name.includes(term)) score += 3;       // 사업명 일치 가중치 높음
-            if (keywords.includes(term)) score += 2;   // 키워드 태그
-            if (target.includes(term)) score += 1;     // 지원 대상
-            if (content.includes(term)) score += 1;    // 지원 내용
-        });
-        // 유의어 확장 매칭 (원래 가중치 × 0.7)
-        expandedTerms.forEach(term => {
-            if (name.includes(term)) score += 3 * 0.7;
-            if (keywords.includes(term)) score += 2 * 0.7;
-            if (target.includes(term)) score += 1 * 0.7;
-            if (content.includes(term)) score += 1 * 0.7;
-        });
-        // 서브텀 매칭 (복합어 분해 결과, 낮은 가중치)
-        subTermsArray.forEach(term => {
-            if (name.includes(term)) score += 1.5;
-            if (keywords.includes(term)) score += 1;
-            if (target.includes(term)) score += 0.5;
-            if (content.includes(term)) score += 0.5;
-        });
+        for (const { term, w } of weightedTerms) {
+            if (name.includes(term)) score += 3 * w;
+            if (keywords.includes(term)) score += 2 * w;
+            if (target.includes(term)) score += 1 * w;
+            if (content.includes(term)) score += 1 * w;
+        }
         return { service, score };
     }).filter(s => s.score > 0)
       .sort((a, b) => b.score - a.score)

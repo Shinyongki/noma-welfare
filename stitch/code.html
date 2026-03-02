@@ -1969,8 +1969,8 @@
                     if (wasHeroInput) {
                         // 확인 토스트(3초) 후 자동 제출 절충안
                         if (voiceSubmitTimer) clearTimeout(voiceSubmitTimer);
-                        showToast(`"${text.length > 20 ? text.slice(0, 20) + '…' : text}" — 3초 후 검색합니다. 수정하려면 입력창을 클릭하세요.`);
-                        voiceSubmitTimer = setTimeout(() => { voiceSubmitTimer = null; handleHeroSubmit(); }, 3000);
+                        showToast(`"${text.length > 20 ? text.slice(0, 20) + '…' : text}" — 잠시 후 검색합니다. 수정하려면 입력창을 클릭하세요.`);
+                        voiceSubmitTimer = setTimeout(() => { voiceSubmitTimer = null; handleHeroSubmit(); }, 1500);
                         // 사용자가 입력창에 포커스하면 자동 제출 취소
                         const cancelHandler = () => {
                             if (voiceSubmitTimer) { clearTimeout(voiceSubmitTimer); voiceSubmitTimer = null; showToast('자동 검색이 취소되었습니다.'); }
