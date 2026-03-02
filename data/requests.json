@@ -528,5 +528,63 @@
       }
     ],
     "updatedAt": "2026-03-01T10:43:06.855Z"
+  },
+  "d881f9bc-b0f7-4b95-8933-c36989e87595": {
+    "id": "d881f9bc-b0f7-4b95-8933-c36989e87595",
+    "serviceName": "긴급돌봄지원사업",
+    "userName": "신용기",
+    "userPhone": "010-5758-6517",
+    "createdAt": "2026. 3. 2. 오후 9:25:54",
+    "createdAtISO": "2026-03-02T12:25:54.850Z",
+    "status": "contacted",
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: (신용기, 87세, 미확인, 미확인)\n- 생활상황: (미확인, 퇴원 후 돌봐줄 사람이 없는 상황)\n- 주요 어려움: (퇴원 후 돌봄 공백, 심리적 어려움)\n- 이용 중 서비스: (미확인)\n- 긴급도: (긴급)\n- 추천된 서비스: (긴급돌봄지원사업)",
+    "assignmentRationale": "다음은 해당 서비스를 통합돌봄사업부에서 처리해야 하는 근거입니다.\n\n1.  **배정 근거**\n    이용자는 87세 독거노인으로, 퇴원 후 돌봄 공백이 발생하여 긴급 돌봄이 필요한 상황입니다. 통합돌봄사업부는 갑작스러운 질병·사고로 인한 돌봄 공백 시 단기(30일) 긴급 돌봄 파견을 전담하므로, 해당 서비스 배정이 적합합니다.\n\n2.  **이용자 상황 매칭**\n    이용자는 87세 독거노인으로, 퇴원 후 돌봐줄 사람이 없어 '갑작스러운 돌봄 공백'이 발생했습니다. 이는 통합돌봄사업부의 핵심 자격 요건인 '갑작스러운 돌봄 공백 발생' 및 '독거노인 돌봄 공백 가구'에 해당하며, 긴급돌봄지원사업의 지원 대상과 일치합니다.\n\n3.  **법적/제도적 근거**\n    「사회서비스 이용 및 이용권 관리에 관한 법률」에 따른 긴급돌봄 지원이며, 경상남도사회서비스원 설립 목적(돌봄 사각지대 해소)에 부합하는 직접 서비스입니다.\n\n4.  **우선 확인 사항**\n    *   소득 기준 확인 (수급자·차상위·중위소득 160% 이하 여부)\n    *   돌봄 공백 발생 사유 및 긴급성 구체적 확인 (퇴원 관련 증빙 등)\n    *   현재 거주지 및 필요한 돌봄 내용(가사지원, 식사준비, 신변처리 등) 구체화",
+    "assignedDept": {
+      "name": "통합돌봄사업부",
+      "id": "care",
+      "phone": "055-230-8216"
+    },
+    "updatedAt": "2026-03-02T12:26:52.744Z",
+    "linkages": [
+      {
+        "id": "7a4e35cf-e5e0-40a0-a96d-08a47ac1a5e4",
+        "category": "collaboration",
+        "type": "consultation",
+        "fromDept": "care",
+        "toDept": "emergency",
+        "targetService": null,
+        "reason": "연계 필요",
+        "approvalStatus": "pending",
+        "approvalHistory": [
+          {
+            "action": "submitted",
+            "by": "담당자",
+            "comment": "",
+            "at": "2026-03-02T12:27:21.629Z"
+          }
+        ],
+        "executionStatus": null,
+        "newRequestId": null,
+        "sequenceOrder": null,
+        "sequenceGroupId": null,
+        "createdAt": "2026-03-02T12:27:21.629Z",
+        "updatedAt": "2026-03-02T12:27:21.629Z",
+        "notes": []
+      }
+    ]
+  },
+  "6ba16d9f-25bb-4309-9e1f-6f343256700b": {
+    "id": "6ba16d9f-25bb-4309-9e1f-6f343256700b",
+    "serviceName": "경상남도 통합돌봄지원센터",
+    "userName": "신용기",
+    "userPhone": "010-5758-6517",
+    "createdAt": "2026. 3. 2. 오후 9:35:54",
+    "createdAtISO": "2026-03-02T12:35:54.461Z",
+    "status": "open",
+    "referrals": [],
+    "conversationSummary": "- 이용자 기본정보: 신용기, 80대 후반 (87세), 창원, 미확인\n- 생활상황: 독거\n- 주요 어려움: 퇴원 후 돌봄 공백\n- 이용 중 서비스: 미확인\n- 긴급도: 빠른 도움 필요\n- 추천된 서비스: 경상남도 통합돌봄지원센터",
+    "assignmentRationale": null,
+    "assignedDept": null
   }
 }

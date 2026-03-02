@@ -13,5 +13,12 @@
     "tts_request": 35,
     "rag_no_match": 12,
     "service_apply": 3
+  },
+  "2026-03-02": {
+    "chat_request": 14,
+    "rag_match": 9,
+    "tts_request": 14,
+    "rag_no_match": 5,
+    "service_apply": 2
   }
 }
