@@ -1393,6 +1393,11 @@
                 chatHistory.push({ role: 'model', content: fullResponse });
                 saveHistory();
 
+                // TTS: 스트리밍 완료 즉시 병렬로 시작 (렌더링/신청 대기하지 않음)
+                const ttsPromise = (fullResponse && ttsEnabled)
+                    ? speakText(extractSpeakableText(fullResponse))
+                    : Promise.resolve();
+
                 // Parse cards and summary (최종 전체 응답에서)
                 const { cards, summaryText } = parseNomaCards(fullResponse);
                 currentCards = cards;
@@ -1487,10 +1492,8 @@
                 // Smooth scroll: 입력란이 헤더 바로 아래 보이도록 스크롤 (scroll-margin-top: 80px 적용됨)
                 DOM.heroSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-                // TTS: 토글 설정에 따라 음성으로 읽어주기 (시니어 최적화)
-                if (fullResponse && ttsEnabled) {
-                    await speakText(extractSpeakableText(fullResponse));
-                }
+                // TTS: 병렬로 시작된 음성 재생 완료 대기
+                await ttsPromise;
 
             } catch (err) {
                 console.error('Search error:', err);
@@ -2405,6 +2408,27 @@
         window.addEventListener('DOMContentLoaded', () => {
             loadHistory();
             loadDrawerItems();
+
+            // 히든 관리자 진입점: 주황색 원 로고 5번 클릭 → admin.html
+            (function() {
+                let clickCount = 0;
+                let clickTimer = null;
+                const orangeCircle = document.querySelector('header svg circle[stroke="#f49231"]')?.closest('svg');
+                if (orangeCircle) {
+                    orangeCircle.style.cursor = 'pointer';
+                    orangeCircle.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        clickCount++;
+                        clearTimeout(clickTimer);
+                        if (clickCount >= 5) {
+                            clickCount = 0;
+                            window.location.href = '/admin.html';
+                        }
+                        clickTimer = setTimeout(() => { clickCount = 0; }, 3000);
+                    });
+                }
+            })();
         });
 
     })();

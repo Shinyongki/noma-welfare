@@ -988,7 +988,7 @@
                 </div>
 
                 <!-- System KPI -->
-                <div class="card-elevated">
+                <div id="system-kpi-section" class="card-elevated">
                     <h3 class="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-lg text-deep-purple" aria-hidden="true">speed</span>
                         시스템 KPI (7일)
@@ -1441,15 +1441,21 @@
     }
 
     // ── Tab titles ──
-    const TAB_TITLES = {
-        dashboard: '현황판',
-        requests: '상담 요청',
-        analytics: '분석',
-        collab: '연계 조정',
-    };
+    function getTabTitle(tab) {
+        if (tab === 'dashboard' && sessionRole === 'dept' && sessionDeptName) {
+            return sessionDeptName + ' 현황';
+        }
+        const titles = { dashboard: '현황판', requests: '상담 요청', analytics: '분석', collab: '연계 조정' };
+        return titles[tab] || tab;
+    }
 
     // ── Tab switching ──
     function switchTab(tab) {
+        // 부서 조정자는 분석 탭 접근 불가
+        if (tab === 'analytics' && sessionRole === 'dept') {
+            tab = 'dashboard';
+        }
+
         // Clean up detail view if active
         if (collabDetailActive) {
             hideCollabDetail();
@@ -1462,7 +1468,7 @@
         if (navEl) navEl.classList.add('nav-active');
 
         // Topbar title
-        document.getElementById('topbar-title').textContent = TAB_TITLES[tab] || tab;
+        document.getElementById('topbar-title').textContent = getTabTitle(tab);
 
         // Toggle panels
         ['dashboard', 'requests', 'analytics', 'collab'].forEach(p => {
@@ -4827,13 +4833,15 @@
         }
     }
 
-    // ── 사이드바 역할 표시 ──
+    // ── 사이드바 역할 표시 + 역할 기반 UI 제한 ──
     function updateSidebarRole() {
         const icon = document.getElementById('sidebar-role-icon');
         const label = document.getElementById('sidebar-role-label');
         const sub = document.getElementById('sidebar-role-sub');
         if (!icon) return;
-        if (sessionRole === 'dept' && sessionDeptName) {
+
+        const isDept = sessionRole === 'dept' && sessionDeptName;
+        if (isDept) {
             icon.textContent = 'supervisor_account';
             label.textContent = sessionDeptName;
             sub.textContent = '부서 조정자';
@@ -4842,6 +4850,14 @@
             label.textContent = '관리자';
             sub.textContent = '전체 관리';
         }
+
+        // 부서 조정자: 분석 탭 숨김
+        const navAnalytics = document.getElementById('nav-analytics');
+        if (navAnalytics) navAnalytics.style.display = isDept ? 'none' : '';
+
+        // 부서 조정자: 시스템 KPI 섹션 숨김
+        const systemKpiSection = document.getElementById('system-kpi-section');
+        if (systemKpiSection) systemKpiSection.style.display = isDept ? 'none' : '';
     }
 
     // ── 역할 전환 (로그아웃 → 로그인 게이트) ──

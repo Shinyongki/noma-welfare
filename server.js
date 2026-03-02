@@ -537,6 +537,13 @@ const deptServiceMap = {
     },
 };
 
+// 부서 ID로 해당 부서에 속하는 서비스명 목록 가져오기
+function getDeptServiceNames(deptId) {
+    return Object.entries(deptServiceMap)
+        .filter(([_, info]) => info.deptId === deptId)
+        .map(([name]) => name);
+}
+
 // 부서별 프로파일 (시스템 프롬프트 및 라우팅용)
 const deptProfiles = `
 [부서별 사업 프로파일 및 판별 기준]
@@ -1633,7 +1640,7 @@ async function synthesizeTTS(text, retries = 2) {
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
             const tts = new EdgeTTS();
-            await tts.synthesize(prepared, 'ko-KR-HyunsuMultilingualNeural', {
+            await tts.synthesize(prepared, 'ko-KR-SunHiNeural', {
                 rate: '-8%',
                 pitch: '+2Hz',
             });
@@ -2590,12 +2597,23 @@ app.post('/api/admin/linkage/:lid/revision', (req, res) => {
 
 // 전체 연계 목록
 app.get('/api/admin/linkages', (req, res) => {
-    res.json(requestStore.getActiveLinkages());
+    let linkages = requestStore.getActiveLinkages();
+    // 부서 조정자: 자기 부서가 관련된 연계만 반환
+    if (req.session.role === 'dept') {
+        const deptId = req.session.deptId;
+        linkages = linkages.filter(l => l.fromDept === deptId || l.toDept === deptId);
+    }
+    res.json(linkages);
 });
 
 // 승인 대기 건수
 app.get('/api/admin/pending-approvals', (req, res) => {
-    const pending = requestStore.getPendingApprovals();
+    let pending = requestStore.getPendingApprovals();
+    // 부서 조정자: 해당 부서 관련 승인 대기만
+    if (req.session.role === 'dept') {
+        const deptId = req.session.deptId;
+        pending = pending.filter(l => l.fromDept === deptId || l.toDept === deptId);
+    }
     res.json({ count: pending.length, items: pending });
 });
 
@@ -2614,12 +2632,28 @@ app.post('/api/case/:id/service-plan', (req, res) => {
 
 // A-07: 현황판 통계 + A-08 기간별 + A-11 처리시간
 app.get('/api/admin/stats', (req, res) => {
-    const stats = requestStore.getStats();
-    const all = requestStore.listAll();
+    const isDept = req.session.role === 'dept';
+    const deptServices = isDept ? getDeptServiceNames(req.session.deptId) : null;
+
+    let all = requestStore.listAll();
+    if (isDept) all = all.filter(r => deptServices.includes(r.serviceName));
+
+    // 부서 조정자면 필터링된 데이터로 통계 재계산
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const stats = { total: all.length, open: 0, confirmed: 0, contacted: 0, connected: 0, providing: 0, closed: 0, referred: 0, today: 0 };
+    const serviceCount = {};
+    all.forEach(r => {
+        if (stats[r.status] !== undefined) stats[r.status]++;
+        const ts = r.createdAtISO ? new Date(r.createdAtISO).getTime() : requestStore.parseKoDate(r.createdAt);
+        if (ts >= todayStart) stats.today++;
+        const svc = r.serviceName || '기타';
+        serviceCount[svc] = (serviceCount[svc] || 0) + 1;
+    });
+    stats.serviceCount = serviceCount;
 
     // A-08: 기간별 접수 추이 (최근 14일)
     const daily = {};
-    const now = new Date();
     for (let i = 13; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
@@ -2659,6 +2693,12 @@ app.get('/api/admin/stats', (req, res) => {
 app.get('/api/admin/requests', (req, res) => {
     let all = requestStore.listAll();
     const { status, search, page = 1, limit = 20, sort = 'newest' } = req.query;
+
+    // 부서 조정자: 해당 부서 서비스 요청만 반환
+    if (req.session.role === 'dept') {
+        const deptServices = getDeptServiceNames(req.session.deptId);
+        all = all.filter(r => deptServices.includes(r.serviceName));
+    }
 
     if (status && status !== 'all') {
         all = all.filter(r => r.status === status);
@@ -2736,7 +2776,12 @@ app.post('/api/admin/requests/:id/notes', (req, res) => {
 
 // 전체 활성 협업 목록 (linkages 기반으로 변환)
 app.get('/api/admin/collaborations', (req, res) => {
-    const linkages = requestStore.getActiveLinkages();
+    let linkages = requestStore.getActiveLinkages();
+    // 부서 조정자: 자기 부서가 관련된 연계만
+    if (req.session.role === 'dept') {
+        const deptId = req.session.deptId;
+        linkages = linkages.filter(l => l.fromDept === deptId || l.toDept === deptId);
+    }
     // 기존 admin.html 호환을 위해 collaboration 형식으로 변환
     const mapped = linkages.map(l => ({
         ...l,
@@ -2756,8 +2801,14 @@ app.get('/api/admin/collaborations', (req, res) => {
 
 // A-09 + A-10: 서비스 인기도 + 카테고리 분포
 app.get('/api/admin/analytics', (req, res) => {
-    const all = requestStore.listAll();
+    let all = requestStore.listAll();
     const now = new Date();
+
+    // 부서 조정자: 해당 부서 서비스 데이터만 집계
+    if (req.session.role === 'dept') {
+        const deptServices = getDeptServiceNames(req.session.deptId);
+        all = all.filter(r => deptServices.includes(r.serviceName));
+    }
 
     // 1. 서비스 랭킹
     const serviceCount = {};
@@ -2871,7 +2922,7 @@ app.get('/api/admin/analytics', (req, res) => {
     });
 });
 
-// KPI 통계
+// KPI 통계 (시스템 KPI는 관리자만 의미 있음, 부서 조정자에게도 반환하되 UI에서 숨김)
 app.get('/api/admin/kpi', (req, res) => {
     const days = parseInt(req.query.days) || 7;
     res.json(analyticsStore.getKPI(days));
