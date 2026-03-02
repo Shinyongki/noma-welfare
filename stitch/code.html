@@ -1222,6 +1222,7 @@
 
         async function performSearch(query, quickQuery = false) {
             if (!query.trim()) return;
+            stopSpeaking(); // 이전 TTS 즉시 중단
 
             // Transition to results state
             DOM.heroSection.classList.add('hero-compact');
@@ -1560,6 +1561,7 @@
 
         // ── Reset to Home ──
         function resetToHome() {
+            stopSpeaking(); // TTS 즉시 중단
             DOM.heroSection.classList.remove('hero-compact');
             DOM.heroChips.classList.remove('hidden');
             DOM.resultsSection.classList.add('hidden');
@@ -1706,6 +1708,7 @@
         }
 
         DOM.modalCancel.addEventListener('click', () => {
+            stopSpeaking();
             if (modalState.step === 'confirm') {
                 resetToHome();
             } else {
@@ -1714,7 +1717,7 @@
         });
 
         DOM.serviceModal.addEventListener('click', e => {
-            if (e.target === DOM.serviceModal) DOM.serviceModal.classList.add('hidden');
+            if (e.target === DOM.serviceModal) { stopSpeaking(); DOM.serviceModal.classList.add('hidden'); }
         });
 
         DOM.modalNext.addEventListener('click', async () => {
