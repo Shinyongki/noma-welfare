@@ -251,10 +251,11 @@ const PORT = process.env.PORT || 5000;
 const BASE_URL = process.env.BASE_URL || 'http://localhost:' + PORT;
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY });
 
+const smtpPort = parseInt(process.env.SMTP_PORT, 10) || 465;
 const transporter = process.env.SMTP_HOST ? nodemailer.createTransport({
-    host: 'smtp.naver.com',
-    port: 465,
-    secure: true,
+    host: process.env.SMTP_HOST,
+    port: smtpPort,
+    secure: smtpPort === 465,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
 }) : null;
 
