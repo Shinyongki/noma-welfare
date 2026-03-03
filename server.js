@@ -702,6 +702,26 @@ app.get('/dept', (req, res) => res.redirect('/admin'));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.use('/.well-known', (req, res) => res.status(404).end());
 
+// ── 임시 SMTP 진단 엔드포인트 (디버깅 후 제거) ──
+app.get('/api/smtp-check', async (req, res) => {
+    const info = {
+        SMTP_HOST: process.env.SMTP_HOST || '(미설정)',
+        SMTP_PORT: process.env.SMTP_PORT || '(미설정)',
+        SMTP_USER: process.env.SMTP_USER ? process.env.SMTP_USER.replace(/(.{3}).*(@.*)/, '$1***$2') : '(미설정)',
+        SMTP_PASS: process.env.SMTP_PASS ? '설정됨' : '(미설정)',
+        transporterExists: !!emailTransporter,
+    };
+    if (emailTransporter) {
+        try {
+            await emailTransporter.verify();
+            info.verify = '성공';
+        } catch (err) {
+            info.verify = '실패: ' + err.message;
+        }
+    }
+    res.json(info);
+});
+
 // ── 프롬프트 인젝션 방어 ──
 
 // 사용자 입력에서 프롬프트 인젝션 패턴을 감지하고 필터링
