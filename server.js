@@ -7,7 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import { EdgeTTS } from '@andresaya/edge-tts';
-// nodemailer 대신 Resend HTTP API 사용 (Railway Hobby 플랜 SMTP 포트 차단 대응)
+import nodemailer from 'nodemailer';
 import session from 'express-session';
 import crypto from 'crypto';
 import helmet from 'helmet';
@@ -251,25 +251,28 @@ const PORT = process.env.PORT || 5000;
 const BASE_URL = process.env.BASE_URL || 'http://localhost:' + PORT;
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY });
 
-// ── Resend 이메일 발송 함수 ──
-const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const RESEND_FROM = process.env.RESEND_FROM || '노마 AI <onboarding@resend.dev>';
+// ── Gmail SMTP 이메일 발송 (Nodemailer) ──
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASSWORD = process.env.SMTP_PASSWORD || '';
+
+const smtpTransporter = (SMTP_USER && SMTP_PASSWORD) ? nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
+}) : null;
 
 async function sendEmail({ to, subject, html }) {
-    if (!RESEND_API_KEY) {
-        console.warn('[이메일] RESEND_API_KEY 미설정 — 발송 건너뜀');
+    if (!smtpTransporter) {
+        console.warn('[이메일] SMTP_USER/SMTP_PASSWORD 미설정 — 발송 건너뜀');
         return null;
     }
-    const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: RESEND_FROM, to: [].concat(to), subject, html }),
+    const recipients = [].concat(to).join(', ');
+    const result = await smtpTransporter.sendMail({
+        from: `노마 AI 복지 내비게이터 <${SMTP_USER}>`,
+        to: recipients,
+        subject,
+        html,
     });
-    if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Resend API ${res.status}: ${err}`);
-    }
-    return res.json();
+    return result;
 }
 
 // ── Welfare Knowledge Base (RAG) Loading ──
@@ -718,14 +721,14 @@ app.use('/.well-known', (req, res) => res.status(404).end());
 // ── 임시 이메일 진단 엔드포인트 (디버깅 후 제거) ──
 app.get('/api/smtp-check', async (req, res) => {
     const info = {
-        service: 'Resend HTTP API',
-        RESEND_API_KEY: RESEND_API_KEY ? '설정됨 (' + RESEND_API_KEY.slice(0, 6) + '...)' : '(미설정)',
-        RESEND_FROM: RESEND_FROM,
+        service: 'Gmail SMTP (Nodemailer)',
+        SMTP_USER: SMTP_USER ? '설정됨 (' + SMTP_USER + ')' : '(미설정)',
+        SMTP_PASSWORD: SMTP_PASSWORD ? '설정됨' : '(미설정)',
         DEFAULT_RECIPIENTS,
     };
-    if (RESEND_API_KEY) {
+    if (smtpTransporter) {
         try {
-            await sendEmail({ to: 'shinyongki71@gmail.com', subject: '[노마 AI] 이메일 연동 테스트', html: '<b>Resend 이메일 발송 테스트 성공!</b>' });
+            await sendEmail({ to: SMTP_USER, subject: '[노마 AI] 이메일 연동 테스트', html: '<b>Gmail SMTP 이메일 발송 테스트 성공!</b>' });
             info.testSend = '성공';
         } catch (err) {
             info.testSend = '실패: ' + err.message;
@@ -2984,10 +2987,10 @@ process.on('uncaughtException', (err) => {
 app.listen(PORT, () => {
     console.log(`Noma API Server running on http://localhost:${PORT}`);
 
-    // Resend API 키 확인
-    if (RESEND_API_KEY) {
-        console.log('[이메일] Resend API 설정 확인 완료');
+    // Gmail SMTP 설정 확인
+    if (smtpTransporter) {
+        console.log(`[이메일] Gmail SMTP 설정 완료 (${SMTP_USER})`);
     } else {
-        console.warn('[이메일] RESEND_API_KEY 환경변수가 설정되지 않았습니다.');
+        console.warn('[이메일] SMTP_USER/SMTP_PASSWORD 환경변수가 설정되지 않았습니다.');
     }
 });
