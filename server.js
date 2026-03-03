@@ -1189,8 +1189,13 @@ app.get('/api/services', (req, res) => {
 // ── 기존 이메일 트랜스포터 설정 (충돌 해결 후 유지) ──
 const emailTransporter = transporter;
 
-// 수신자 주소 — .env의 EMAIL_RECIPIENT 환경변수로 관리
-const DEV_RECIPIENT = process.env.EMAIL_RECIPIENT || 'admin@example.com';
+// 기본 수신자 주소 (향후 deptServiceMap.email로 부서별 라우팅 확장 가능)
+const DEFAULT_RECIPIENTS = ['nhkim@gn.pass.or.kr', 'shinyongki71@gmail.com'];
+
+// 수신자 결정: 부서 이메일이 있으면 부서로, 없으면 기본 수신자
+function getRecipients(deptInfo) {
+    return deptInfo?.email ? [].concat(deptInfo.email) : DEFAULT_RECIPIENTS;
+}
 
 // 이메일 헤더 인젝션 방어 (줄바꿈 제거)
 function sanitizeEmailHeader(str) {
@@ -1383,14 +1388,15 @@ app.post('/api/service-request/connect', async (req, res) => {
     const referralUrl = `${BASE_URL}/referral/${requestId}?token=${caseToken}`;
     const htmlContent = buildServiceRequestEmailHTML({ serviceName, userName, userPhone, now, caseUrl, referralUrl, conversationSummary, assignmentRationale, deptInfo });
 
+    const recipients = getRecipients(deptInfo);
     try {
         await emailTransporter.sendMail({
             from: { name: '노마 AI', address: process.env.SMTP_USER },
-            to: DEV_RECIPIENT,
+            to: recipients,
             subject,
             html: htmlContent,
         });
-        console.log(`[이메일 발송 완료] ${serviceName} → ${DEV_RECIPIENT} (ID: ${requestId})`);
+        console.log(`[이메일 발송 완료] ${serviceName} → ${recipients.join(', ')} (ID: ${requestId})`);
     } catch (err) {
         console.error('[이메일 발송 실패]', err.message);
         // 이메일 실패해도 신청 데이터는 이미 저장됨 → 로그만 남기고 계속 진행
@@ -2533,14 +2539,18 @@ app.post('/api/admin/linkage/:lid/approve', async (req, res) => {
         });
     }
 
+    const approvalDeptInfo = targetLinkage.category === 'referral'
+        ? deptServiceMap[targetLinkage.targetService] || null
+        : deptServiceMap[targetReq.serviceName] || null;
+    const approvalRecipients = getRecipients(approvalDeptInfo);
     try {
         await emailTransporter.sendMail({
             from: { name: '노마 AI', address: process.env.SMTP_USER },
-            to: DEV_RECIPIENT,
+            to: approvalRecipients,
             subject,
             html: html,
         });
-        console.log(`[승인 후 이메일 발송 완료] ${subject}`);
+        console.log(`[승인 후 이메일 발송 완료] ${subject} → ${approvalRecipients.join(', ')}`);
 
         // 4. executionStatus = 'email_sent'
         requestStore.updateLinkage(targetReq.id, req.params.lid, { executionStatus: 'email_sent' });
