@@ -1078,8 +1078,13 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 - 전화번호를 모르면: "연락받으실 전화번호도 알려주시겠어요?"
 
 3단계 - 확인 문구 + 태그 출력:
-- 필수 3개 필드(serviceName, userName, userPhone)가 모두 확보되면 즉시 확인 문구와 함께 <noma-apply> 태그를 출력합니다. 추가 질문 없이 바로 제출하세요.
-- 예: "김영희님, '노인맞춤돌봄서비스' 상담을 010-1234-5678로 접수해 드리겠습니다. 담당자가 곧 연락드릴 거예요."
+- 필수 3개 필드(serviceName, userName, userPhone)가 모두 확보되면 즉시 확인 문구와 함께 반드시 <noma-apply> 태그를 출력합니다. 추가 질문 없이 바로 제출하세요.
+- [절대 필수] 확인 문구만 출력하고 <noma-apply> 태그를 빠뜨리면 실제 접수가 되지 않습니다. 반드시 태그를 포함하세요.
+- 예시 (확인 문구 + 태그를 함께 출력):
+김영희님, '노인맞춤돌봄서비스' 상담을 010-1234-5678로 접수해 드리겠습니다. 담당자가 곧 연락드릴 거예요.
+<noma-apply>
+{"serviceName":"노인맞춤돌봄서비스","userName":"김영희","userPhone":"010-1234-5678","userAge":"75세","userArea":"창원","livingCondition":"독거","mainConcern":"퇴원 후 돌봄 필요"}
+</noma-apply>
 
 규칙:
 - serviceName, userName, userPhone 3개 필드가 모두 있어야만 <noma-apply>를 출력하세요. 하나라도 없으면 절대 출력하지 마세요.
