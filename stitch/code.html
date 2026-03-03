@@ -952,15 +952,31 @@
 
         // ── Utility: Parse <noma-apply> block from AI text ──
         function parseNomaApply(text) {
+            // 1차: 정규 <noma-apply> 태그 파싱
             const regex = /<noma-apply>([\s\S]*?)<\/noma-apply>/;
             const match = regex.exec(text);
-            if (!match) return null;
-            try {
-                const data = JSON.parse(match[1].trim());
-                if (data.serviceName && data.userName && data.userPhone) {
-                    return data;
-                }
-            } catch (e) { /* malformed JSON */ }
+            if (match) {
+                try {
+                    const data = JSON.parse(match[1].trim());
+                    if (data.serviceName && data.userName && data.userPhone) {
+                        return data;
+                    }
+                } catch (e) { /* malformed JSON */ }
+            }
+            // 2차 폴백: 태그 없이 확인 문구만 출력된 경우 패턴 매칭으로 추출
+            // 패턴: "OOO님, 'XXX' 상담을 010-XXXX-XXXX로 접수"
+            const fallbackRegex = /([가-힣]{2,5})(?:님|어르신)[,]?\s*[''']([^''']+)[''']\s*상담을\s*(0\d{1,2}-?\d{3,4}-?\d{4})/;
+            const fb = fallbackRegex.exec(text);
+            if (fb) {
+                const phone = fb[3].replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3');
+                return {
+                    serviceName: fb[2],
+                    userName: fb[1],
+                    userPhone: phone.includes('-') ? phone : fb[3],
+                    userAge: '미확인', userArea: '미확인',
+                    livingCondition: '미확인', mainConcern: '미확인'
+                };
+            }
             return null;
         }
 
