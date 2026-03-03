@@ -3,48 +3,17 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport" />
     <title>경상남도사회서비스원 AI 맞춤형 복지 내비게이터</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="stylesheet" href="/css/tailwind.css">
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        "primary": "#98002E",
-                        "primary-light": "#B8003E",
-                        "bg-warm": "#F8F5F2",
-                        "bg-section": "#F1ECE7",
-                        "deep-purple": "#4A1942",
-                    },
-                    fontFamily: {
-                        "sans": ["Pretendard Variable", "Pretendard", "-apple-system", "BlinkMacSystemFont", "system-ui", "Roboto", "Noto Sans KR", "Malgun Gothic", "sans-serif"],
-                    },
-                    borderRadius: { "DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "2xl": "2rem", "3xl": "2.5rem", "full": "9999px" },
-                    keyframes: {
-                        'fade-up': { '0%': { opacity: '0', transform: 'translateY(24px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-                        'fade-in': { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
-                        'slide-down': { '0%': { opacity: '0', transform: 'translateY(-12px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
-                        'pulse-soft': { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.6' } },
-                        'shimmer': { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
-                    },
-                    animation: {
-                        'fade-up': 'fade-up 0.5s ease-out forwards',
-                        'fade-up-delay-1': 'fade-up 0.5s ease-out 0.1s forwards',
-                        'fade-up-delay-2': 'fade-up 0.5s ease-out 0.2s forwards',
-                        'fade-up-delay-3': 'fade-up 0.5s ease-out 0.3s forwards',
-                        'fade-in': 'fade-in 0.4s ease-out forwards',
-                        'slide-down': 'slide-down 0.3s ease-out forwards',
-                        'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
-                        'shimmer': 'shimmer 2s linear infinite',
-                    },
-                },
-            },
-        }
-    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" /></noscript>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" /></noscript>
     <style>
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
@@ -54,10 +23,39 @@
             animation: shimmer 2s linear infinite;
         }
         /* Transition classes */
-        .hero-compact .hero-title { font-size: 1.5rem; line-height: 2rem; }
+        .hero-compact .hero-title { display: none; }
         .hero-compact .hero-subtitle { display: none; }
         .hero-compact .hero-badge { display: none; }
+        #hero-section.hero-compact { min-height: auto !important; padding-top: 0.75rem; padding-bottom: 0.75rem; scroll-margin-top: 80px; display: block !important; }
+        .hero-compact #hero-voice-cta-wrap { display: none !important; }
+        .hero-compact p.text-center.text-slate-400 { display: none; }
         #results-section { transition: all 0.5s ease-out; }
+        /* Mic breathe animation */
+        @keyframes mic-breathe {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(152, 0, 46, 0.4); }
+            50% { box-shadow: 0 0 0 18px rgba(152, 0, 46, 0); }
+        }
+        .mic-breathe { animation: mic-breathe 2.5s ease-in-out infinite; }
+        /* Recording pulse animation */
+        @keyframes rec-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+        }
+        .mic-recording {
+            animation: rec-pulse 1.2s ease-in-out infinite !important;
+            background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+        }
+        .mic-recording .material-symbols-outlined { color: white !important; }
+        /* Below-fold fade-up reveal */
+        .reveal-fade-up {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        .reveal-fade-up.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
         /* Noma card link styling */
         .noma-card-detail strong { display: block; margin-bottom: 2px; }
         /* Stepper timeline */
@@ -138,22 +136,19 @@
         @keyframes voice-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         /* Floating mic button */
         #floating-mic {
-            position: fixed;
-            bottom: 2rem;
-            right: 1.5rem;
-            z-index: 999;
-            width: 60px;
-            height: 60px;
+            width: 5rem;
+            height: 5rem;
             border-radius: 50%;
             background: linear-gradient(135deg, #98002E, #4A1942);
             color: white;
             border: none;
-            box-shadow: 0 4px 20px rgba(152, 0, 46, 0.4);
+            box-shadow: 0 4px 24px rgba(152, 0, 46, 0.45);
             cursor: pointer;
-            display: none;
+            display: flex;
             align-items: center;
             justify-content: center;
             transition: transform 0.2s, box-shadow 0.2s;
+            flex-shrink: 0;
         }
         #floating-mic:active { transform: scale(0.92); }
         #floating-mic.listening {
@@ -174,6 +169,173 @@
             justify-content: center;
             box-shadow: 0 2px 6px rgba(0,0,0,0.15);
         }
+        /* ═══ 모바일 시니어 최적화 오버라이드 ═══ */
+        @media (max-width: 767px) {
+            /* 기본 폰트 확대 */
+            body { font-size: 22px; line-height: 1.6; }
+
+            /* 연한 회색 텍스트 제거 → 가독성 강화 */
+            .text-slate-400, .text-slate-500,
+            .text-stone-300, .text-stone-400 {
+                color: #334155 !important;
+            }
+
+            /* 최소 터치 영역 56px (인라인·장식 요소 제외) */
+            button, a, input, select, textarea {
+                min-height: 56px;
+            }
+            .step-chevron,
+            .btn-bookmark,
+            .browse-bookmark,
+            .drawer-item-remove,
+            .drawer-item-apply,
+            .step-dot,
+            .step-header span,
+            .noma-card-detail a,
+            .card-disclaimer,
+            #drawer-badge,
+            .tel-link span,
+            footer a {
+                min-height: auto;
+            }
+
+            /* 스테퍼 자동 펼침 & 쉐브론 숨김 */
+            .step-body {
+                max-height: 500px !important;
+                opacity: 1 !important;
+                padding-bottom: 0.75rem !important;
+            }
+            .step-chevron { display: none !important; }
+            .step-header span.font-semibold { font-size: 18px !important; }
+            .step-body div { font-size: 18px !important; line-height: 1.6 !important; }
+
+            /* 전화 링크 확대 + 초록 배경 반전 */
+            .tel-link {
+                font-size: 22px;
+                width: 100%;
+                justify-content: center;
+                background: #15803d;
+                color: white !important;
+                border-color: #15803d;
+                padding: 0.875rem 1rem;
+            }
+            .tel-link:active { background: #166534; color: white !important; }
+
+            /* 플로팅 마이크 확대 104px */
+            #floating-mic { width: 6.5rem; height: 6.5rem; }
+            #floating-mic .material-symbols-outlined:first-child { font-size: 44px !important; }
+
+            /* AI 요약 텍스트 확대 */
+            #ai-summary-text { font-size: 22px; padding: 1.5rem; }
+            #ai-summary-area .flex-shrink-0 { width: 56px !important; height: 56px !important; }
+            #ai-summary-area .flex-shrink-0 .material-symbols-outlined { font-size: 28px !important; }
+            #ai-summary-area .text-xs { font-size: 16px; }
+
+            /* 카드 서비스명 24px, summary 숨김 */
+            #cards-grid h3 { font-size: 24px; }
+            #cards-grid .card-summary { display: none; }
+
+            /* CTA 버튼 확대 20px */
+            .btn-apply {
+                font-size: 20px !important;
+                padding-top: 1.25rem !important;
+                padding-bottom: 1.25rem !important;
+            }
+
+            /* 카드 전화 버튼 */
+            .card-phone-btn {
+                display: flex !important;
+                width: 100%;
+                background: #15803d;
+                color: white;
+                font-weight: 700;
+                font-size: 22px;
+                padding: 1.25rem 1rem;
+                border-radius: 0.75rem;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                text-decoration: none;
+                margin-bottom: 0.75rem;
+                min-height: 64px;
+            }
+            .card-phone-btn:active { background: #166534; }
+
+            /* 면책 텍스트 숨김 */
+            .card-disclaimer { display: none; }
+
+            /* 히어로 칩: 모바일에서 숨김 — 음성 대화에 집중 */
+            #hero-chips { display: none !important; }
+
+            /* hero badge/subtitle/CTA → 이제 hidden 클래스로 처리 */
+
+            /* 섹션 타이틀 확대 */
+            #cards-title h2 { font-size: 24px; }
+            #initial-placeholder h2 { font-size: 24px; }
+            #initial-placeholder h3 { font-size: 22px; }
+            #initial-placeholder p { font-size: 18px; }
+
+            /* discover-more 확대 */
+            #discover-more h4 { font-size: 22px; }
+            #discover-more p { font-size: 18px; }
+            #discover-more button, #discover-more a { font-size: 18px; min-height: 56px; }
+
+            /* browse 전체 확대 */
+            #browse-section h2 { font-size: 24px; }
+            .browse-tab { font-size: 18px !important; }
+            #browse-section h4 { font-size: 20px; }
+
+            /* footer 확대 */
+            footer p, footer a { font-size: 16px !important; }
+        }
+
+        /* Phase 2: 색상 대비 개선 (WCAG 4.5:1) */
+        .text-slate-400 { color: #64748b !important; }
+
+        /* Phase 2: focus-visible indicator 복구 */
+        button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+            outline: 2px solid #98002E;
+            outline-offset: 2px;
+        }
+
+        /* sr-only 유틸리티 */
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0; }
+
+        /* Phase 3: 고대비 모드 */
+        @media (prefers-contrast: more) {
+            .text-slate-400, .text-slate-500 { color: #1e293b !important; }
+            .bg-bg-warm, .bg-bg-section { background-color: #fff !important; }
+            .border-stone-100, .border-stone-200 { border-color: #475569 !important; }
+            .text-primary { color: #7a0025 !important; }
+            .bg-primary\/10 { background-color: rgba(152,0,46,0.2) !important; }
+        }
+
+        /* Phase 3: reduced-motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+        /* iOS 100dvh fallback */
+        @supports (height: 100dvh) {
+            .min-h-screen { min-height: 100dvh !important; }
+        }
+
+        /* safe-area-inset for notch devices */
+        #floating-mic-wrap {
+            bottom: calc(2rem + env(safe-area-inset-bottom)) !important;
+        }
+        .noma-toast {
+            bottom: calc(6rem + env(safe-area-inset-bottom)) !important;
+        }
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            footer { padding-bottom: calc(2.5rem + env(safe-area-inset-bottom)); }
+        }
     </style>
 </head>
 
@@ -181,7 +343,7 @@
 
     <!-- ═══════════════════ HEADER ═══════════════════ -->
     <header class="flex items-center justify-between whitespace-nowrap border-b border-stone-200 bg-white/90 backdrop-blur-sm px-6 lg:px-20 xl:px-40 py-4 sticky top-0 z-50">
-        <a href="/" class="flex items-center gap-3 group">
+        <a href="#" onclick="event.preventDefault();resetToHome()" class="flex items-center gap-3 group">
             <div class="flex flex-col items-center justify-center">
                 <div class="flex items-end gap-[2px]">
                     <svg width="22" height="18" viewBox="0 0 24 24" fill="none" class="group-hover:-translate-y-0.5 transition-transform duration-300"><path d="M12 4L3 13H8L12 9L16 13H21L12 4Z" fill="#8dc63f"/></svg>
@@ -192,83 +354,140 @@
             </div>
             <h2 class="text-slate-800 text-lg md:text-xl font-extrabold tracking-tight">경상남도사회서비스원</h2>
         </a>
-        <nav class="hidden md:flex items-center gap-8">
-            <a class="text-slate-500 hover:text-primary transition-colors text-sm font-medium" href="#" onclick="event.preventDefault();document.getElementById('browse-section')?.scrollIntoView({behavior:'smooth'})">전체 서비스</a>
-            <a class="text-slate-500 hover:text-primary transition-colors text-sm font-medium" href="#">자주 묻는 질문</a>
-            <button id="btn-my-drawer" class="relative text-slate-500 hover:text-primary transition-colors text-sm font-medium flex items-center gap-1" title="내 서랍">
-                <span class="material-symbols-outlined text-xl">bookmark</span>
-                내 서랍
-                <span id="drawer-badge" class="hidden absolute -top-1 -right-2 bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+        <nav class="flex items-center gap-3" aria-label="주요 메뉴">
+            <a class="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-full hover:bg-green-700 transition-colors flex items-center gap-1 sm:px-5 sm:py-2 sm:text-sm sm:gap-1.5" href="tel:055-230-8200">
+                <span class="material-symbols-outlined text-sm sm:text-base" aria-hidden="true">call</span>
+                전화 문의
+            </a>
+            <button class="text-slate-700" aria-label="메뉴 열기" aria-expanded="false" aria-controls="mobile-menu" onclick="const m=document.getElementById('mobile-menu');m.classList.toggle('hidden');this.setAttribute('aria-expanded',!m.classList.contains('hidden'))">
+                <span class="material-symbols-outlined text-2xl" aria-hidden="true">menu</span>
             </button>
-            <a class="px-5 py-2 bg-primary text-white text-sm font-semibold rounded-full hover:bg-primary-light transition-colors" href="tel:055-230-8200">전화 문의</a>
         </nav>
-        <button class="md:hidden text-slate-700" onclick="document.getElementById('mobile-menu').classList.toggle('hidden')">
-            <span class="material-symbols-outlined text-2xl">menu</span>
-        </button>
     </header>
     <!-- Mobile Menu -->
-    <div id="mobile-menu" class="hidden md:hidden fixed inset-0 z-[60] bg-black/40" onclick="this.classList.add('hidden')">
-        <div class="bg-white w-64 h-full p-6 space-y-4" onclick="event.stopPropagation()">
-            <a class="block text-slate-700 font-medium py-2" href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').classList.add('hidden');document.getElementById('browse-section')?.scrollIntoView({behavior:'smooth'})">전체 서비스</a>
-            <a class="block text-slate-700 font-medium py-2" href="#">자주 묻는 질문</a>
-            <button class="block text-slate-700 font-medium py-2 flex items-center gap-2" onclick="document.getElementById('mobile-menu').classList.add('hidden');openMyDrawer()">
-                <span class="material-symbols-outlined text-lg">bookmark</span>내 서랍
+    <div id="mobile-menu" class="hidden fixed inset-0 z-[60] bg-black/40" onclick="this.classList.add('hidden');document.querySelector('[aria-controls=mobile-menu]')?.setAttribute('aria-expanded','false')">
+        <nav class="bg-white w-64 h-full p-6 space-y-4" aria-label="모바일 메뉴" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-lg font-bold text-slate-800">메뉴</span>
+                <button aria-label="메뉴 닫기" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-stone-100 rounded-lg transition-colors" onclick="document.getElementById('mobile-menu').classList.add('hidden');document.querySelector('[aria-controls=mobile-menu]')?.setAttribute('aria-expanded','false')">
+                    <span class="material-symbols-outlined text-xl" aria-hidden="true">close</span>
+                </button>
+            </div>
+            <a class="block text-slate-700 font-medium py-2" role="menuitem" href="#" onclick="event.preventDefault();document.getElementById('mobile-menu').classList.add('hidden');revealBelowFoldSections();setTimeout(()=>document.getElementById('browse-section')?.scrollIntoView({behavior:'smooth'}),100)">전체 서비스</a>
+            <a class="block text-slate-700 font-medium py-2" role="menuitem" href="#">자주 묻는 질문</a>
+            <button id="btn-my-drawer" class="relative block text-slate-700 font-medium py-2 flex items-center gap-2" role="menuitem" onclick="document.getElementById('mobile-menu').classList.add('hidden');openMyDrawer()">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">bookmark</span>내 서랍
+                <span id="drawer-badge" class="hidden absolute -top-1 -right-2 bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
             </button>
-            <a class="block text-primary font-bold py-2" href="tel:055-230-8200">전화 문의</a>
-        </div>
+            <a class="block text-primary font-bold py-2" role="menuitem" href="tel:055-230-8200">전화 문의</a>
+        </nav>
     </div>
 
     <!-- ═══════════════════ MAIN ═══════════════════ -->
     <main class="flex-1 flex flex-col items-center w-full">
 
         <!-- ── HERO SECTION ── -->
-        <section id="hero-section" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 pt-16 pb-10 transition-all duration-500">
-            <div class="max-w-3xl mx-auto text-center space-y-5">
-                <span class="hero-badge inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold transition-all duration-500">AI 맞춤형 복지 내비게이터</span>
-                <h1 class="hero-title text-slate-900 text-3xl md:text-[2.75rem] font-black leading-tight tracking-tight break-keep transition-all duration-500">
-                    어떤 어려움이 있으신가요?<br/>딱 맞는 지원을 찾아드립니다.
-                </h1>
-                <p class="hero-subtitle text-slate-500 text-base md:text-lg font-medium leading-relaxed max-w-xl mx-auto break-keep transition-all duration-500">
-                    복잡한 복지 제도, 이제 찾지 말고 편하게 이야기해 주세요.<br/>
-                    AI가 귀하에게 필요한 서비스를 분석해 드립니다.
-                </p>
-            </div>
-
-            <!-- Search Input -->
-            <div class="max-w-2xl mx-auto mt-8">
-                <div class="relative group">
-                    <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/15 to-primary/20 rounded-full blur-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-500"></div>
-                    <div class="relative flex items-center w-full h-16 md:h-[4.5rem] bg-white rounded-full shadow-lg shadow-stone-200/60 ring-1 ring-stone-200/80 transition-all focus-within:ring-2 focus-within:ring-primary/60 focus-within:shadow-xl overflow-hidden">
-                        <button id="hero-mic" class="pl-5 md:pl-7 text-primary/70 hover:text-primary flex items-center justify-center hover:scale-110 transition-all" title="음성으로 입력">
-                            <span class="material-symbols-outlined text-[28px]">mic</span>
+        <section id="hero-section" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 transition-all duration-500" style="min-height:calc(100vh - 80px);min-height:calc(100dvh - 80px);display:flex;align-items:center;justify-content:center;">
+            <div class="w-full">
+                <div class="max-w-3xl mx-auto text-center space-y-5">
+                    <span class="hero-badge hidden inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold transition-all duration-500">AI 맞춤형 복지 내비게이터</span>
+                    <h1 class="hero-title text-slate-900 text-3xl md:text-[2.75rem] font-black leading-tight tracking-tight break-keep transition-all duration-500">
+                        어떤 어려움이 있으신가요?
+                    </h1>
+                    <p class="hero-subtitle hidden text-slate-500 text-base md:text-lg font-medium leading-relaxed max-w-xl mx-auto break-keep transition-all duration-500">
+                        복잡한 복지 제도, 이제 찾지 말고 편하게 이야기해 주세요.<br/>
+                        AI가 귀하에게 필요한 서비스를 분석해 드립니다.
+                    </p>
+                    <!-- 음성 중심 CTA (모든 화면에서 기본 표시) -->
+                    <div id="hero-voice-cta-wrap" class="flex flex-col items-center gap-4 mt-8">
+                        <button id="hero-voice-cta" class="mic-breathe w-32 h-32 rounded-full bg-gradient-to-br from-primary to-deep-purple text-white shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform" aria-label="음성으로 대화하기" aria-pressed="false">
+                            <span class="material-symbols-outlined style=" aria-hidden="true"font-size:64px">mic</span>
                         </button>
-                        <input id="hero-input"
-                            class="w-full h-full bg-transparent border-none text-slate-800 placeholder:text-slate-400 text-lg md:text-xl px-4 md:px-5 focus:ring-0 focus:outline-none"
-                            placeholder="예: 퇴원 후 당장 돌봐줄 사람이 없어요" />
-                        <button id="hero-submit"
-                            class="mr-2 md:mr-3 size-12 md:size-13 bg-primary rounded-full flex items-center justify-center text-white hover:bg-primary-light active:scale-95 transition-all shadow-md flex-shrink-0">
-                            <span class="material-symbols-outlined text-2xl">arrow_forward</span>
-                        </button>
+                        <p class="text-slate-800 text-xl font-bold mt-2">말씀해 주세요</p>
+                        <p class="text-slate-600 text-base">버튼을 누르고 원하는 서비스를 말씀해 주세요</p>
                     </div>
                 </div>
-                <!-- Example Chips -->
-                <div id="hero-chips" class="mt-5 flex flex-wrap justify-center gap-2.5">
-                    <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="퇴원 후 당장 돌봐줄 사람이 없어요">
-                        <span class="material-symbols-outlined text-primary/70 text-base">medical_services</span>
-                        <span class="text-slate-600 text-sm font-medium">#퇴원 후 돌봄이 필요해요</span>
-                    </button>
-                    <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="스마트폰으로 건강 관리를 받고 싶어요">
-                        <span class="material-symbols-outlined text-primary/70 text-base">smartphone</span>
-                        <span class="text-slate-600 text-sm font-medium">#스마트 건강관리</span>
-                    </button>
-                    <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="긴급 돌봄이 필요해요">
-                        <span class="material-symbols-outlined text-primary/70 text-base">emergency_home</span>
-                        <span class="text-slate-600 text-sm font-medium">#긴급 돌봄</span>
-                    </button>
-                    <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="혼자 사는 어르신 안전 관리">
-                        <span class="material-symbols-outlined text-primary/70 text-base">favorite</span>
-                        <span class="text-slate-600 text-sm font-medium">#독거 어르신 안전</span>
-                    </button>
+
+                <!-- Search Input -->
+                <div class="max-w-2xl mx-auto mt-8">
+                    <p class="text-center text-slate-400 text-sm font-medium mb-3">-- 또는 글로 입력하세요 --</p>
+                    <div class="relative group">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/15 to-primary/20 rounded-full blur-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition duration-500"></div>
+                        <div class="relative flex items-center w-full h-16 md:h-[3.5rem] bg-white rounded-full shadow-lg shadow-stone-200/60 ring-1 ring-stone-200/80 transition-all focus-within:ring-2 focus-within:ring-primary/60 focus-within:shadow-xl overflow-hidden">
+                            <button id="hero-mic" class="pl-4 md:pl-7 text-primary hover:text-primary-light flex flex-col items-center justify-center hover:scale-110 transition-all gap-0.5" title="음성으로 입력" aria-label="음성으로 입력" aria-pressed="false">
+                                <span class="w-11 h-11 md:w-auto md:h-auto rounded-full bg-primary/10 md:bg-transparent flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-[30px] md:text-[28px]" aria-hidden="true">mic</span>
+                                </span>
+                                <span class="text-[10px] font-bold text-primary md:hidden leading-none">말하기</span>
+                            </button>
+                            <label for="hero-input" class="sr-only">복지 서비스 검색</label>
+                    <input id="hero-input"
+                                aria-label="어떤 도움이 필요하신가요? 복지 서비스를 검색하세요"
+                                autocomplete="off"
+                                inputmode="search"
+                                class="w-full h-full bg-transparent border-none text-slate-800 placeholder:text-slate-400 text-lg md:text-lg px-4 md:px-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                                placeholder="예: 퇴원 후 당장 돌봐줄 사람이 없어요" />
+                            <button id="hero-submit"
+                                class="mr-2 md:mr-3 size-12 md:size-11 bg-primary rounded-full flex items-center justify-center text-white hover:bg-primary-light active:scale-95 transition-all shadow-md flex-shrink-0">
+                                <span class="material-symbols-outlined text-2xl" aria-hidden="true">arrow_forward</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Example Chips -->
+                    <div id="hero-chips" class="mt-5 flex flex-wrap justify-center gap-2.5">
+                        <!-- 공공돌봄 -->
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="긴급 돌봄이 필요해요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">emergency_home</span>
+                            <span class="text-slate-600 text-sm font-medium">#긴급 돌봄</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="퇴원 후 당장 돌봐줄 사람이 없어요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">medical_services</span>
+                            <span class="text-slate-600 text-sm font-medium">#퇴원 후 돌봄</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="혼자 사는 어르신 안전 관리">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">elderly_woman</span>
+                            <span class="text-slate-600 text-sm font-medium">#독거어르신 안전</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="혼자 병원에 가기 어려워요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">local_hospital</span>
+                            <span class="text-slate-600 text-sm font-medium">#병원 동행</span>
+                        </button>
+                        <!-- 민간지원 -->
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="복지시설 경영 컨설팅이 필요합니다">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">business_center</span>
+                            <span class="text-slate-600 text-sm font-medium">#복지시설 경영컨설팅</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="복지시설 안전점검을 받고 싶습니다">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">verified_user</span>
+                            <span class="text-slate-600 text-sm font-medium">#시설 안전점검</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="장기요양기관 평가 준비를 도와주세요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">analytics</span>
+                            <span class="text-slate-600 text-sm font-medium">#요양기관 평가지원</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="사회복지시설 대체인력 지원이 필요합니다">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">group</span>
+                            <span class="text-slate-600 text-sm font-medium">#대체인력 지원</span>
+                        </button>
+                        <!-- 국공립시설 -->
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="장애인 보조기기 지원받고 싶어요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">accessible_forward</span>
+                            <span class="text-slate-600 text-sm font-medium">#장애인 보조기기</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="장애인 직업훈련이나 재활 프로그램 알려주세요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">work</span>
+                            <span class="text-slate-600 text-sm font-medium">#장애인 직업재활</span>
+                        </button>
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="어린이집 입소 문의합니다">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">child_care</span>
+                            <span class="text-slate-600 text-sm font-medium">#어린이집 보육</span>
+                        </button>
+                        <!-- 연구·정책 -->
+                        <button class="hero-chip group flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-primary/5 border border-stone-200 rounded-full transition-all shadow-sm hover:shadow-md hover:border-primary/30" data-msg="사회서비스 정책연구나 데이터 분석에 대해 알고 싶어요">
+                            <span class="material-symbols-outlined text-primary/70 text-base" aria-hidden="true">science</span>
+                            <span class="text-slate-600 text-sm font-medium">#사회서비스 정책연구</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -276,14 +495,20 @@
         <!-- ── RESULTS SECTION (hidden initially) ── -->
         <section id="results-section" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 pb-8 hidden">
             <div class="max-w-5xl mx-auto">
+                <!-- Conversation Context Chips -->
+                <div id="chat-context-chips" class="hidden flex flex-wrap items-center gap-2 mb-4">
+                    <span class="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-sm" aria-hidden="true">forum</span>대화 흐름
+                    </span>
+                </div>
                 <!-- AI Summary Bubble -->
-                <div id="ai-summary-area" class="mb-8 hidden">
+                <div id="ai-summary-area" class="mb-8 hidden" aria-live="polite" aria-atomic="true">
                     <div class="flex items-start gap-3 max-w-3xl">
                         <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-primary to-deep-purple flex items-center justify-center shadow-md">
-                            <span class="material-symbols-outlined text-white text-xl">smart_toy</span>
+                            <span class="material-symbols-outlined text-white text-xl" aria-hidden="true">smart_toy</span>
                         </div>
                         <div class="flex-1">
-                            <p class="text-xs font-bold text-primary mb-1.5">노마(Noma) AI 분석 결과</p>
+                            <p class="text-sm font-bold text-primary mb-1.5">노마(Noma) AI 분석 결과</p>
                             <div id="ai-summary-text" class="bg-white rounded-2xl rounded-tl-md px-5 py-4 shadow-sm border border-stone-200 text-[15px] text-slate-700 leading-relaxed break-keep"></div>
                         </div>
                     </div>
@@ -292,17 +517,17 @@
                 <!-- Section Title -->
                 <div id="cards-title" class="flex items-center justify-between mb-6">
                     <div class="flex items-center gap-2.5">
-                        <span class="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+                        <span class="material-symbols-outlined text-primary text-xl" aria-hidden="true">auto_awesome</span>
                         <h2 class="text-xl font-bold text-slate-800">맞춤 추천 서비스</h2>
                     </div>
                     <button id="btn-new-search" class="hidden text-sm text-slate-500 hover:text-primary font-medium flex items-center gap-1 transition-colors">
-                        <span class="material-symbols-outlined text-base">refresh</span>
+                        <span class="material-symbols-outlined text-base" aria-hidden="true">refresh</span>
                         새로 질문하기
                     </button>
                 </div>
 
                 <!-- Cards Grid -->
-                <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+                <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5" aria-live="polite"></div>
 
                 <!-- Loading Skeletons -->
                 <div id="cards-skeleton" class="hidden grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -328,7 +553,7 @@
                 <div id="discover-more" class="hidden mt-8 bg-white border border-stone-200 rounded-2xl p-6 md:p-7 shadow-sm">
                     <div class="flex items-center gap-4 mb-4">
                         <div class="bg-primary/10 p-3 rounded-full text-primary flex-shrink-0">
-                            <span class="material-symbols-outlined text-xl">grid_view</span>
+                            <span class="material-symbols-outlined text-xl" aria-hidden="true">grid_view</span>
                         </div>
                         <div>
                             <h4 class="text-base font-bold text-slate-800 mb-0.5">찾으시는 서비스가 없으신가요?</h4>
@@ -337,11 +562,11 @@
                     </div>
                     <div class="flex flex-col sm:flex-row gap-3">
                         <button id="btn-browse-scroll" class="flex-1 px-5 py-3 bg-white border border-stone-300 text-slate-700 hover:bg-slate-50 font-semibold rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-1.5 text-sm">
-                            <span class="material-symbols-outlined text-base">list_alt</span>
+                            <span class="material-symbols-outlined text-base" aria-hidden="true">list_alt</span>
                             전체 서비스 둘러보기
                         </button>
                         <a href="tel:055-230-8200" class="flex-1 px-5 py-3 bg-primary text-white font-semibold rounded-xl shadow-sm hover:bg-primary-light transition-all flex items-center justify-center gap-1.5 text-sm">
-                            <span class="material-symbols-outlined text-base">call</span>
+                            <span class="material-symbols-outlined text-base" aria-hidden="true">call</span>
                             대표전화 055-230-8200
                         </a>
                     </div>
@@ -350,17 +575,17 @@
         </section>
 
         <!-- ── INITIAL PLACEHOLDER (shown before search) ── -->
-        <section id="initial-placeholder" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 pb-12">
+        <section id="initial-placeholder" class="hidden w-full px-4 sm:px-6 lg:px-20 xl:px-40 pb-12">
             <div class="max-w-5xl mx-auto">
                 <div class="flex items-center gap-2.5 mb-6">
-                    <span class="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+                    <span class="material-symbols-outlined text-primary text-xl" aria-hidden="true">auto_awesome</span>
                     <h2 class="text-xl font-bold text-slate-800">이런 서비스를 제공합니다</h2>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     <!-- Placeholder Card 1 -->
                     <div class="bg-white rounded-2xl p-6 border border-stone-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group cursor-pointer" onclick="document.getElementById('hero-input').value='긴급 돌봄이 필요해요';document.getElementById('hero-input').focus()">
                         <div class="bg-primary/10 p-3 rounded-xl text-primary w-fit mb-4 group-hover:bg-primary/15 transition-colors">
-                            <span class="material-symbols-outlined text-2xl">emergency</span>
+                            <span class="material-symbols-outlined text-2xl" aria-hidden="true">emergency</span>
                         </div>
                         <h3 class="text-lg font-bold text-slate-800 mb-2">긴급돌봄 지원</h3>
                         <p class="text-sm text-slate-500 leading-relaxed break-keep">갑작스러운 질병이나 사고로 돌봄이 필요할 때, 72시간 내 긴급 돌봄 서비스를 제공합니다.</p>
@@ -368,7 +593,7 @@
                     <!-- Placeholder Card 2 -->
                     <div class="bg-white rounded-2xl p-6 border border-stone-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group cursor-pointer" onclick="document.getElementById('hero-input').value='혼자 사는 어르신 안전 관리';document.getElementById('hero-input').focus()">
                         <div class="bg-blue-50 p-3 rounded-xl text-blue-600 w-fit mb-4 group-hover:bg-blue-100 transition-colors">
-                            <span class="material-symbols-outlined text-2xl">shield_with_heart</span>
+                            <span class="material-symbols-outlined text-2xl" aria-hidden="true">shield_with_heart</span>
                         </div>
                         <h3 class="text-lg font-bold text-slate-800 mb-2">AI 스마트 돌봄</h3>
                         <p class="text-sm text-slate-500 leading-relaxed break-keep">AI/IoT 기기를 활용하여 독거 어르신의 건강과 안전을 24시간 모니터링합니다.</p>
@@ -376,7 +601,7 @@
                     <!-- Placeholder Card 3 -->
                     <div class="bg-white rounded-2xl p-6 border border-stone-100 shadow-sm hover:shadow-md hover:border-primary/20 transition-all group cursor-pointer" onclick="document.getElementById('hero-input').value='장애인 보조기기 지원';document.getElementById('hero-input').focus()">
                         <div class="bg-emerald-50 p-3 rounded-xl text-emerald-600 w-fit mb-4 group-hover:bg-emerald-100 transition-colors">
-                            <span class="material-symbols-outlined text-2xl">accessible_forward</span>
+                            <span class="material-symbols-outlined text-2xl" aria-hidden="true">accessible_forward</span>
                         </div>
                         <h3 class="text-lg font-bold text-slate-800 mb-2">장애인 지원 서비스</h3>
                         <p class="text-sm text-slate-500 leading-relaxed break-keep">보조기기 대여, 직업재활, 권익옹호 등 장애인 맞춤형 종합 복지 서비스를 제공합니다.</p>
@@ -386,7 +611,7 @@
         </section>
 
         <!-- ── BROWSE ALL SERVICES ── -->
-        <section id="browse-section" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 py-16 bg-white">
+        <section id="browse-section" class="hidden w-full px-4 sm:px-6 lg:px-20 xl:px-40 py-16 bg-white">
             <div class="max-w-5xl mx-auto">
                 <div class="text-center mb-10">
                     <span class="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">전체 서비스 둘러보기</span>
@@ -402,14 +627,14 @@
 
                 <!-- Loading -->
                 <div id="browse-loading" class="text-center py-10">
-                    <span class="material-symbols-outlined text-stone-300 text-4xl animate-pulse-soft">hourglass_empty</span>
+                    <span class="material-symbols-outlined text-stone-300 text-4xl animate-pulse-soft" aria-hidden="true">hourglass_empty</span>
                     <p class="text-slate-400 text-sm mt-2">서비스 목록을 불러오는 중...</p>
                 </div>
             </div>
         </section>
 
         <!-- ── JOURNEY MAP ── -->
-        <section id="journey-section" class="w-full px-4 sm:px-6 lg:px-20 xl:px-40 py-16 bg-bg-section/60">
+        <section id="journey-section" class="hidden w-full px-4 sm:px-6 lg:px-20 xl:px-40 py-16 bg-bg-section/60">
             <div class="max-w-4xl mx-auto">
                 <div class="text-center mb-10">
                     <h2 class="text-xl font-bold text-slate-800 mb-2">서비스 이용 절차</h2>
@@ -421,10 +646,10 @@
                     <!-- Step 1 -->
                     <div class="flex flex-col items-center text-center group journey-connector relative z-10">
                         <div class="w-20 h-20 bg-white border-[3px] border-primary rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300">
-                            <span class="material-symbols-outlined text-primary text-3xl">support_agent</span>
+                            <span class="material-symbols-outlined text-primary text-3xl" aria-hidden="true">support_agent</span>
                         </div>
                         <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
-                            <p class="text-xs font-bold text-primary mb-0.5">STEP 1</p>
+                            <p class="text-xs font-bold text-primary mb-0.5">1단계</p>
                             <h4 class="font-bold text-slate-800 text-[15px] mb-1">상담 및 신청</h4>
                             <p class="text-xs text-slate-500 leading-snug">온라인 또는 전화로<br/>간편하게 신청</p>
                         </div>
@@ -432,10 +657,10 @@
                     <!-- Step 2 -->
                     <div class="flex flex-col items-center text-center group journey-connector relative z-10">
                         <div class="w-20 h-20 bg-white border-[3px] border-stone-200 group-hover:border-primary/50 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-all duration-300">
-                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl">fact_check</span>
+                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl" aria-hidden="true">fact_check</span>
                         </div>
                         <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
-                            <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">STEP 2</p>
+                            <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">2단계</p>
                             <h4 class="font-bold text-slate-800 text-[15px] mb-1">자격 확인</h4>
                             <p class="text-xs text-slate-500 leading-snug">대상 적격 여부<br/>심사 및 결정</p>
                         </div>
@@ -443,10 +668,10 @@
                     <!-- Step 3 -->
                     <div class="flex flex-col items-center text-center group journey-connector relative z-10">
                         <div class="w-20 h-20 bg-white border-[3px] border-stone-200 group-hover:border-primary/50 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-all duration-300">
-                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl">person_apron</span>
+                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl" aria-hidden="true">person_apron</span>
                         </div>
                         <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
-                            <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">STEP 3</p>
+                            <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">3단계</p>
                             <h4 class="font-bold text-slate-800 text-[15px] mb-1">전담 인력 배정</h4>
                             <p class="text-xs text-slate-500 leading-snug">담당자 매칭 및<br/>방문 계획 수립</p>
                         </div>
@@ -454,10 +679,10 @@
                     <!-- Step 4 -->
                     <div class="flex flex-col items-center text-center group relative z-10">
                         <div class="w-20 h-20 bg-white border-[3px] border-stone-200 group-hover:border-primary/50 rounded-full flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-all duration-300">
-                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl">handshake</span>
+                            <span class="material-symbols-outlined text-stone-400 group-hover:text-primary transition-colors text-3xl" aria-hidden="true">handshake</span>
                         </div>
                         <div class="bg-white px-4 py-3 rounded-xl border border-stone-100 shadow-sm w-full max-w-[180px]">
-                            <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">STEP 4</p>
+                            <p class="text-xs font-bold text-slate-400 group-hover:text-primary transition-colors mb-0.5">4단계</p>
                             <h4 class="font-bold text-slate-800 text-[15px] mb-1">서비스 제공</h4>
                             <p class="text-xs text-slate-500 leading-snug">맞춤형 복지<br/>서비스 시작</p>
                         </div>
@@ -468,27 +693,36 @@
     </main>
 
     <!-- ═══════════════════ FLOATING MIC BUTTON ═══════════════════ -->
-    <button id="floating-mic" title="음성으로 대화하기">
-        <span class="material-symbols-outlined" style="font-size:32px">mic</span>
-        <span class="mic-status">
-            <span class="material-symbols-outlined" style="font-size:14px;color:#98002E">volume_off</span>
-        </span>
-    </button>
+    <div id="floating-mic-wrap" style="position:fixed;bottom:2rem;right:1.5rem;z-index:999;display:none;align-items:center;gap:0.75rem;">
+        <button id="tts-toggle" title="음성 읽기 켜기/끄기" style="width:40px;height:40px;border-radius:50%;border:2px solid #d1d5db;background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+            <span class="material-symbols-outlined" aria-hidden="true" style="font-size:20px;color:#98002E;">volume_up</span>
+        </button>
+        <div id="mic-tooltip" class="bg-white text-slate-700 text-sm font-semibold px-4 py-2.5 rounded-2xl shadow-lg border border-stone-200 whitespace-nowrap animate-fade-in" style="display:none;">
+            여기를 눌러 말씀해 주세요
+            <div style="position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:0;height:0;border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:6px solid white;"></div>
+        </div>
+        <button id="floating-mic" title="음성으로 대화하기" aria-label="음성으로 대화하기" aria-pressed="false">
+            <span class="material-symbols-outlined style=" aria-hidden="true"font-size:36px">mic</span>
+            <span class="mic-status">
+                <span class="material-symbols-outlined style=" aria-hidden="true"font-size:14px;color:#98002E">volume_off</span>
+            </span>
+        </button>
+    </div>
 
     <!-- ═══════════════════ FOOTER ═══════════════════ -->
-    <footer class="bg-white border-t border-stone-200 py-10 px-6 lg:px-20 xl:px-40">
+    <footer class="hidden bg-white border-t border-stone-200 py-10 px-6 lg:px-20 xl:px-40">
         <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
                 <h5 class="font-bold text-slate-800 mb-1.5 text-sm">경상남도사회서비스원</h5>
-                <p class="text-xs text-slate-500 leading-relaxed">
+                <p class="text-sm text-slate-500 leading-relaxed">
                     경상남도 창원시 성산구 창원대로 524 경남사회적경제혁신타운 본관동 2층<br/>
                     대표전화: 055-230-8200
                 </p>
             </div>
             <div class="flex gap-5">
-                <a class="text-xs text-slate-500 hover:text-primary" href="#">개인정보처리방침</a>
-                <a class="text-xs text-slate-500 hover:text-primary" href="#">이용약관</a>
-                <a class="text-xs text-slate-500 hover:text-primary" href="#">사이트맵</a>
+                <a class="text-sm text-slate-500 hover:text-primary" href="#">개인정보처리방침</a>
+                <a class="text-sm text-slate-500 hover:text-primary" href="#">이용약관</a>
+                <a class="text-sm text-slate-500 hover:text-primary" href="#">사이트맵</a>
             </div>
         </div>
     </footer>
@@ -499,14 +733,14 @@
         <!-- Drawer Header -->
         <div class="flex items-center justify-between px-6 py-5 border-b border-stone-200 bg-gradient-to-r from-primary/5 to-purple-50">
             <div class="flex items-center gap-2.5">
-                <span class="material-symbols-outlined text-primary text-2xl">bookmark</span>
+                <span class="material-symbols-outlined text-primary text-2xl" aria-hidden="true">bookmark</span>
                 <div>
                     <h2 class="text-lg font-bold text-slate-800">내 서랍</h2>
                     <p class="text-xs text-slate-500">관심 있는 서비스를 모아두었어요</p>
                 </div>
             </div>
             <button onclick="closeMyDrawer()" class="p-1.5 text-slate-400 hover:text-slate-600 transition-colors rounded-lg hover:bg-stone-100">
-                <span class="material-symbols-outlined text-xl">close</span>
+                <span class="material-symbols-outlined text-xl" aria-hidden="true">close</span>
             </button>
         </div>
         <!-- Drawer Body -->
@@ -514,10 +748,10 @@
             <!-- Empty state (default) -->
             <div id="drawer-empty" class="flex flex-col items-center justify-center h-full text-center py-16">
                 <div class="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mb-5">
-                    <span class="material-symbols-outlined text-stone-300 text-4xl">bookmark_border</span>
+                    <span class="material-symbols-outlined text-stone-300 text-4xl" aria-hidden="true">bookmark_border</span>
                 </div>
                 <h3 class="text-lg font-bold text-slate-700 mb-2">아직 담아둔 서비스가 없어요</h3>
-                <p class="text-sm text-slate-500 leading-relaxed max-w-xs break-keep">서비스 카드의 <span class="inline-flex items-center gap-0.5 text-primary font-semibold"><span class="material-symbols-outlined text-sm">bookmark_add</span>담기</span> 버튼을 눌러<br/>관심 서비스를 저장해 보세요.</p>
+                <p class="text-sm text-slate-500 leading-relaxed max-w-xs break-keep">서비스 카드의 <span class="inline-flex items-center gap-0.5 text-primary font-semibold"><span class="material-symbols-outlined text-sm" aria-hidden="true">bookmark_add</span>담기</span> 버튼을 눌러<br/>관심 서비스를 저장해 보세요.</p>
             </div>
             <!-- Saved items rendered here -->
             <div id="drawer-items" class="hidden space-y-3"></div>
@@ -525,20 +759,20 @@
         <!-- Drawer Footer -->
         <div id="drawer-footer" class="hidden border-t border-stone-200 p-4">
             <button id="drawer-clear-all" class="w-full py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-colors flex items-center justify-center gap-1">
-                <span class="material-symbols-outlined text-base">delete_sweep</span>
+                <span class="material-symbols-outlined text-base" aria-hidden="true">delete_sweep</span>
                 모두 비우기
             </button>
         </div>
     </div>
 
     <!-- ═══════════════════ DRAWER OPT-IN CONSENT MODAL ═══════════════════ -->
-    <div id="consent-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div id="consent-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="consent-modal-title">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-up">
             <div class="p-6 text-center">
                 <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span class="material-symbols-outlined text-primary text-3xl">bookmark_add</span>
+                    <span class="material-symbols-outlined text-primary text-3xl" aria-hidden="true">bookmark_add</span>
                 </div>
-                <h3 class="text-lg font-bold text-slate-800 mb-3">서비스를 저장할까요?</h3>
+                <h3 id="consent-modal-title" class="text-lg font-bold text-slate-800 mb-3">서비스를 저장할까요?</h3>
                 <p class="text-sm text-slate-600 leading-relaxed break-keep mb-1">
                     다음에 다시 보실 수 있도록<br/>이 컴퓨터에 <b>익명의 표식</b>을 남겨둘게요.
                 </p>
@@ -554,16 +788,27 @@
     </div>
 
     <!-- ═══════════════════ SERVICE REQUEST MODAL ═══════════════════ -->
-    <div id="service-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-up">
+    <div id="service-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="service-modal-title">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden animate-fade-up">
             <!-- Modal Header -->
-            <div class="bg-gradient-to-r from-primary to-deep-purple px-6 py-5 text-white">
-                <h3 class="text-lg font-bold">상담 신청하기</h3>
+            <div class="bg-gradient-to-r from-primary to-deep-purple px-6 py-5 text-white flex-shrink-0">
+                <h3 id="service-modal-title" class="text-lg font-bold">상담 신청하기</h3>
                 <p id="modal-service-name" class="text-white/80 text-sm mt-1"></p>
             </div>
+            <!-- Stepper Progress -->
+            <div id="modal-stepper" class="px-6 pt-4 flex-shrink-0">
+                <div class="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
+                    <span id="modal-step-label">1/2 단계: 이름 입력</span>
+                </div>
+                <div class="flex gap-1.5">
+                    <div id="modal-prog-1" class="flex-1 h-1.5 rounded-full bg-primary transition-colors"></div>
+                    <div id="modal-prog-2" class="flex-1 h-1.5 rounded-full bg-stone-200 transition-colors"></div>
+                </div>
+            </div>
             <!-- Modal Body -->
-            <div class="p-6 space-y-5">
+            <div class="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
                 <div id="modal-step-name">
+<<<<<<< HEAD
                     <label class="block text-sm font-semibold text-slate-700 mb-2">성함을 입력해 주세요</label>
                     <div class="relative">
                         <input id="modal-name-input" type="text" class="w-full px-4 py-3 pr-12 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="홍길동" />
@@ -580,24 +825,34 @@
                             <span class="material-symbols-outlined text-xl">mic</span>
                         </button>
                     </div>
+=======
+                    <label for="modal-name-input" class="block text-sm font-semibold text-slate-700 mb-2">성함을 입력해 주세요</label>
+                    <input id="modal-name-input" type="text" inputmode="text" autocomplete="name" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="홍길동" />
+                    <p id="modal-name-error" class="hidden text-xs text-red-500 mt-1.5" role="alert" aria-live="assertive">성함을 입력해 주세요.</p>
+                </div>
+                <div id="modal-step-phone" class="hidden">
+                    <label for="modal-phone-input" class="block text-sm font-semibold text-slate-700 mb-2">연락 받으실 전화번호</label>
+                    <input id="modal-phone-input" type="tel" inputmode="tel" autocomplete="tel" class="w-full px-4 py-3 rounded-xl border border-stone-300 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-base" placeholder="010-1234-5678" />
+                    <p id="modal-phone-error" class="hidden text-xs text-red-500 mt-1.5" role="alert" aria-live="assertive">올바른 전화번호를 입력해 주세요. (예: 010-1234-5678)</p>
+>>>>>>> bdef655931ba2463649053aeb431b6901873524f
                 </div>
                 <div id="modal-step-confirm" class="hidden text-center py-4">
                     <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span class="material-symbols-outlined text-emerald-600 text-3xl">check_circle</span>
+                        <span class="material-symbols-outlined text-emerald-600 text-3xl" aria-hidden="true">check_circle</span>
                     </div>
                     <h4 class="text-lg font-bold text-slate-800 mb-2">신청이 완료되었습니다!</h4>
                     <p id="modal-confirm-text" class="text-sm text-slate-500 leading-relaxed"></p>
                 </div>
                 <div id="modal-step-error" class="hidden text-center py-4">
                     <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span class="material-symbols-outlined text-red-500 text-3xl">error</span>
+                        <span class="material-symbols-outlined text-red-500 text-3xl" aria-hidden="true">error</span>
                     </div>
                     <h4 class="text-lg font-bold text-slate-800 mb-2">오류가 발생했습니다</h4>
                     <p class="text-sm text-slate-500">잠시 후 다시 시도해 주세요. 또는 055-230-8200으로 전화 문의해 주세요.</p>
                 </div>
             </div>
             <!-- Modal Footer -->
-            <div class="px-6 pb-6 flex gap-3">
+            <div class="px-6 pb-6 flex gap-3 flex-shrink-0">
                 <button id="modal-cancel" class="flex-1 py-3 rounded-xl border border-stone-300 text-slate-600 font-semibold hover:bg-slate-50 transition-colors text-sm">취소</button>
                 <button id="modal-next" class="flex-1 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary-light transition-colors text-sm">다음</button>
             </div>
@@ -622,6 +877,7 @@
             cardsGrid: $('cards-grid'),
             cardsSkeleton: $('cards-skeleton'),
             discoverMore: $('discover-more'),
+            chatContextChips: $('chat-context-chips'),
             btnNewSearch: $('btn-new-search'),
             initialPlaceholder: $('initial-placeholder'),
             // Browse
@@ -642,18 +898,52 @@
             modalPhoneMic: $('modal-phone-mic'),
             modalCancel: $('modal-cancel'),
             modalNext: $('modal-next'),
+            modalNameError: $('modal-name-error'),
+            modalPhoneError: $('modal-phone-error'),
+            consentModal: $('consent-modal'),
             // Floating Mic
             floatingMic: $('floating-mic'),
+            floatingMicWrap: $('floating-mic-wrap'),
         };
 
         // ── State ──
         let chatHistory = [];
         let currentCards = [];
         let modalState = { step: 'name', serviceName: '', name: '', phone: '' };
-        let lastInputWasVoice = false;
         let isSpeaking = false;
         let currentAudio = null;
         let currentUtterance = null;
+        let currentAudioSource = null;
+        // Web Audio API — 따뜻한 음색 처리용
+        let audioCtx = null;
+        function getAudioCtx() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return audioCtx;
+        }
+        let sectionsRevealed = false;
+        // TTS 자동재생 토글 (localStorage 기반)
+        const TTS_KEY = 'noma_tts_enabled';
+        let ttsEnabled = localStorage.getItem(TTS_KEY) !== 'false'; // 기본: 켜짐
+
+        // ── Progressive Reveal: 아래 섹션 순차 공개 ──
+        function revealBelowFoldSections() {
+            if (sectionsRevealed) return;
+            sectionsRevealed = true;
+            const targets = [
+                document.getElementById('initial-placeholder'),
+                document.getElementById('browse-section'),
+                document.getElementById('journey-section'),
+                document.querySelector('footer'),
+            ];
+            targets.forEach((el, i) => {
+                if (!el) return;
+                el.classList.remove('hidden');
+                el.classList.add('reveal-fade-up');
+                setTimeout(() => el.classList.add('revealed'), 150 * (i + 1));
+            });
+        }
+        // Expose globally for hamburger menu
+        window.revealBelowFoldSections = revealBelowFoldSections;
 
         // ── Utility: Parse <noma-card> blocks from AI text ──
         function parseNomaCards(text) {
@@ -665,16 +955,31 @@
                     cards.push(JSON.parse(match[1].trim()));
                 } catch (e) { /* skip malformed */ }
             }
-            const cleanText = text.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
+            const cleanText = text.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim();
             return { cards, summaryText: cleanText };
+        }
+
+        // ── Utility: Parse <noma-apply> block from AI text ──
+        function parseNomaApply(text) {
+            const regex = /<noma-apply>([\s\S]*?)<\/noma-apply>/;
+            const match = regex.exec(text);
+            if (!match) return null;
+            try {
+                const data = JSON.parse(match[1].trim());
+                if (data.serviceName && data.userName && data.userPhone) {
+                    return data;
+                }
+            } catch (e) { /* malformed JSON */ }
+            return null;
         }
 
         // ── Utility: Basic markdown to HTML ──
         function md(text) {
-            return text
+            const html = text
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/\n/g, '<br/>');
+            return typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(html) : html;
         }
 
         // ── Card Colors Pool ──
@@ -690,7 +995,7 @@
             if (!text) return '';
             return text.replace(/(0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4})/g, (match) => {
                 const digits = match.replace(/[-.\s]/g, '');
-                return `<a href="tel:${digits}" class="tel-link"><span class="material-symbols-outlined" style="font-size:1.125rem">call</span>${match}</a>`;
+                return `<a href="tel:${digits}" class="tel-link"><span class="material-symbols-outlined style=" aria-hidden="true"font-size:1.125rem">call</span>${match}</a>`;
             });
         }
 
@@ -719,41 +1024,51 @@
                     <div class="step-item${isFirst ? ' open' : ''}" data-step>
                         <div class="step-dot" style="background:${step.color}">${step.num}</div>
                         <div class="step-header" data-step-toggle>
-                            <span class="material-symbols-outlined text-base" style="color:${step.color}">${step.icon}</span>
+                            <span class="material-symbols-outlined text-base" aria-hidden="true" style="color:${step.color}">${step.icon}</span>
                             <span class="font-semibold text-slate-700 text-sm">${step.title}</span>
-                            <span class="material-symbols-outlined step-chevron text-stone-400 ml-auto">expand_more</span>
+                            <span class="material-symbols-outlined step-chevron text-stone-400 ml-auto" aria-hidden="true">expand_more</span>
                         </div>
                         <div class="step-body${isFirst ? ' open' : ''}">
-                            <div class="text-slate-600 text-[13px] leading-relaxed break-keep pl-0.5">
+                            <div class="text-slate-600 text-sm leading-relaxed break-keep pl-0.5">
                                 ${step.isContact ? linkifyPhone(step.content) : step.content}
                             </div>
                         </div>
                     </div>`;
             }).join('');
 
+            // 전화번호 추출 (모바일 전화하기 버튼용)
+            const phoneMatch = (data.agency || '').match(/0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/);
+            const phoneBtnHTML = phoneMatch
+                ? `<a href="tel:${phoneMatch[0].replace(/[-.\s]/g, '')}" class="card-phone-btn hidden md:!hidden" style="display:none">
+                        <span class="material-symbols-outlined text-2xl" aria-hidden="true">call</span>
+                        전화하기 ${phoneMatch[0]}
+                   </a>`
+                : '';
+
             card.innerHTML = `
                 <div class="absolute top-0 right-0 w-28 h-28 ${theme.bg} rounded-full -mr-8 -mt-8 blur-2xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
                 <div class="flex items-start justify-between mb-3 relative z-10">
                     <div class="${theme.bg} p-2.5 rounded-xl ${theme.text}">
-                        <span class="material-symbols-outlined text-2xl">${theme.icon}</span>
+                        <span class="material-symbols-outlined text-2xl" aria-hidden="true">${theme.icon}</span>
                     </div>
                     <button class="btn-bookmark p-2 rounded-lg text-stone-300 hover:text-primary hover:bg-primary/5 transition-all" data-service-name="${data.serviceName || ''}" title="내 서랍에 담기">
-                        <span class="material-symbols-outlined text-xl">bookmark_add</span>
+                        <span class="material-symbols-outlined text-xl" aria-hidden="true">bookmark_add</span>
                     </button>
                 </div>
                 <h3 class="text-lg font-bold text-slate-800 mb-1 relative z-10 break-keep">${data.serviceName || ''}</h3>
-                <p class="text-slate-500 text-[13px] mb-4 leading-relaxed relative z-10 break-keep">${data.summary || ''}</p>
+                <p class="card-summary text-slate-500 text-sm mb-4 leading-relaxed relative z-10 break-keep">${data.summary || ''}</p>
 
                 <div class="stepper relative z-10 mb-4">
                     ${stepsHTML}
                 </div>
 
                 <div class="mt-auto relative z-10">
-                    <button class="btn-apply w-full bg-primary hover:bg-primary-light active:scale-[0.98] text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-sm" data-service="${data.serviceName || ''}">
+                    ${phoneBtnHTML}
+                    <button class="btn-apply w-full bg-primary hover:bg-primary-light active:scale-[0.98] text-white font-bold py-5 md:py-3.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-lg md:text-sm" data-service="${data.serviceName || ''}">
                         이 서비스 상담 신청
-                        <span class="material-symbols-outlined text-base">arrow_outward</span>
+                        <span class="material-symbols-outlined text-base" aria-hidden="true">arrow_outward</span>
                     </button>
-                    <p class="text-[10px] text-slate-400 text-center mt-2 leading-snug">버튼을 누르면 담당 기관에 정보가 전달되며,<br/>2~3일 내 전화 연락드립니다.</p>
+                    <p class="card-disclaimer text-xs text-slate-400 text-center mt-2 leading-snug">버튼을 누르면 담당 기관에 정보가 전달되며,<br/>2~3일 내 전화 연락드립니다.</p>
                 </div>
             `;
             return card;
@@ -783,7 +1098,7 @@
             DOM.browseTabs.innerHTML = browseData.map(cat => `
                 <button class="browse-tab flex items-center gap-2 px-5 py-3 rounded-xl border-2 transition-all text-sm font-semibold" data-cat="${cat.category}"
                     style="border-color: ${cat.color}20; color: ${cat.color};">
-                    <span class="material-symbols-outlined text-lg">${cat.icon}</span>
+                    <span class="material-symbols-outlined text-lg" aria-hidden="true">${cat.icon}</span>
                     ${cat.category}
                     <span class="text-xs font-normal opacity-70">(${cat.services.length})</span>
                 </button>
@@ -817,26 +1132,26 @@
                             <div class="flex items-start justify-between gap-3">
                                 <div class="flex-1 min-w-0">
                                     <h4 class="font-bold text-slate-800 text-[15px] mb-1.5 group-hover:text-primary transition-colors break-keep">${s.name}</h4>
-                                    <p class="text-xs text-slate-500 leading-relaxed line-clamp-2 break-keep">${s.summary}</p>
+                                    <p class="text-sm text-slate-500 leading-relaxed line-clamp-2 break-keep">${s.summary}</p>
                                 </div>
                                 <div class="flex items-center gap-1 flex-shrink-0">
                                     <button class="browse-bookmark p-1 rounded text-stone-300 hover:text-primary transition-colors" data-service-name="${s.name}" data-summary="${(s.summary || '').replace(/"/g, '&quot;')}" data-agency="${(s.agency || '').replace(/"/g, '&quot;')}" title="내 서랍에 담기" onclick="event.stopPropagation()">
-                                        <span class="material-symbols-outlined text-lg">bookmark_add</span>
+                                        <span class="material-symbols-outlined text-lg" aria-hidden="true">bookmark_add</span>
                                     </button>
-                                    <span class="material-symbols-outlined text-stone-300 group-hover:text-primary transition-colors mt-1">chevron_right</span>
+                                    <span class="material-symbols-outlined text-stone-300 group-hover:text-primary transition-colors mt-1" aria-hidden="true">chevron_right</span>
                                 </div>
                             </div>
                             <!-- Expandable Detail -->
                             <div class="browse-detail hidden mt-4 pt-4 border-t border-stone-100 space-y-3 text-sm">
-                                ${s.target ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">group</span><div><span class="font-semibold text-slate-700">지원 대상</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.target}</p></div></div>` : ''}
-                                ${s.benefits ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">featured_seasonal_and_gifts</span><div><span class="font-semibold text-slate-700">지원 내용</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.benefits}</p></div></div>` : ''}
-                                ${s.method ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5">edit_document</span><div><span class="font-semibold text-slate-700">신청 방법</span><p class="text-slate-500 text-xs mt-0.5 leading-relaxed break-keep">${s.method}</p></div></div>` : ''}
-                                ${s.agency ? `<p class="text-[11px] text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-xs">account_balance</span>담당: ${s.agency}</p>` : ''}
+                                ${s.target ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">group</span><div><span class="font-semibold text-slate-700">지원 대상</span><p class="text-slate-500 text-sm mt-0.5 leading-relaxed break-keep">${s.target}</p></div></div>` : ''}
+                                ${s.benefits ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">featured_seasonal_and_gifts</span><div><span class="font-semibold text-slate-700">지원 내용</span><p class="text-slate-500 text-sm mt-0.5 leading-relaxed break-keep">${s.benefits}</p></div></div>` : ''}
+                                ${s.method ? `<div class="flex gap-2"><span class="material-symbols-outlined text-stone-400 text-base flex-shrink-0 mt-0.5" aria-hidden="true">edit_document</span><div><span class="font-semibold text-slate-700">신청 방법</span><p class="text-slate-500 text-sm mt-0.5 leading-relaxed break-keep">${s.method}</p></div></div>` : ''}
+                                ${s.agency ? `<p class="text-xs text-slate-400 flex items-center gap-1"><span class="material-symbols-outlined text-xs" aria-hidden="true">account_balance</span>담당: ${s.agency}</p>` : ''}
                                 <button class="browse-apply w-full bg-primary hover:bg-primary-light text-white font-bold py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm mt-2" data-service="${s.name}">
                                     이 사업 상담 신청하기
-                                    <span class="material-symbols-outlined text-base">arrow_outward</span>
+                                    <span class="material-symbols-outlined text-base" aria-hidden="true">arrow_outward</span>
                                 </button>
-                                <p class="text-[10px] text-slate-400 text-center leading-snug">버튼을 누르시면 담당 기관에 이메일로 정보가 전달되며,<br/>2~3일 내로 전화 연락을 드릴 예정입니다.</p>
+                                <p class="text-xs text-slate-400 text-center leading-snug">버튼을 누르시면 담당 기관에 이메일로 정보가 전달되며,<br/>2~3일 내로 전화 연락을 드릴 예정입니다.</p>
                             </div>
                         </div>
                     `).join('')}
@@ -881,26 +1196,64 @@
         // ══════════════════════════════════════════
 
         // Clean chatHistory before sending to API: strip noma-card blocks and limit length
+        // Anchor 방식: 첫 2턴(맥락 고정) + 최근 6턴 = 최대 8턴 유지
         function prepareMessagesForAPI() {
             const MAX_HISTORY = 8;
-            return chatHistory.slice(-MAX_HISTORY).map(m => ({
+            const ANCHOR_COUNT = 2;
+            const clean = m => ({
                 role: m.role,
                 content: m.role === 'model'
-                    ? m.content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim()
+                    ? m.content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim()
                     : m.content
-            }));
+            });
+            if (chatHistory.length <= MAX_HISTORY) {
+                return chatHistory.map(clean);
+            }
+            const anchor = chatHistory.slice(0, ANCHOR_COUNT).map(clean);
+            const recent = chatHistory.slice(-(MAX_HISTORY - ANCHOR_COUNT)).map(clean);
+            return [...anchor, ...recent];
         }
 
-        async function performSearch(query) {
+        function renderContextChips() {
+            const userQueries = chatHistory.filter(m => m.role === 'user').map(m => m.content);
+            if (userQueries.length <= 1) {
+                DOM.chatContextChips.classList.add('hidden');
+                return;
+            }
+            DOM.chatContextChips.classList.remove('hidden');
+            const label = DOM.chatContextChips.querySelector('span:first-child');
+            DOM.chatContextChips.innerHTML = '';
+            DOM.chatContextChips.appendChild(label);
+            userQueries.slice(0, -1).forEach(q => {
+                const chip = document.createElement('button');
+                const display = q.length > 15 ? q.slice(0, 15) + '...' : q;
+                chip.className = 'inline-flex items-center gap-1 px-3 py-1.5 bg-primary/5 border border-primary/20 text-primary text-xs font-medium rounded-full hover:bg-primary/10 transition-colors';
+                const safeDisplay = document.createElement('span');
+                safeDisplay.textContent = display;
+                chip.innerHTML = `<span class="material-symbols-outlined text-xs" aria-hidden="true">search</span>`;
+                chip.appendChild(safeDisplay);
+                chip.title = q;
+                chip.addEventListener('click', () => {
+                    DOM.heroInput.value = q;
+                    handleHeroSubmit();
+                });
+                DOM.chatContextChips.appendChild(chip);
+            });
+        }
+
+        async function performSearch(query, quickQuery = false) {
             if (!query.trim()) return;
+            stopSpeaking(); // 이전 TTS 즉시 중단
 
             // Transition to results state
             DOM.heroSection.classList.add('hero-compact');
             DOM.heroChips.classList.add('hidden');
-            // Show floating mic on mobile
-            if (DOM.floatingMic && SpeechRecognition) DOM.floatingMic.style.display = 'flex';
+            // Show floating mic after search
+            if (DOM.floatingMicWrap && SpeechRecognition) DOM.floatingMicWrap.style.display = 'flex';
             DOM.initialPlaceholder.classList.add('hidden');
             DOM.resultsSection.classList.remove('hidden');
+            // Reveal below-fold sections
+            revealBelowFoldSections();
             DOM.aiSummaryArea.classList.add('hidden');
             DOM.discoverMore.classList.add('hidden');
             DOM.btnNewSearch.classList.remove('hidden');
@@ -909,38 +1262,108 @@
 
             // Add to chat history
             chatHistory.push({ role: 'user', content: query });
+            renderContextChips();
 
             try {
                 const controller = new AbortController();
+                let userCancelled = false;
                 const timeout = setTimeout(() => controller.abort(), 30000);
+
+                // 스트리밍 취소 버튼 표시
+                let cancelBtn = $('btn-cancel-stream');
+                if (!cancelBtn) {
+                    cancelBtn = document.createElement('button');
+                    cancelBtn.id = 'btn-cancel-stream';
+                    cancelBtn.className = 'mt-3 px-4 py-2 bg-white border border-stone-300 text-slate-600 text-sm font-medium rounded-xl hover:bg-slate-50 transition-colors inline-flex items-center gap-1.5';
+                    cancelBtn.innerHTML = '<span class="material-symbols-outlined text-base" aria-hidden="true">stop_circle</span>응답 중지';
+                }
+                cancelBtn.onclick = () => { userCancelled = true; controller.abort(); cancelBtn.remove(); };
+                DOM.aiSummaryArea.classList.remove('hidden');
+                DOM.aiSummaryArea.appendChild(cancelBtn);
 
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: prepareMessagesForAPI() }),
+                    body: JSON.stringify({ messages: prepareMessagesForAPI(), quickQuery }),
                     signal: controller.signal,
                 });
                 clearTimeout(timeout);
 
                 if (!response.ok) throw new Error('Network error');
 
-                const responseText = await response.text();
+                // ── 실시간 스트리밍 처리 ──
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
                 let fullResponse = '';
                 let apiError = '';
-                for (const line of responseText.split('\n')) {
-                    if (!line.startsWith('data: ')) continue;
-                    const dataStr = line.slice(6).trim();
-                    if (dataStr === '[DONE]') break;
-                    try {
-                        const data = JSON.parse(dataStr);
-                        if (data.text) fullResponse += data.text;
-                        if (data.error) apiError = data.error;
-                    } catch (e) { /* partial chunk */ }
+                let fillerShown = false;
+                let streamStarted = false;
+                let sseBuffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    sseBuffer += decoder.decode(value, { stream: true });
+                    const lines = sseBuffer.split('\n');
+                    sseBuffer = lines.pop(); // 마지막 미완성 라인은 버퍼에 유지
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const dataStr = line.slice(6).trim();
+                        if (dataStr === '[DONE]') continue;
+
+                        try {
+                            const data = JSON.parse(dataStr);
+
+                            // filler 공감 응답: 즉시 표시
+                            if (data.type === 'filler' && data.text) {
+                                fillerShown = true;
+                                DOM.cardsSkeleton.classList.add('hidden');
+                                DOM.aiSummaryArea.classList.remove('hidden');
+                                DOM.aiSummaryText.innerHTML = `<p class="text-primary/80 animate-pulse">${data.text}</p>`;
+                            }
+
+                            // stream 실제 AI 응답: 실시간으로 이어서 표시
+                            if (data.type === 'stream' && data.text) {
+                                if (!streamStarted) {
+                                    streamStarted = true;
+                                    DOM.cardsSkeleton.classList.add('hidden');
+                                    DOM.aiSummaryArea.classList.remove('hidden');
+                                    // filler 아래에 실제 응답 영역 추가
+                                    if (fillerShown) {
+                                        DOM.aiSummaryText.innerHTML = `<p class="text-primary/80 text-sm mb-2">${DOM.aiSummaryText.textContent}</p><div id="stream-output"></div>`;
+                                    } else {
+                                        DOM.aiSummaryText.innerHTML = '<div id="stream-output"></div>';
+                                    }
+                                }
+                                fullResponse += data.text;
+                                // 실시간으로 마크다운 렌더링 (noma-card 태그는 최종 파싱에서 처리)
+                                const streamEl = $('stream-output');
+                                if (streamEl) {
+                                    const displaySoFar = fullResponse.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim();
+                                    streamEl.innerHTML = md(displaySoFar);
+                                }
+                            }
+
+                            // 하위 호환: type 없는 기존 형식 처리
+                            if (!data.type && data.text) {
+                                fullResponse += data.text;
+                            }
+
+                            if (data.error) apiError = data.error;
+                        } catch (e) { /* partial chunk */ }
+                    }
                 }
+
+                // 취소 버튼 제거
+                const cb = $('btn-cancel-stream'); if (cb) cb.remove();
+
+                // ── 응답 완료 후 처리 ──
 
                 // API 오류 시 사용자에게 안내 + 재시도 버튼
                 if (!fullResponse && apiError) {
-                    chatHistory.pop(); // 실패한 사용자 메시지 제거
+                    chatHistory.pop();
                     DOM.cardsSkeleton.classList.add('hidden');
                     DOM.cardsTitle.classList.add('hidden');
                     DOM.cardsGrid.classList.add('hidden');
@@ -949,7 +1372,7 @@
                         <p>죄송합니다. AI 서버에서 응답을 받지 못했습니다.</p>
                         <p class="text-sm text-slate-500 mt-2">네트워크 상태를 확인하시거나, 잠시 후 다시 시도해 주세요.</p>
                         <button id="btn-retry-search" class="mt-4 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-light transition-colors inline-flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-base">refresh</span>
+                            <span class="material-symbols-outlined text-base" aria-hidden="true">refresh</span>
                             다시 시도하기
                         </button>
                     `;
@@ -964,7 +1387,7 @@
                     return;
                 }
 
-                // 빈 응답 처리 (fullResponse가 없고 에러도 없는 경우)
+                // 빈 응답 처리
                 if (!fullResponse) {
                     chatHistory.pop();
                     DOM.cardsSkeleton.classList.add('hidden');
@@ -974,7 +1397,7 @@
                     DOM.aiSummaryText.innerHTML = `
                         <p>AI 응답이 비어 있습니다. 다시 시도해 주세요.</p>
                         <button id="btn-retry-search" class="mt-4 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-light transition-colors inline-flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-base">refresh</span>
+                            <span class="material-symbols-outlined text-base" aria-hidden="true">refresh</span>
                             다시 시도하기
                         </button>
                     `;
@@ -992,15 +1415,18 @@
                 chatHistory.push({ role: 'model', content: fullResponse });
                 saveHistory();
 
-                // Parse cards and summary
+                // TTS: 스트리밍 완료 즉시 병렬로 시작 (렌더링/신청 대기하지 않음)
+                const ttsPromise = (fullResponse && ttsEnabled)
+                    ? speakText(extractSpeakableText(fullResponse))
+                    : Promise.resolve();
+
+                // Parse cards and summary (최종 전체 응답에서)
                 const { cards, summaryText } = parseNomaCards(fullResponse);
                 currentCards = cards;
 
-                // Hide skeleton
+                // 최종 렌더링: 스트리밍 중간 상태를 깔끔한 최종 상태로 교체
                 DOM.cardsSkeleton.classList.add('hidden');
-
-                // Show AI summary
-                const displayText = summaryText || fullResponse.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
+                const displayText = summaryText || fullResponse.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim();
                 if (displayText) {
                     DOM.aiSummaryArea.classList.remove('hidden');
                     DOM.aiSummaryText.innerHTML = md(displayText);
@@ -1021,7 +1447,7 @@
                     DOM.cardsGrid.classList.remove('hidden');
                     DOM.cardsGrid.innerHTML = `
                         <div class="col-span-full text-center py-10 opacity-0 animate-fade-up">
-                            <span class="material-symbols-outlined text-stone-300 text-5xl mb-3">search_off</span>
+                            <span class="material-symbols-outlined text-stone-300 text-5xl mb-3" aria-hidden="true">search_off</span>
                             <p class="text-slate-500 text-sm">관련 서비스를 찾지 못했습니다.<br/>다른 키워드로 다시 검색해 보세요.</p>
                         </div>
                     `;
@@ -1030,22 +1456,84 @@
                 // Show discover more
                 DOM.discoverMore.classList.remove('hidden');
 
-                // Smooth scroll to results
-                DOM.resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-                // TTS: read AI summary aloud (voice input only)
-                if (fullResponse && lastInputWasVoice) {
-                    lastInputWasVoice = false;
-                    await speakText(extractSpeakableText(fullResponse));
-                } else {
-                    lastInputWasVoice = false;
+                // ── 대화형 상담 신청: <noma-apply> 자동 처리 ──
+                const applyData = parseNomaApply(fullResponse);
+                if (applyData) {
+                    try {
+                        const applyRes = await fetch('/api/service-request/connect', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                serviceName: applyData.serviceName,
+                                userName: applyData.userName,
+                                userPhone: applyData.userPhone,
+                                chatHistory: chatHistory.map(m => ({
+                                    role: m.role,
+                                    content: m.role === 'model'
+                                        ? m.content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim()
+                                        : m.content
+                                })).filter(m => m.content)
+                            })
+                        });
+                        if (!applyRes.ok) {
+                            const errBody = await applyRes.json().catch(() => ({}));
+                            throw new Error(errBody.error || '신청 처리 중 오류');
+                        }
+                        // 성공 카드
+                        DOM.aiSummaryText.innerHTML += `
+                            <div class="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl animate-fade-up">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="material-symbols-outlined text-emerald-600" aria-hidden="true" style="font-size:20px">check_circle</span>
+                                    <span class="font-bold text-emerald-800 text-sm">상담 신청 완료</span>
+                                </div>
+                                <p class="text-emerald-700 text-sm leading-relaxed">${applyData.userName}님, <b>${applyData.serviceName}</b> 담당 기관에 상담 요청을 보냈습니다.<br/>2~3일 내로 <b>${applyData.userPhone}</b>으로 연락드릴 예정입니다.</p>
+                            </div>`;
+                    } catch (applyErr) {
+                        console.error('Auto apply error:', applyErr);
+                        const errMsg = applyErr.message || '알 수 없는 오류';
+                        const isDuplicate = errMsg.includes('이미 신청');
+                        // 실패 카드 (중복 신청은 별도 안내)
+                        DOM.aiSummaryText.innerHTML += isDuplicate
+                            ? `<div class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl animate-fade-up">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="material-symbols-outlined text-amber-600" aria-hidden="true" style="font-size:20px">info</span>
+                                    <span class="font-bold text-amber-800 text-sm">이미 신청된 건입니다</span>
+                                </div>
+                                <p class="text-amber-700 text-sm leading-relaxed">동일한 서비스에 대해 최근 24시간 내 이미 신청하셨습니다. 담당자가 곧 연락드릴 예정입니다.</p>
+                            </div>`
+                            : `<div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl animate-fade-up">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="material-symbols-outlined text-red-600" aria-hidden="true" style="font-size:20px">error</span>
+                                    <span class="font-bold text-red-800 text-sm">신청 중 오류가 발생했습니다</span>
+                                </div>
+                                <p class="text-red-700 text-sm leading-relaxed">자동 신청에 실패했습니다. 서비스 카드의 <b>"상담 신청"</b> 버튼을 눌러 직접 신청해 주세요.</p>
+                            </div>`;
+                    }
                 }
 
+                // Smooth scroll: 입력란이 헤더 바로 아래 보이도록 스크롤 (scroll-margin-top: 80px 적용됨)
+                DOM.heroSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                // TTS: 병렬로 시작된 음성 재생 완료 대기
+                await ttsPromise;
+
             } catch (err) {
-                lastInputWasVoice = false;
-                chatHistory.pop(); // 실패한 사용자 메시지 제거
                 console.error('Search error:', err);
                 DOM.cardsSkeleton.classList.add('hidden');
+                const cb2 = $('btn-cancel-stream'); if (cb2) cb2.remove();
+
+                // 사용자가 직접 취소한 경우: 부분 응답 유지 + 안내
+                if (userCancelled) {
+                    DOM.aiSummaryArea.classList.remove('hidden');
+                    if (!$('stream-output')?.textContent?.trim()) {
+                        DOM.aiSummaryText.innerHTML = '<p class="text-slate-500">응답이 중지되었습니다.</p>';
+                    }
+                    showToast('응답이 중지되었습니다.');
+                    DOM.discoverMore.classList.remove('hidden');
+                    return;
+                }
+
+                chatHistory.pop(); // 실패한 사용자 메시지 제거
 
                 const isTimeout = err.name === 'AbortError';
                 DOM.aiSummaryArea.classList.remove('hidden');
@@ -1053,7 +1541,7 @@
                     <p>${isTimeout ? 'AI 서버 응답 시간이 초과되었습니다.' : 'AI 서버에 연결할 수 없습니다.'}</p>
                     <p class="text-sm text-slate-500 mt-2">${isTimeout ? '잠시 후 다시 시도해 주세요.' : '로컬 서버(localhost:5000)가 실행 중인지 확인해 주세요.'}</p>
                     <button id="btn-retry-search" class="mt-4 px-5 py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary-light transition-colors inline-flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-base">refresh</span>
+                        <span class="material-symbols-outlined text-base" aria-hidden="true">refresh</span>
                         다시 시도하기
                     </button>
                 `;
@@ -1071,14 +1559,15 @@
         }
 
         // ── Hero Event Handlers ──
-        function handleHeroSubmit() {
+        function handleHeroSubmit(quickQuery = false) {
             const query = DOM.heroInput.value.trim();
             if (!query) return;
             DOM.heroInput.value = '';
-            performSearch(query);
+            history.pushState({ view: 'search', query }, '', '?q=' + encodeURIComponent(query));
+            performSearch(query, quickQuery);
         }
 
-        DOM.heroSubmit.addEventListener('click', handleHeroSubmit);
+        DOM.heroSubmit.addEventListener('click', () => handleHeroSubmit());
         DOM.heroInput.addEventListener('keydown', e => {
             if (e.key === 'Enter') { e.preventDefault(); handleHeroSubmit(); }
         });
@@ -1087,16 +1576,16 @@
             chip.addEventListener('click', () => {
                 const msg = chip.getAttribute('data-msg');
                 DOM.heroInput.value = msg;
-                handleHeroSubmit();
+                handleHeroSubmit(true);
             });
         });
 
         // ── Reset to Home ──
         function resetToHome() {
+            stopSpeaking(); // TTS 즉시 중단
             DOM.heroSection.classList.remove('hero-compact');
             DOM.heroChips.classList.remove('hidden');
             DOM.resultsSection.classList.add('hidden');
-            DOM.initialPlaceholder.classList.remove('hidden');
             DOM.heroInput.value = '';
             currentCards = [];
 
@@ -1105,22 +1594,60 @@
 
             // 대화 내역 초기화
             clearChatData();
+            DOM.chatContextChips.classList.add('hidden');
+
+            // 아래 섹션 다시 숨김
+            DOM.initialPlaceholder.classList.add('hidden');
+            document.getElementById('browse-section')?.classList.add('hidden');
+            document.getElementById('journey-section')?.classList.add('hidden');
+            document.querySelector('footer')?.classList.add('hidden');
+            sectionsRevealed = false;
+
+            // 히어로 풀스크린 복원
+            DOM.heroSection.style.minHeight = 'calc(100vh - 80px)';
+            if (CSS.supports && CSS.supports('min-height', '100dvh')) DOM.heroSection.style.minHeight = 'calc(100dvh - 80px)';
+            const ctaWrap = $('hero-voice-cta-wrap');
+            if (ctaWrap) ctaWrap.style.display = 'flex';
+
+            // 플로팅 마이크 숨김
+            if (DOM.floatingMicWrap) {
+                DOM.floatingMicWrap.style.display = 'none';
+            }
 
             // 최상단 스크롤
             window.scrollTo({ top: 0, behavior: 'smooth' });
-
-            // Hide floating mic
-            if (DOM.floatingMic) DOM.floatingMic.style.display = 'none';
         }
+        // Expose globally for logo click
+        window.resetToHome = function() {
+            history.pushState({ view: 'home' }, '', '/');
+            resetToHome();
+        };
 
         // New search button
-        DOM.btnNewSearch.addEventListener('click', resetToHome);
+        DOM.btnNewSearch.addEventListener('click', () => {
+            history.pushState({ view: 'home' }, '', '/');
+            resetToHome();
+        });
+
+        // ── History API: 뒤로가기/앞으로가기 지원 ──
+        window.addEventListener('popstate', (e) => {
+            const state = e.state;
+            if (!state || state.view === 'home') {
+                resetToHome();
+            } else if (state.view === 'search' && state.query) {
+                DOM.heroInput.value = '';
+                performSearch(state.query);
+            }
+        });
+        // 초기 상태 설정
+        history.replaceState({ view: 'home' }, '', location.pathname + location.search);
 
         // Browse scroll from discover section
         const btnBrowseScroll = $('btn-browse-scroll');
         if (btnBrowseScroll) {
             btnBrowseScroll.addEventListener('click', () => {
-                document.getElementById('browse-section')?.scrollIntoView({ behavior: 'smooth' });
+                revealBelowFoldSections();
+                setTimeout(() => document.getElementById('browse-section')?.scrollIntoView({ behavior: 'smooth' }), 100);
             });
         }
 
@@ -1147,7 +1674,43 @@
         // ── SERVICE REQUEST MODAL ──
         // ══════════════════════════════════════
 
+        const APPLY_KEY = 'noma_applied_services';
+        function getAppliedServices() {
+            try { return JSON.parse(sessionStorage.getItem(APPLY_KEY) || '[]'); } catch { return []; }
+        }
+        function markApplied(serviceName) {
+            const list = getAppliedServices();
+            if (!list.includes(serviceName)) list.push(serviceName);
+            sessionStorage.setItem(APPLY_KEY, JSON.stringify(list));
+        }
+
+        function updateModalStepper(step) {
+            const stepper = $('modal-stepper');
+            const label = $('modal-step-label');
+            const p1 = $('modal-prog-1');
+            const p2 = $('modal-prog-2');
+            if (!stepper) return;
+            if (step === 'confirm' || step === 'error') {
+                stepper.classList.add('hidden');
+                return;
+            }
+            stepper.classList.remove('hidden');
+            if (step === 'name') {
+                label.textContent = '1/2 단계: 이름 입력';
+                p1.className = 'flex-1 h-1.5 rounded-full bg-primary transition-colors';
+                p2.className = 'flex-1 h-1.5 rounded-full bg-stone-200 transition-colors';
+            } else if (step === 'phone') {
+                label.textContent = '2/2 단계: 연락처 입력';
+                p1.className = 'flex-1 h-1.5 rounded-full bg-primary transition-colors';
+                p2.className = 'flex-1 h-1.5 rounded-full bg-primary transition-colors';
+            }
+        }
+
         function openServiceModal(serviceName) {
+            if (getAppliedServices().includes(serviceName)) {
+                showToast('이미 해당 서비스를 신청하셨습니다.');
+                return;
+            }
             modalState = { step: 'name', serviceName, name: '', phone: '' };
             DOM.modalServiceName.textContent = serviceName;
             DOM.modalStepName.classList.remove('hidden');
@@ -1160,11 +1723,13 @@
             DOM.modalCancel.classList.remove('hidden');
             DOM.modalNameInput.value = '';
             DOM.modalPhoneInput.value = '';
+            updateModalStepper('name');
             DOM.serviceModal.classList.remove('hidden');
             setTimeout(() => DOM.modalNameInput.focus(), 100);
         }
 
         DOM.modalCancel.addEventListener('click', () => {
+            stopSpeaking();
             if (modalState.step === 'confirm') {
                 resetToHome();
             } else {
@@ -1173,22 +1738,34 @@
         });
 
         DOM.serviceModal.addEventListener('click', e => {
-            if (e.target === DOM.serviceModal) DOM.serviceModal.classList.add('hidden');
+            if (e.target === DOM.serviceModal) { stopSpeaking(); DOM.serviceModal.classList.add('hidden'); }
         });
 
         DOM.modalNext.addEventListener('click', async () => {
             if (modalState.step === 'name') {
                 const name = DOM.modalNameInput.value.trim();
-                if (!name) { DOM.modalNameInput.focus(); return; }
+                if (!name) {
+                    DOM.modalNameError.classList.remove('hidden');
+                    DOM.modalNameInput.focus();
+                    return;
+                }
+                DOM.modalNameError.classList.add('hidden');
                 modalState.name = name;
                 modalState.step = 'phone';
                 DOM.modalStepName.classList.add('hidden');
                 DOM.modalStepPhone.classList.remove('hidden');
                 DOM.modalNext.textContent = '신청 완료';
+                updateModalStepper('phone');
                 setTimeout(() => DOM.modalPhoneInput.focus(), 100);
             } else if (modalState.step === 'phone') {
                 const phone = DOM.modalPhoneInput.value.trim();
-                if (!phone) { DOM.modalPhoneInput.focus(); return; }
+                const phoneRegex = /^0\d{1,2}-?\d{3,4}-?\d{4}$/;
+                if (!phone || !phoneRegex.test(phone)) {
+                    DOM.modalPhoneError.classList.remove('hidden');
+                    DOM.modalPhoneInput.focus();
+                    return;
+                }
+                DOM.modalPhoneError.classList.add('hidden');
                 modalState.phone = phone;
                 DOM.modalNext.textContent = '처리 중...';
                 DOM.modalNext.disabled = true;
@@ -1200,15 +1777,24 @@
                         body: JSON.stringify({
                             serviceName: modalState.serviceName,
                             userName: modalState.name,
-                            userPhone: modalState.phone
+                            userPhone: modalState.phone,
+                            chatHistory: chatHistory.map(m => ({
+                                role: m.role,
+                                content: m.role === 'model'
+                                    ? m.content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim()
+                                    : m.content
+                            })).filter(m => m.content)
                         })
                     });
                     if (!res.ok) throw new Error('API failed');
 
+                    markApplied(modalState.serviceName);
                     modalState.step = 'confirm';
                     DOM.modalStepPhone.classList.add('hidden');
                     DOM.modalStepConfirm.classList.remove('hidden');
-                    DOM.modalConfirmText.innerHTML = `<b>${modalState.name}</b>님, <b>${modalState.serviceName}</b> 담당 기관에 상담 요청을 보냈습니다.<br/>2~3일 내로 <b>${modalState.phone}</b>으로 연락드릴 예정입니다.<br/><span class="text-[10px] text-slate-400 mt-2 inline-block">잠시 후 처음 화면으로 돌아갑니다...</span>`;
+                    updateModalStepper('confirm');
+                    const escH = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+                    DOM.modalConfirmText.innerHTML = `<b>${escH(modalState.name)}</b>님, <b>${escH(modalState.serviceName)}</b> 담당 기관에 상담 요청을 보냈습니다.<br/>2~3일 내로 <b>${escH(modalState.phone)}</b>으로 연락드릴 예정입니다.<br/><span class="text-xs text-slate-500 mt-2 inline-block">잠시 후 처음 화면으로 돌아갑니다...</span>`;
                     DOM.modalNext.classList.add('hidden');
                     DOM.modalCancel.textContent = '닫기';
 
@@ -1217,6 +1803,7 @@
                     modalState.step = 'error';
                     DOM.modalStepPhone.classList.add('hidden');
                     DOM.modalStepError.classList.remove('hidden');
+                    updateModalStepper('error');
                     DOM.modalNext.classList.add('hidden');
                     DOM.modalCancel.textContent = '닫기';
                 } finally {
@@ -1270,7 +1857,9 @@
             try {
                 recognition.start();
                 isRecognitionRunning = true;
-                btnEl.classList.add('animate-pulse', '!text-red-500');
+                btnEl.classList.add('animate-pulse', '!text-red-500', 'mic-recording');
+                btnEl.setAttribute('aria-pressed', 'true');
+                btnEl.setAttribute('aria-label', '녹음 중 - 눌러서 중지');
                 const icon = btnEl.querySelector('.material-symbols-outlined');
                 if (icon) icon.textContent = 'graphic_eq';
                 updateFloatingMicState();
@@ -1292,7 +1881,7 @@
                     if (card.serviceName) cards.push(card);
                 } catch (e) {}
             }
-            let clean = text.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').trim();
+            let clean = text.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim();
             clean = clean.replace(/\*\*(.*?)\*\*/g, '$1');
             clean = clean.replace(/\*(.*?)\*/g, '$1');
             clean = clean.replace(/#{1,6}\s/g, '');
@@ -1312,6 +1901,11 @@
                     return line;
                 }).join(' ');
                 clean += '\n' + cardSummary;
+                // 전화번호가 있으면 초록 버튼 안내 추가
+                const hasPhone = cards.some(c => c.agency && /0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/.test(c.agency));
+                if (hasPhone) {
+                    clean += ' 전화 연결을 원하시면, 초록색 전화하기 버튼을 눌러주세요.';
+                }
             }
             return clean.trim();
         }
@@ -1339,11 +1933,34 @@
                     if (!res.ok) throw new Error('TTS API error ' + res.status);
                     const data = await res.json();
                     if (data.audioContent && data.audioContent.length > 100) {
-                        const audio = new Audio('data:audio/mpeg;base64,' + data.audioContent);
-                        currentAudio = audio;
-                        audio.onended = () => { isSpeaking = false; currentAudio = null; updateFloatingMicState(); resolve(); };
-                        audio.onerror = (e) => { console.error('Audio playback error:', e); isSpeaking = false; currentAudio = null; updateFloatingMicState(); resolve(); };
-                        await audio.play().catch(e => { console.error('Audio play failed:', e); throw e; });
+                        const ctx = getAudioCtx();
+                        if (ctx.state === 'suspended') await ctx.resume();
+                        const raw = atob(data.audioContent);
+                        const buf = new Uint8Array(raw.length);
+                        for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+                        const audioBuf = await ctx.decodeAudioData(buf.buffer);
+                        const source = ctx.createBufferSource();
+                        source.buffer = audioBuf;
+                        // 저음 부스트 — 따뜻하고 풍성한 음색
+                        const warmth = ctx.createBiquadFilter();
+                        warmth.type = 'lowshelf';
+                        warmth.frequency.value = 250;
+                        warmth.gain.value = 3.5;
+                        // 고음 살짝 깎아 부드럽게
+                        const soften = ctx.createBiquadFilter();
+                        soften.type = 'highshelf';
+                        soften.frequency.value = 6000;
+                        soften.gain.value = -2;
+                        // 컴프레서 — 일정한 볼륨
+                        const comp = ctx.createDynamicsCompressor();
+                        comp.threshold.value = -18;
+                        comp.ratio.value = 4;
+                        comp.attack.value = 0.003;
+                        comp.release.value = 0.15;
+                        source.connect(warmth).connect(soften).connect(comp).connect(ctx.destination);
+                        currentAudioSource = source;
+                        source.onended = () => { isSpeaking = false; currentAudioSource = null; currentAudio = null; updateFloatingMicState(); resolve(); };
+                        source.start();
                         return;
                     }
                     throw new Error('Empty audio content');
@@ -1364,6 +1981,10 @@
         }
 
         function stopSpeaking() {
+            if (currentAudioSource) {
+                try { currentAudioSource.stop(); } catch (_) {}
+                currentAudioSource = null;
+            }
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
@@ -1381,9 +2002,11 @@
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
 
+            let voiceSubmitTimer = null;
             recognition.onresult = event => {
                 const text = event.results[0][0].transcript;
                 if (activeInput) {
+<<<<<<< HEAD
                     lastInputWasVoice = true;
                     // 전화번호 필드: 한국어 숫자를 아라비아 숫자로 변환
                     if (activeInput === DOM.modalPhoneInput) {
@@ -1391,17 +2014,29 @@
                     } else {
                         activeInput.value = text;
                     }
+=======
+                    const wasHeroInput = activeInput === DOM.heroInput;
+                    activeInput.value = text;
+>>>>>>> bdef655931ba2463649053aeb431b6901873524f
                     activeInput.dispatchEvent(new Event('input'));
-                    setTimeout(() => {
-                        if (activeInput === DOM.heroInput) {
-                            handleHeroSubmit();
-                        }
-                    }, 300);
+                    if (wasHeroInput) {
+                        // 확인 토스트(3초) 후 자동 제출 절충안
+                        if (voiceSubmitTimer) clearTimeout(voiceSubmitTimer);
+                        showToast(`"${text.length > 20 ? text.slice(0, 20) + '…' : text}" — 잠시 후 검색합니다. 수정하려면 입력창을 클릭하세요.`);
+                        voiceSubmitTimer = setTimeout(() => { voiceSubmitTimer = null; handleHeroSubmit(); }, 1500);
+                        // 사용자가 입력창에 포커스하면 자동 제출 취소
+                        const cancelHandler = () => {
+                            if (voiceSubmitTimer) { clearTimeout(voiceSubmitTimer); voiceSubmitTimer = null; showToast('자동 검색이 취소되었습니다.'); }
+                            DOM.heroInput.removeEventListener('focus', cancelHandler);
+                        };
+                        DOM.heroInput.addEventListener('focus', cancelHandler);
+                    }
                 }
             };
 
             recognition.onend = () => {
                 isRecognitionRunning = false;
+<<<<<<< HEAD
                 // 모든 마이크 버튼의 활성 상태 리셋
                 [DOM.heroMic, DOM.modalNameMic, DOM.modalPhoneMic].forEach(btn => {
                     if (!btn) return;
@@ -1409,18 +2044,43 @@
                     const icon = btn.querySelector('.material-symbols-outlined');
                     if (icon) icon.textContent = 'mic';
                 });
+=======
+                DOM.heroMic.classList.remove('animate-pulse', '!text-red-500', 'mic-recording');
+                DOM.heroMic.setAttribute('aria-pressed', 'false');
+                DOM.heroMic.setAttribute('aria-label', '음성으로 입력');
+                const icon = DOM.heroMic.querySelector('.material-symbols-outlined');
+                if (icon) icon.textContent = 'mic';
+>>>>>>> bdef655931ba2463649053aeb431b6901873524f
                 activeInput = null;
                 activeBtn = null;
                 updateFloatingMicState();
+                // 히어로 음성 CTA 버튼 상태 리셋
+                const heroVoiceCta = $('hero-voice-cta');
+                if (heroVoiceCta) {
+                    heroVoiceCta.classList.remove('animate-pulse', 'mic-recording');
+                    heroVoiceCta.setAttribute('aria-pressed', 'false');
+                    heroVoiceCta.setAttribute('aria-label', '음성으로 대화하기');
+                    heroVoiceCta.querySelector('.material-symbols-outlined').textContent = 'mic';
+                }
             };
 
             recognition.onerror = event => {
                 console.warn('Speech recognition error:', event.error);
                 isRecognitionRunning = false;
+                const errorMessages = {
+                    'not-allowed': '마이크 사용 권한이 필요합니다. 브라우저 설정에서 마이크를 허용해 주세요.',
+                    'no-speech': '음성이 감지되지 않았습니다. 다시 말씀해 주세요.',
+                    'network': '네트워크 연결을 확인해 주세요.',
+                    'audio-capture': '마이크를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인해 주세요.',
+                    'aborted': null,
+                };
+                const msg = errorMessages[event.error];
+                if (msg) showToast(msg);
             };
 
             DOM.heroMic.addEventListener('click', e => { e.preventDefault(); startListening(DOM.heroInput, DOM.heroMic); });
 
+<<<<<<< HEAD
             // ── Modal Mic Buttons ──
             if (DOM.modalNameMic) {
                 DOM.modalNameMic.addEventListener('click', e => {
@@ -1432,6 +2092,18 @@
                 DOM.modalPhoneMic.addEventListener('click', e => {
                     e.preventDefault();
                     startListening(DOM.modalPhoneInput, DOM.modalPhoneMic);
+=======
+            // ── 모바일 히어로 음성 CTA 버튼 ──
+            const heroVoiceCta = $('hero-voice-cta');
+            if (heroVoiceCta) {
+                heroVoiceCta.addEventListener('click', () => {
+                    startListening(DOM.heroInput, DOM.heroMic);
+                    // CTA 버튼 시각 피드백
+                    heroVoiceCta.classList.add('animate-pulse', 'mic-recording');
+                    heroVoiceCta.setAttribute('aria-pressed', 'true');
+                    heroVoiceCta.setAttribute('aria-label', '녹음 중 - 눌러서 중지');
+                    heroVoiceCta.querySelector('.material-symbols-outlined').textContent = 'graphic_eq';
+>>>>>>> bdef655931ba2463649053aeb431b6901873524f
                 });
             }
 
@@ -1441,6 +2113,33 @@
                     if (isSpeaking) stopSpeaking();
                     startListening(DOM.heroInput, DOM.heroMic);
                     updateFloatingMicState();
+                });
+            }
+
+            // 플로팅 마이크는 첫 검색 후에만 표시 (초기에는 히어로 CTA 사용)
+
+            // ── TTS 토글 버튼 ──
+            const ttsToggle = $('tts-toggle');
+            if (ttsToggle) {
+                function updateTtsToggleUI() {
+                    const icon = ttsToggle.querySelector('.material-symbols-outlined');
+                    if (ttsEnabled) {
+                        icon.textContent = 'volume_up';
+                        ttsToggle.style.borderColor = '#98002E';
+                        ttsToggle.title = '음성 읽기 끄기';
+                    } else {
+                        icon.textContent = 'volume_off';
+                        ttsToggle.style.borderColor = '#d1d5db';
+                        ttsToggle.title = '음성 읽기 켜기';
+                    }
+                }
+                updateTtsToggleUI();
+                ttsToggle.addEventListener('click', () => {
+                    ttsEnabled = !ttsEnabled;
+                    localStorage.setItem(TTS_KEY, ttsEnabled);
+                    updateTtsToggleUI();
+                    if (!ttsEnabled && isSpeaking) stopSpeaking();
+                    showToast(ttsEnabled ? '음성 읽기가 켜졌습니다.' : '음성 읽기가 꺼졌습니다.');
                 });
             }
         } else {
@@ -1454,9 +2153,13 @@
             const statusIcon = DOM.floatingMic.querySelector('.mic-status .material-symbols-outlined');
             if (isRecognitionRunning) {
                 DOM.floatingMic.classList.add('listening');
+                DOM.floatingMic.setAttribute('aria-pressed', 'true');
+                DOM.floatingMic.setAttribute('aria-label', '녹음 중 - 눌러서 중지');
                 if (icon) icon.textContent = 'graphic_eq';
             } else {
                 DOM.floatingMic.classList.remove('listening');
+                DOM.floatingMic.setAttribute('aria-pressed', 'false');
+                DOM.floatingMic.setAttribute('aria-label', '음성으로 대화하기');
                 if (icon) icon.textContent = 'mic';
             }
             if (statusIcon) {
@@ -1597,14 +2300,14 @@
                         <div class="flex-1 min-w-0">
                             <h4 class="font-bold text-slate-800 text-sm mb-1 break-keep">${item.serviceName}</h4>
                             <p class="text-xs text-slate-500 leading-relaxed break-keep line-clamp-2">${item.summary}</p>
-                            ${item.agency ? `<p class="text-[10px] text-slate-400 mt-1.5 flex items-center gap-0.5"><span class="material-symbols-outlined text-[10px]">account_balance</span>${item.agency}</p>` : ''}
+                            ${item.agency ? `<p class="text-xs text-slate-400 mt-1.5 flex items-center gap-0.5"><span class="material-symbols-outlined text-xs" aria-hidden="true">account_balance</span>${item.agency}</p>` : ''}
                         </div>
                         <div class="flex flex-col gap-1 flex-shrink-0">
                             <button class="drawer-item-apply p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors" data-service="${item.serviceName}" title="상담 신청">
-                                <span class="material-symbols-outlined text-lg">outgoing_mail</span>
+                                <span class="material-symbols-outlined text-lg" aria-hidden="true">outgoing_mail</span>
                             </button>
                             <button class="drawer-item-remove p-1.5 rounded-lg text-stone-300 hover:text-red-500 hover:bg-red-50 transition-colors" data-service="${item.serviceName}" title="서랍에서 빼기">
-                                <span class="material-symbols-outlined text-lg">bookmark_remove</span>
+                                <span class="material-symbols-outlined text-lg" aria-hidden="true">bookmark_remove</span>
                             </button>
                         </div>
                     </div>
@@ -1642,6 +2345,8 @@
             if (existing) existing.remove();
             const toast = document.createElement('div');
             toast.className = 'noma-toast fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] bg-slate-800 text-white text-sm font-medium px-5 py-3 rounded-full shadow-lg animate-fade-up';
+            toast.setAttribute('role', 'status');
+            toast.setAttribute('aria-live', 'polite');
             toast.textContent = message;
             document.body.appendChild(toast);
             setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 2000);
@@ -1721,10 +2426,86 @@
             }
         });
 
+        // ── 모달 포커스 트래핑 + ESC 닫기 ──
+        function trapFocus(modalEl) {
+            const focusable = modalEl.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            modalEl._trapHandler = e => {
+                if (e.key === 'Tab') {
+                    if (e.shiftKey) {
+                        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+                    } else {
+                        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+                    }
+                }
+            };
+            modalEl.addEventListener('keydown', modalEl._trapHandler);
+        }
+        function releaseFocus(modalEl) {
+            if (modalEl._trapHandler) {
+                modalEl.removeEventListener('keydown', modalEl._trapHandler);
+                delete modalEl._trapHandler;
+            }
+        }
+
+        // ESC 키로 모달 닫기
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Escape') return;
+            if (!DOM.serviceModal.classList.contains('hidden')) {
+                if (modalState.step === 'confirm') { resetToHome(); } else { DOM.serviceModal.classList.add('hidden'); }
+                releaseFocus(DOM.serviceModal);
+            } else if (!DOM.consentModal.classList.contains('hidden')) {
+                DOM.consentModal.classList.add('hidden');
+                pendingBookmark = null;
+                releaseFocus(DOM.consentModal);
+            }
+        });
+
+        // 모달 열릴 때 포커스 트래핑 활성화 (MutationObserver)
+        [DOM.serviceModal, DOM.consentModal].forEach(modal => {
+            new MutationObserver(() => {
+                if (!modal.classList.contains('hidden')) {
+                    trapFocus(modal);
+                } else {
+                    releaseFocus(modal);
+                }
+            }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+        });
+
+        // ── Scroll-based Progressive Reveal ──
+        window.addEventListener('scroll', () => {
+            if (sectionsRevealed) return;
+            const scrollPct = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight);
+            if (scrollPct > 0.3) revealBelowFoldSections();
+        }, { passive: true });
+
         // ── Init ──
         window.addEventListener('DOMContentLoaded', () => {
             loadHistory();
             loadDrawerItems();
+
+            // 히든 관리자 진입점: 주황색 원 로고 5번 클릭 → admin.html
+            (function() {
+                let clickCount = 0;
+                let clickTimer = null;
+                const orangeCircle = document.querySelector('header svg circle[stroke="#f49231"]')?.closest('svg');
+                if (orangeCircle) {
+                    orangeCircle.style.cursor = 'pointer';
+                    orangeCircle.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        clickCount++;
+                        clearTimeout(clickTimer);
+                        if (clickCount >= 5) {
+                            clickCount = 0;
+                            window.location.href = '/admin.html';
+                        }
+                        clickTimer = setTimeout(() => { clickCount = 0; }, 3000);
+                    });
+                }
+            })();
         });
 
     })();

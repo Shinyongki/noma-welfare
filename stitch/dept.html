@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>부서 조정자 - 경상남도사회서비스원</title>
+    <link rel="stylesheet" href="/css/tailwind.css">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <style>
+        /* Cards */
+        .card-elevated {
+            background: #fff; border-radius: 0.75rem;
+            padding: 1.25rem; border: 1px solid #E2E8F0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        /* Badge */
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
+
+        /* Panel content fade-in */
+        @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        .panel-content { animation: fade-in 0.3s ease-out both; }
+
+        /* Kanban Board */
+        .kanban-container {
+            display: flex; gap: 1rem; min-height: 500px;
+            align-items: flex-start;
+        }
+        .kanban-col {
+            flex: 1; min-width: 0;
+            background: #F8FAFC; border-radius: 0.75rem;
+            border: 1px solid #E2E8F0;
+            display: flex; flex-direction: column;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .kanban-header {
+            padding: 0.75rem 1rem; border-bottom: 1px solid #E2E8F0;
+            display: flex; align-items: center; gap: 0.5rem;
+            font-size: 0.8125rem; font-weight: 700;
+        }
+        .kanban-header .kanban-count {
+            margin-left: auto; min-width: 1.25rem; height: 1.25rem;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 9999px; font-size: 0.65rem; font-weight: 700;
+            padding: 0 0.35rem;
+        }
+        .kanban-body {
+            padding: 0.5rem; flex: 1;
+            overflow-y: auto; max-height: 600px;
+            display: flex; flex-direction: column; gap: 0.5rem;
+            min-height: 60px;
+        }
+        .kanban-card {
+            background: #fff; border-radius: 0.5rem;
+            border: 1px solid #E2E8F0; padding: 0.75rem;
+            cursor: pointer; transition: all 0.2s;
+            font-size: 0.8125rem;
+        }
+        .kanban-card:hover {
+            border-color: #CBD5E1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        /* Kanban card enhancements */
+        .card-elapsed {
+            font-size: 10px; font-weight: 600;
+            padding: 1px 5px; border-radius: 4px;
+            line-height: 1.4;
+        }
+        .card-elapsed.overdue { background: #FEE2E2; color: #DC2626; }
+        .card-elapsed.normal { background: #F1F5F9; color: #64748B; }
+        .card-action-label {
+            font-size: 10px; color: #6366F1; font-weight: 600;
+            margin-top: 4px; display: flex; align-items: center; gap: 2px;
+        }
+
+        /* Responsive kanban */
+        @media (max-width: 1023px) and (min-width: 641px) {
+            .kanban-container {
+                overflow-x: auto; -webkit-overflow-scrolling: touch;
+                scroll-snap-type: x mandatory; padding-bottom: 0.5rem;
+            }
+            .kanban-col { min-width: 280px; flex: 0 0 280px; scroll-snap-align: start; }
+        }
+        @media (max-width: 640px) {
+            .kanban-container { flex-direction: column; }
+            .kanban-col { min-width: 0; }
+            .kanban-body { max-height: 400px; }
+            .kanban-card { padding: 0.875rem; font-size: 0.875rem; }
+        }
+
+        /* Collab Detail View */
+        .collab-detail-view {
+            animation: fade-in 0.25s ease-out both;
+        }
+        .collab-detail-sticky-header {
+            position: sticky; top: 0; z-index: 10;
+            background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+            border-bottom: 1px solid #E2E8F0;
+            padding: 0.75rem 1rem;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 0.75rem; border-radius: 0.75rem 0.75rem 0 0;
+            margin: -1.5rem -1rem 1rem -1rem;
+        }
+        @media (min-width: 640px) {
+            .collab-detail-sticky-header { margin: -1.5rem -1.5rem 1rem -1.5rem; padding: 0.75rem 1.5rem; }
+        }
+        .collab-detail-summary-card {
+            background: #F8FAFC; border: 1px solid #E2E8F0;
+            border-radius: 0.75rem; padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .collab-detail-unified {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+        .collab-detail-comment-slide {
+            max-height: 0; overflow: hidden; opacity: 0;
+            transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.3s ease;
+            margin-top: 0;
+        }
+        .collab-detail-comment-slide.open {
+            max-height: 300px; opacity: 1; margin-top: 0.75rem;
+        }
+
+        /* Unified timeline */
+        .unified-timeline { position: relative; padding-left: 1.75rem; }
+        .unified-timeline::before {
+            content: ''; position: absolute; left: 0.625rem; top: 0.5rem; bottom: 0.5rem;
+            width: 2px; background: #E2E8F0;
+        }
+        .unified-timeline-item {
+            position: relative; padding-bottom: 1rem;
+        }
+        .unified-timeline-item:last-child { padding-bottom: 0; }
+        .unified-timeline-item .ut-dot {
+            position: absolute; left: -1.375rem; top: 0.25rem;
+            width: 0.75rem; height: 0.75rem; border-radius: 9999px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .unified-timeline-item .ut-dot.ut-approved { background: #22C55E; }
+        .unified-timeline-item .ut-dot.ut-rejected { background: #EF4444; }
+        .unified-timeline-item .ut-dot.ut-revision { background: #F59E0B; }
+        .unified-timeline-item .ut-dot.ut-submitted { background: #3B82F6; }
+        .unified-timeline-item .ut-dot.ut-default { background: #CBD5E1; }
+
+        /* Linkage flow diagram */
+        .lf-card {
+            background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+            border: 1px solid #E2E8F0; border-radius: 1rem; padding: 1.25rem;
+            position: relative; overflow: hidden;
+        }
+        .lf-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, #818CF8, #34D399);
+        }
+        .lf-exec-badge {
+            display: inline-flex; align-items: center; gap: 2px;
+            font-size: 10px; font-weight: 700; padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        /* Hub-spoke layout */
+        .lf-hub-layout {
+            display: flex; gap: 0; align-items: stretch; position: relative;
+            min-height: 120px;
+        }
+        .lf-hub-origin {
+            flex: 0 0 110px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 12px 8px; border-right: 2px solid #E2E8F0;
+            background: white; border-radius: 12px 0 0 12px;
+        }
+        .lf-hub-origin-icon {
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: #EEF2FF; margin-bottom: 6px;
+        }
+        .lf-hub-origin-name {
+            font-size: 12px; font-weight: 800; color: #1E293B;
+            text-align: center; word-break: keep-all; line-height: 1.3;
+        }
+        .lf-hub-depts {
+            flex: 1; display: flex; flex-direction: column; gap: 3px;
+            padding: 8px 10px; background: #F8FAFC; border-radius: 0 12px 12px 0;
+        }
+        .lf-hub-dept {
+            display: flex; align-items: center; gap: 6px;
+            padding: 7px 10px; border-radius: 8px;
+            border: 1.5px solid #E2E8F0; background: #F1F5F9;
+            transition: all 0.2s; min-height: 34px;
+        }
+        .lf-hub-dept.lf-target {
+            border-color: #34D399; background: #ECFDF5;
+            box-shadow: 0 0 0 1px rgba(52,211,153,0.3);
+        }
+        .lf-hub-dept.lf-inactive { opacity: 0.35; }
+        .lf-hub-dept-icon {
+            width: 22px; height: 22px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; font-size: 13px;
+        }
+        .lf-hub-dept.lf-target .lf-hub-dept-icon { background: #D1FAE5; color: #059669; }
+        .lf-hub-dept.lf-inactive .lf-hub-dept-icon { background: #F1F5F9; color: #94A3B8; }
+        .lf-hub-dept-name {
+            font-size: 12px; font-weight: 700; color: #1E293B;
+            flex: 1; min-width: 0;
+        }
+        .lf-hub-dept.lf-inactive .lf-hub-dept-name { color: #94A3B8; }
+        .lf-hub-arrow-inline {
+            display: inline-flex; align-items: center; gap: 3px;
+            font-size: 9px; font-weight: 700; color: #475569;
+            margin-right: 4px; flex-shrink: 0;
+        }
+        .lf-hub-arrow-line {
+            width: 20px; height: 2px; border-radius: 1px;
+            background: linear-gradient(90deg, #818CF8, #34D399);
+        }
+        .lf-hub-arrow-head {
+            width: 0; height: 0;
+            border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+            border-left: 6px solid #34D399;
+        }
+        .lf-hub-type-label {
+            font-size: 9px; font-weight: 700; color: #475569;
+            background: white; padding: 1px 5px; border-radius: 3px;
+            border: 1px solid #E2E8F0; white-space: nowrap;
+        }
+        .lf-hub-extra-node {
+            display: flex; align-items: center; gap: 6px;
+            padding: 7px 10px; border-radius: 8px;
+            border: 1.5px dashed #A78BFA; background: #F5F3FF;
+            min-height: 34px;
+        }
+        .lf-hub-extra-node .lf-hub-dept-icon { background: #EDE9FE; color: #7C3AED; }
+        .lf-hub-extra-node .lf-hub-dept-name { color: #5B21B6; }
+
+        /* Mini flow row */
+        .lf-mini-row {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 10px; border-radius: 8px; border: 1px solid #E2E8F0;
+            background: white; font-size: 11px; margin-bottom: 4px;
+        }
+        .lf-mini-row.lf-current { border-color: #818CF8; background: #EEF2FF; box-shadow: 0 0 0 1px #C7D2FE; }
+        .lf-mini-dot {
+            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+        }
+        .lf-mini-arrow {
+            width: 16px; height: 2px; background: #CBD5E1; position: relative; flex-shrink: 0;
+        }
+        .lf-mini-arrow::after {
+            content: ''; position: absolute; right: -1px; top: -3px;
+            border: 4px solid transparent; border-left: 5px solid #CBD5E1;
+        }
+        .lf-vertical-arrow {
+            display: flex; justify-content: center; padding: 2px 0; color: #CBD5E1;
+        }
+        .lf-redirect-bar {
+            display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+            padding: 5px 8px; margin-top: 6px;
+            background: #FAF5FF; border-radius: 6px; border: 1px dashed #D8B4FE;
+            font-size: 10px;
+        }
+        .lf-add-dept-bar {
+            display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+            padding: 5px 8px; margin-top: 6px;
+            background: #FFFBEB; border-radius: 6px; border: 1px dashed #FCD34D;
+            font-size: 10px;
+        }
+
+        /* Collapsible section */
+        .case-collapse-toggle { cursor: pointer; user-select: none; }
+        .case-collapse-body { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.3s ease, opacity 0.2s ease; }
+        .case-collapse-body.open { max-height: 1000px; opacity: 1; }
+        .case-collapse-icon { transition: transform 0.2s; }
+        .case-collapse-body.open ~ .case-collapse-toggle .case-collapse-icon,
+        .case-collapse-toggle.active .case-collapse-icon { transform: rotate(180deg); }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+    <!-- 로그인 게이트 -->
+    <div id="login-gate" class="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900">
+        <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm mx-4">
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 rounded-xl bg-indigo-100 flex items-center justify-center mx-auto mb-3">
+                    <span class="material-symbols-outlined text-indigo-600 text-3xl" aria-hidden="true">supervisor_account</span>
+                </div>
+                <h1 class="text-xl font-bold text-slate-800">부서 조정자 로그인</h1>
+                <p class="text-sm text-slate-500 mt-1">경상남도사회서비스원</p>
+            </div>
+            <div id="login-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"></div>
+            <label class="block text-sm font-semibold text-slate-600 mb-1.5">부서 선택</label>
+            <select id="login-dept" class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-500 outline-none text-sm mb-4">
+                <option value="">부서를 선택하세요</option>
+                <option value="care">통합돌봄팀</option>
+                <option value="emergency">긴급지원팀</option>
+                <option value="facility">시설운영팀</option>
+                <option value="casemanage">사례관리팀</option>
+                <option value="private">민간협력팀</option>
+            </select>
+            <label class="block text-sm font-semibold text-slate-600 mb-1.5">비밀번호</label>
+            <input id="login-password" type="password" placeholder="부서 조정자 비밀번호"
+                class="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-300 focus:border-indigo-500 outline-none text-sm"
+                onkeydown="if(event.key==='Enter')doLogin()" />
+            <button onclick="doLogin()" class="w-full mt-4 py-3 bg-indigo-600 text-white rounded-lg font-semibold text-sm hover:bg-indigo-700 transition-colors">
+                로그인
+            </button>
+        </div>
+    </div>
+
+    <!-- 메인 콘텐츠 (인증 후 표시) -->
+    <div id="main-content" class="hidden">
+
+    <!-- 상단바 -->
+    <header class="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <span class="material-symbols-outlined text-indigo-600" aria-hidden="true" style="font-size:18px;font-variation-settings:'FILL' 1">supervisor_account</span>
+            </div>
+            <div>
+                <h1 class="text-sm font-bold text-slate-800 leading-tight" id="topbar-dept-name">부서 조정자</h1>
+                <p class="text-[10px] text-slate-400 leading-none mt-0.5">연계 검토 · 승인</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="topbar-time" class="text-xs text-slate-400 hidden sm:block"></span>
+            <button onclick="refreshData()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors" title="새로고침">
+                <span class="material-symbols-outlined text-slate-500" style="font-size:18px" aria-hidden="true">refresh</span>
+            </button>
+            <button onclick="doLogout()" class="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                로그아웃
+            </button>
+        </div>
+    </header>
+
+    <!-- 메인 컨텐츠 -->
+    <main class="p-4 sm:p-6 max-w-7xl mx-auto">
+
+        <!-- 통계 리본 -->
+        <div class="grid grid-cols-3 gap-3 mb-5">
+            <div class="card-elevated text-center">
+                <div class="text-2xl font-extrabold text-yellow-600" id="stat-pending">0</div>
+                <div class="text-xs text-slate-500 mt-1">검토 대기</div>
+            </div>
+            <div class="card-elevated text-center">
+                <div class="text-2xl font-extrabold text-red-600" id="stat-returned">0</div>
+                <div class="text-xs text-slate-500 mt-1">관리자 반환</div>
+            </div>
+            <div class="card-elevated text-center">
+                <div class="text-2xl font-extrabold text-green-600" id="stat-done">0</div>
+                <div class="text-xs text-slate-500 mt-1">처리 완료</div>
+            </div>
+        </div>
+
+        <!-- 칸반 보드 -->
+        <div id="kanban-board" class="kanban-container">
+            <!-- 검토 대기 -->
+            <div class="kanban-col">
+                <div class="kanban-header" style="border-top: 3px solid #EAB308">
+                    <span class="material-symbols-outlined text-yellow-600" style="font-size:16px" aria-hidden="true">pending_actions</span>
+                    <span class="text-yellow-800">검토 대기</span>
+                    <span class="kanban-count bg-yellow-100 text-yellow-700" id="kanban-count-pending">0</span>
+                </div>
+                <div class="kanban-body" id="kanban-pending"></div>
+            </div>
+
+            <!-- 관리자 반환 -->
+            <div class="kanban-col">
+                <div class="kanban-header" style="border-top: 3px solid #EF4444">
+                    <span class="material-symbols-outlined text-red-500" style="font-size:16px" aria-hidden="true">assignment_return</span>
+                    <span class="text-red-700">관리자 반환</span>
+                    <span class="kanban-count bg-red-100 text-red-600" id="kanban-count-returned">0</span>
+                </div>
+                <div class="kanban-body" id="kanban-returned"></div>
+            </div>
+
+            <!-- 처리 완료 -->
+            <div class="kanban-col">
+                <div class="kanban-header" style="border-top: 3px solid #22C55E">
+                    <span class="material-symbols-outlined text-green-600" style="font-size:16px" aria-hidden="true">task_alt</span>
+                    <span class="text-green-700">처리 완료</span>
+                    <span class="kanban-count bg-green-100 text-green-700" id="kanban-count-done">0</span>
+                </div>
+                <div class="kanban-body" id="kanban-done"></div>
+            </div>
+        </div>
+
+        <!-- 상세 뷰 (칸반 대체) -->
+        <div id="detail-view" class="collab-detail-view" style="display:none">
+            <div id="detail-header"></div>
+            <div id="detail-summary"></div>
+            <div id="detail-unified" class="collab-detail-unified"></div>
+        </div>
+
+    </main>
+
+    </div>
+
+    <script>
+    // ── State ──
+    let currentDeptId = '';
+    let currentDeptName = '';
+    let allLinkages = [];
+    let detailActive = false;
+    let detailLinkageId = null;
+    let expandedCardData = {};
+
+    // ── Dept map ──
+    let deptMap = {};
+    async function loadDeptMap() {
+        try {
+            const depts = await api('/api/departments');
+            depts.forEach(d => { deptMap[d.id] = d.name; });
+        } catch { /* ignore */ }
+    }
+    function getDeptName(id) { return deptMap[id] || id; }
+
+    // ── Constants ──
+    const APPROVAL_STATUS_MAP = {
+        pending:              { label: '승인대기',     bg: 'bg-yellow-100', text: 'text-yellow-700', step: 0 },
+        origin_approved:      { label: '소속부서 승인', bg: 'bg-sky-100',    text: 'text-sky-700',    step: 1 },
+        target_approved:      { label: '대상부서 승인', bg: 'bg-blue-100',   text: 'text-blue-700',   step: 2 },
+        approved:             { label: '최종승인',     bg: 'bg-green-100',  text: 'text-green-700',  step: 3 },
+        rejected:             { label: '반려',         bg: 'bg-red-100',    text: 'text-red-600',    step: -1 },
+        revision_requested:   { label: '수정요청',     bg: 'bg-orange-100', text: 'text-orange-600', step: -1 },
+        redirected:           { label: '재배정',       bg: 'bg-purple-100', text: 'text-purple-600', step: 2 },
+        dept_approved:        { label: '부서 승인',    bg: 'bg-blue-100',   text: 'text-blue-700',   step: 2 },
+        admin_rejected:       { label: '관리자 반려',   bg: 'bg-red-100',    text: 'text-red-600',    step: -1 },
+        admin_revision_requested: { label: '관리자 수정요청', bg: 'bg-orange-100', text: 'text-orange-600', step: -1 },
+    };
+    const COLLAB_TYPE_MAP = {
+        joint: '공동처리', transfer: '이관', service_referral: '서비스연계',
+    };
+    const LF_EXEC = {
+        not_started: { label: '미착수', icon: 'hourglass_empty', color: '#64748B', bg: '#F1F5F9' },
+        in_progress: { label: '진행중', icon: 'sync', color: '#2563EB', bg: '#DBEAFE' },
+        completed: { label: '완료', icon: 'check_circle', color: '#16A34A', bg: '#DCFCE7' },
+        completed_with_followup: { label: '완료+후속', icon: 'check_circle', color: '#0D9488', bg: '#CCFBF1' },
+        on_hold: { label: '보류', icon: 'pause_circle', color: '#CA8A04', bg: '#FEF9C3' },
+        cancelled: { label: '취소', icon: 'cancel', color: '#DC2626', bg: '#FEE2E2' },
+    };
+    const HUB_DEPT_ICONS = {
+        care: 'favorite', emergency: 'emergency', facility: 'account_balance',
+        casemanage: 'folder_shared', private: 'handshake',
+    };
+    const HUB_DEPT_FALLBACK = [
+        { id: 'care', name: '통합돌봄팀' }, { id: 'emergency', name: '긴급지원팀' },
+        { id: 'facility', name: '시설운영팀' }, { id: 'casemanage', name: '사례관리팀' },
+        { id: 'private', name: '민간협력팀' },
+    ];
+
+    // ── Helpers ──
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function shortId(id) { return id ? id.slice(0, 8) : '-'; }
+
+    async function api(url) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        return res.json();
+    }
+
+    function safeParseDate(v) {
+        if (!v) return null;
+        if (v instanceof Date) return isNaN(v) ? null : v;
+        let d = new Date(v);
+        if (!isNaN(d)) return d;
+        const m = String(v).match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(오전|오후)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+        if (m) {
+            let [, yr, mo, dy, ampm, hr, mi, se] = m;
+            hr = Number(hr); mo = Number(mo); dy = Number(dy); mi = Number(mi); se = Number(se || 0);
+            if (ampm === '오후' && hr < 12) hr += 12;
+            if (ampm === '오전' && hr === 12) hr = 0;
+            d = new Date(Number(yr), mo - 1, dy, hr, mi, se);
+            if (!isNaN(d)) return d;
+        }
+        return null;
+    }
+
+    function safeDateStr(v) {
+        const d = safeParseDate(v);
+        if (!d) return v || '-';
+        return d.toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    }
+
+    function safeElapsed(v) {
+        const d = safeParseDate(v);
+        if (!d) return { ms: 0, text: '-' };
+        const ms = Date.now() - d.getTime();
+        const days = Math.floor(ms / 86400000);
+        const hours = Math.floor(ms / 3600000);
+        return { ms, days, hours, text: days > 0 ? `${days}일 전` : `${hours}시간 전` };
+    }
+
+    function getHubDeptList() {
+        const entries = Object.entries(deptMap);
+        if (entries.length > 0) return entries.map(([id, name]) => ({ id, name }));
+        return HUB_DEPT_FALLBACK;
+    }
+
+    // ── Auth ──
+    async function checkAuth() {
+        try {
+            const st = await api('/api/dept-auth/status');
+            if (st.authenticated) {
+                currentDeptId = st.deptId;
+                currentDeptName = st.deptName;
+                showMain();
+                return;
+            }
+        } catch {}
+        showLogin();
+    }
+
+    function showLogin() {
+        document.getElementById('login-gate').classList.remove('hidden');
+        document.getElementById('main-content').classList.add('hidden');
+    }
+
+    function showMain() {
+        document.getElementById('login-gate').classList.add('hidden');
+        document.getElementById('main-content').classList.remove('hidden');
+        document.getElementById('topbar-dept-name').textContent = currentDeptName + ' 조정자';
+        loadDeptMap().then(() => loadData());
+    }
+
+    async function doLogin() {
+        const password = document.getElementById('login-password').value;
+        const deptId = document.getElementById('login-dept').value;
+        const errorEl = document.getElementById('login-error');
+
+        if (!deptId) {
+            errorEl.textContent = '부서를 선택하세요.';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+        if (!password) {
+            errorEl.textContent = '비밀번호를 입력하세요.';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const resp = await fetch('/api/dept-auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password, deptId }),
+            });
+            const data = await resp.json();
+            if (resp.ok && data.success) {
+                currentDeptId = data.deptId;
+                currentDeptName = data.deptName;
+                errorEl.classList.add('hidden');
+                showMain();
+            } else {
+                errorEl.textContent = data.error || '로그인 실패';
+                errorEl.classList.remove('hidden');
+            }
+        } catch {
+            errorEl.textContent = '서버 연결 오류';
+            errorEl.classList.remove('hidden');
+        }
+    }
+
+    async function doLogout() {
+        try { await fetch('/api/dept-auth/logout', { method: 'POST' }); } catch {}
+        currentDeptId = '';
+        currentDeptName = '';
+        allLinkages = [];
+        showLogin();
+    }
+
+    // ── Data Loading ──
+    async function loadData() {
+        try {
+            const linkages = await api(`/api/dept-coord/linkages?deptId=${currentDeptId}`);
+            allLinkages = linkages;
+            renderKanban();
+        } catch (e) {
+            console.error('Data load failed:', e);
+        }
+    }
+
+    function refreshData() {
+        if (detailActive) {
+            hideDetail();
+        }
+        loadData();
+    }
+
+    // ── Kanban Rendering ──
+    function renderKanban() {
+        const pending = allLinkages.filter(l => l.approvalStatus === 'pending');
+        const returned = allLinkages.filter(l => l.approvalStatus === 'admin_rejected' || l.approvalStatus === 'admin_revision_requested');
+        const done = allLinkages.filter(l => ['dept_approved', 'approved', 'rejected'].includes(l.approvalStatus));
+
+        // Update stats
+        document.getElementById('stat-pending').textContent = pending.length;
+        document.getElementById('stat-returned').textContent = returned.length;
+        document.getElementById('stat-done').textContent = done.length;
+
+        // Update counts
+        document.getElementById('kanban-count-pending').textContent = pending.length;
+        document.getElementById('kanban-count-returned').textContent = returned.length;
+        document.getElementById('kanban-count-done').textContent = done.length;
+
+        // Render columns
+        renderColumn('kanban-pending', pending, true);
+        renderColumn('kanban-returned', returned, true);
+        renderColumn('kanban-done', done, false);
+    }
+
+    function renderColumn(bodyId, items, isActionable) {
+        const el = document.getElementById(bodyId);
+        if (!el) return;
+        if (items.length === 0) {
+            el.innerHTML = '<p class="text-slate-400 text-xs text-center py-6">항목 없음</p>';
+            return;
+        }
+        el.innerHTML = items.map(c => renderKanbanCard(c, isActionable)).join('');
+    }
+
+    function renderKanbanCard(c, isActionable) {
+        const approvalSt = c.approvalStatus ? (APPROVAL_STATUS_MAP[c.approvalStatus] || APPROVAL_STATUS_MAP.pending) : APPROVAL_STATUS_MAP.pending;
+
+        let directionHtml = '';
+        if (c.category === 'referral' && c.targetService) {
+            directionHtml = `<span class="font-semibold text-blue-700 text-xs truncate">${escapeHtml(c.targetService)}</span>`;
+        } else if (c.fromDept && c.toDept) {
+            directionHtml = `<span class="font-semibold text-indigo-700 text-xs">${getDeptName(c.fromDept)}</span>
+                <span class="material-symbols-outlined text-slate-400" aria-hidden="true" style="font-size:12px">arrow_forward</span>
+                <span class="font-semibold text-green-700 text-xs">${getDeptName(c.toDept)}</span>`;
+        }
+
+        const elapsed = safeElapsed(c.createdAtISO || c.createdAt);
+        const isOverdue = elapsed.hours >= 24 && c.approvalStatus !== 'approved';
+        const elapsedClass = isOverdue ? 'overdue' : 'normal';
+
+        const actionLabelMap = {
+            pending: '부서 승인 검토 필요',
+            admin_rejected: '관리자 반려 — 재검토 필요',
+            admin_revision_requested: '관리자 수정요청 — 재검토 필요',
+        };
+        const actionLabel = actionLabelMap[c.approvalStatus] || '';
+
+        return `
+        <div class="kanban-card" onclick="openDetail('${c.id}')">
+            <div>
+                <div class="flex items-center gap-1.5">
+                    <span class="badge ${approvalSt.bg} ${approvalSt.text}" style="font-size:10px;padding:1px 6px">${approvalSt.label}</span>
+                    <span class="flex-1 min-w-0 flex items-center gap-1 truncate">${directionHtml || `<span class="text-xs text-slate-500 truncate">${escapeHtml(c.userName || '-')}</span>`}</span>
+                    <span class="card-elapsed ${elapsedClass}">${elapsed.text}</span>
+                </div>
+                <div class="text-xs text-slate-500 mt-1 truncate">${escapeHtml(c.userName || '-')} · ${escapeHtml(c.serviceName || '-')}</div>
+                ${c.reason ? `<div class="text-xs text-slate-400 mt-0.5 truncate">${escapeHtml(c.reason.slice(0, 50))}</div>` : ''}
+                ${actionLabel ? `<div class="card-action-label"><span class="material-symbols-outlined" style="font-size:12px" aria-hidden="true">arrow_forward</span>${actionLabel}</div>` : ''}
+            </div>
+        </div>`;
+    }
+
+    // ── 3단계 승인 스테퍼 ──
+    function renderApprovalStepper(approvalStatus) {
+        const steps = [
+            { label: '소속부서', desc: '필요성 검증' },
+            { label: '대상부서', desc: '수용성 검증' },
+            { label: '관리자',   desc: '적절성 검증' },
+        ];
+        const statusStepMap = {
+            pending: 0, revision_requested: 0,
+            origin_approved: 1,
+            target_approved: 2, redirected: 2,
+            approved: 3,
+            dept_approved: 2,
+        };
+        let stepIdx = statusStepMap[approvalStatus] ?? 0;
+        const isDone = approvalStatus === 'approved';
+        const isRejected = approvalStatus === 'rejected' || approvalStatus === 'admin_rejected';
+        const isRedirected = approvalStatus === 'redirected';
+
+        let html = '<div class="flex items-center gap-1 mb-2">';
+        steps.forEach((s, i) => {
+            const done = isDone || i < stepIdx;
+            const current = !isDone && !isRejected && i === stepIdx;
+            let colorClass, labelClass;
+            if (isRejected && i === stepIdx) {
+                colorClass = 'bg-red-500 text-white'; labelClass = 'font-bold text-red-600';
+            } else if (isRedirected && i === 2) {
+                colorClass = 'bg-purple-500 text-white ring-2 ring-purple-300'; labelClass = 'font-bold text-purple-700';
+            } else if (done) {
+                colorClass = 'bg-green-500 text-white'; labelClass = 'text-green-700';
+            } else if (current) {
+                colorClass = 'bg-blue-500 text-white ring-2 ring-blue-300'; labelClass = 'font-bold text-blue-700';
+            } else {
+                colorClass = 'bg-slate-200 text-slate-400'; labelClass = 'text-slate-400';
+            }
+            const lineColor = done ? 'bg-green-400' : 'bg-slate-200';
+            html += `<div class="flex flex-col items-center" style="min-width:24px">
+                <div class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${colorClass}">${i + 1}</div>
+                <span class="text-[9px] mt-0.5 whitespace-nowrap ${labelClass}">${s.label}</span>
+            </div>`;
+            if (i < steps.length - 1) html += `<div class="flex-1 h-0.5 ${lineColor} -mt-3"></div>`;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    // ── 승인 파이프라인 인라인 ──
+    function renderApprovalPipelineInline(l) {
+        const status = l.approvalStatus || 'pending';
+        const isRejected = status === 'rejected' || status === 'admin_rejected';
+        const isRevision = status === 'revision_requested' || status === 'admin_revision_requested';
+        const steps = [
+            { label: '접수', icon: 'edit_note' },
+            { label: '소속', icon: 'verified' },
+            { label: '대상', icon: 'verified' },
+            { label: '승인', icon: 'check_circle' },
+        ];
+        const stepKeys = ['pending', 'origin_approved', 'target_approved', 'approved'];
+        let cIdx = stepKeys.indexOf(status);
+        if (status === 'dept_approved') cIdx = 2;
+        if (status === 'approved') cIdx = 3;
+        if (cIdx < 0) cIdx = 0;
+
+        let html = `<div style="display:flex;align-items:center;justify-content:center;gap:0;margin-top:4px">`;
+        steps.forEach((s, i) => {
+            const done = i < cIdx || (i === cIdx && status === 'approved');
+            const cur = i === cIdx && status !== 'approved';
+            const fail = cur && (isRejected || isRevision);
+            const dotBg = done ? '#22C55E' : fail ? '#EF4444' : cur ? '#6366F1' : '#CBD5E1';
+            const dotIcon = done ? 'check' : fail ? (isRejected ? 'close' : 'refresh') : cur ? s.icon : 'radio_button_unchecked';
+            const labelColor = done ? '#16A34A' : fail ? '#DC2626' : cur ? '#4338CA' : '#94A3B8';
+
+            html += `<div style="display:flex;flex-direction:column;align-items:center">
+                <div style="width:18px;height:18px;border-radius:50%;background:${dotBg};display:flex;align-items:center;justify-content:center">
+                    <span class="material-symbols-outlined" style="font-size:11px;color:white" aria-hidden="true">${dotIcon}</span>
+                </div>
+                <span style="font-size:8px;font-weight:600;color:${labelColor};margin-top:1px">${s.label}</span>
+            </div>`;
+            if (i < steps.length - 1) {
+                html += `<div style="flex:1;height:2px;min-width:8px;border-radius:1px;background:${i < cIdx ? '#22C55E' : '#E2E8F0'};margin:0 -1px -10px"></div>`;
+            }
+        });
+        html += `</div>`;
+        return html;
+    }
+
+    // ── Detail View ──
+    async function openDetail(linkageId) {
+        const collab = allLinkages.find(c => c.id === linkageId);
+        if (!collab) return;
+
+        detailActive = true;
+        detailLinkageId = linkageId;
+
+        // Hide kanban
+        document.getElementById('kanban-board').style.display = 'none';
+        document.querySelector('.grid.grid-cols-3').style.display = 'none';
+
+        // Show detail
+        const dv = document.getElementById('detail-view');
+        dv.style.display = '';
+        dv.style.animation = 'none';
+        dv.offsetHeight;
+        dv.style.animation = '';
+
+        // Loading
+        document.getElementById('detail-unified').innerHTML = '<p class="text-slate-400 text-sm text-center py-8">로딩 중...</p>';
+
+        // Render header and summary
+        renderDetailHeader(collab);
+        renderDetailSummary(collab);
+
+        // Fetch request data
+        if (collab.requestId && !expandedCardData[linkageId]) {
+            try {
+                const data = await api(`/api/dept-coord/requests/${collab.requestId}`);
+                expandedCardData[linkageId] = data;
+            } catch {
+                expandedCardData[linkageId] = { error: true };
+            }
+        }
+
+        renderDetailColumns();
+    }
+
+    function hideDetail() {
+        detailActive = false;
+        detailLinkageId = null;
+        document.getElementById('detail-view').style.display = 'none';
+        document.getElementById('kanban-board').style.display = '';
+        document.querySelector('.grid.grid-cols-3').style.display = '';
+        renderKanban();
+    }
+
+    // ── Detail Header ──
+    function renderDetailHeader(collab) {
+        const isPending = collab.approvalStatus === 'pending';
+        const isAdminReturn = collab.approvalStatus === 'admin_rejected' || collab.approvalStatus === 'admin_revision_requested';
+        const isApproved = collab.approvalStatus === 'approved';
+
+        let actionBtns = '';
+        if (isPending) {
+            actionBtns = `
+                <button onclick="toggleDetailComment('approve')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1">
+                    <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">check_circle</span>부서 승인
+                </button>
+                <button onclick="toggleDetailComment('reject')" class="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-colors">반려</button>
+                <button onclick="toggleDetailComment('revision')" class="px-3 py-1.5 bg-white border border-orange-300 text-orange-600 rounded-lg text-xs font-semibold hover:bg-orange-50 transition-colors">수정요청</button>`;
+        } else if (isAdminReturn) {
+            actionBtns = `
+                <button onclick="toggleDetailComment('resubmit')" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1">
+                    <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">send</span>재제출
+                </button>
+                <button onclick="toggleDetailComment('reject')" class="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-colors">반려</button>`;
+        } else if (isApproved) {
+            const execSt = collab.executionStatus;
+            if (!execSt || execSt === 'null') {
+                actionBtns = `
+                    <button onclick="submitExecChange('in_progress')" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">play_arrow</span>착수
+                    </button>`;
+            } else if (execSt === 'in_progress') {
+                actionBtns = `
+                    <button onclick="submitExecChange('completed')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">check_circle</span>완료
+                    </button>
+                    <button onclick="submitExecChange('on_hold')" class="px-3 py-1.5 bg-white border border-amber-400 text-amber-600 rounded-lg text-xs font-semibold hover:bg-amber-50 transition-colors">보류</button>`;
+            } else if (execSt === 'on_hold') {
+                actionBtns = `
+                    <button onclick="submitExecChange('in_progress')" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">play_arrow</span>재개
+                    </button>
+                    <button onclick="submitExecChange('cancelled')" class="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-colors">취소</button>`;
+            } else if (execSt === 'completed') {
+                actionBtns = `
+                    <button onclick="toggleDetailComment('followup')" class="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-semibold hover:bg-purple-700 transition-colors flex items-center gap-1">
+                        <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">link</span>후속연계
+                    </button>`;
+            }
+            // completed_with_followup → 버튼 없음
+        }
+
+        document.getElementById('detail-header').innerHTML = `
+            <div class="collab-detail-sticky-header">
+                <button onclick="hideDetail()" class="flex items-center gap-1 text-sm text-slate-600 hover:text-slate-800 font-semibold flex-shrink-0">
+                    <span class="material-symbols-outlined text-lg" aria-hidden="true">arrow_back</span>
+                    목록으로
+                </button>
+                <div class="flex items-center gap-2 ml-auto flex-wrap">
+                    ${actionBtns}
+                </div>
+            </div>
+            <div id="detail-comment-area" class="collab-detail-comment-slide">
+                <div class="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                    <p id="detail-comment-label" class="text-xs font-semibold text-slate-500 mb-2">코멘트</p>
+                    <textarea id="detail-comment-input" rows="2" placeholder="코멘트 입력..." class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 mb-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"></textarea>
+                    <div class="flex gap-2">
+                        <button id="detail-comment-submit" onclick="submitDetailAction()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors">확인</button>
+                        <button onclick="toggleDetailComment(null)" class="px-3 py-2 text-sm text-slate-500 hover:text-slate-700">취소</button>
+                    </div>
+                </div>
+            </div>
+            <div id="detail-followup-area" class="collab-detail-comment-slide">
+                <div class="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <p class="text-xs font-semibold text-purple-600 mb-3">후속연계 생성</p>
+                    <div class="mb-2">
+                        <label class="text-xs text-slate-500 mb-1 block">유형</label>
+                        <select id="followup-type" class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500">
+                            <option value="joint">공동처리</option>
+                            <option value="transfer">이관</option>
+                            <option value="service_referral">서비스연계</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-xs text-slate-500 mb-1 block">대상 부서</label>
+                        <select id="followup-dept" class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500">
+                            ${getHubDeptList().map(d => '<option value="' + d.id + '">' + escapeHtml(d.name) + '</option>').join('')}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-xs text-slate-500 mb-1 block">사유</label>
+                        <textarea id="followup-reason" rows="2" placeholder="후속연계 사유 입력..." class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-purple-500 focus:border-purple-500 resize-none"></textarea>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="submitFollowup()" class="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors">후속연계 생성</button>
+                        <button onclick="toggleDetailComment(null)" class="px-3 py-2 text-sm text-slate-500 hover:text-slate-700">취소</button>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    // ── Detail Summary ──
+    function renderDetailSummary(collab) {
+        const approvalSt = collab.approvalStatus ? (APPROVAL_STATUS_MAP[collab.approvalStatus] || APPROVAL_STATUS_MAP.pending) : APPROVAL_STATUS_MAP.pending;
+        const elapsed = safeElapsed(collab.createdAtISO || collab.createdAt);
+        const elapsedText = `접수 ${elapsed.text}`;
+        const originDept = collab.originDept || collab.fromDept;
+        const targetDept = collab.targetDept || collab.toDept;
+        let directionHtml = '';
+        if (collab.category === 'referral' && collab.targetService) {
+            directionHtml = `<span class="font-semibold text-blue-700">${escapeHtml(collab.targetService)}</span>`;
+        } else if (originDept && targetDept) {
+            directionHtml = `<span class="text-xs text-slate-400">소속</span>
+                <span class="font-semibold text-indigo-700">${getDeptName(originDept)}</span>
+                <span class="material-symbols-outlined text-slate-400" aria-hidden="true" style="font-size:14px">arrow_forward</span>
+                <span class="text-xs text-slate-400">대상</span>
+                <span class="font-semibold text-green-700">${getDeptName(targetDept)}</span>`;
+        }
+        const typeName = COLLAB_TYPE_MAP[collab.type] || collab.type || '-';
+        const dateStr = safeDateStr(collab.createdAtISO || collab.createdAt);
+
+        // 실행상태 배지 (approved 건)
+        const EXEC_BADGE = {
+            in_progress: { label: '진행중', bg: 'bg-blue-100', text: 'text-blue-700', icon: 'sync' },
+            completed: { label: '완료', bg: 'bg-green-100', text: 'text-green-700', icon: 'check_circle' },
+            completed_with_followup: { label: '완료+후속', bg: 'bg-teal-100', text: 'text-teal-700', icon: 'check_circle' },
+            on_hold: { label: '보류', bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'pause_circle' },
+            cancelled: { label: '취소', bg: 'bg-red-100', text: 'text-red-600', icon: 'cancel' },
+        };
+        const execInfo = collab.executionStatus ? EXEC_BADGE[collab.executionStatus] : null;
+        const execBadgeHtml = collab.approvalStatus === 'approved'
+            ? (execInfo
+                ? `<span class="badge ${execInfo.bg} ${execInfo.text} flex items-center gap-0.5"><span class="material-symbols-outlined" style="font-size:11px" aria-hidden="true">${execInfo.icon}</span>${execInfo.label}</span>`
+                : `<span class="badge bg-slate-100 text-slate-500 flex items-center gap-0.5"><span class="material-symbols-outlined" style="font-size:11px" aria-hidden="true">hourglass_empty</span>미착수</span>`)
+            : '';
+
+        document.getElementById('detail-summary').innerHTML = `
+            <div class="collab-detail-summary-card" style="max-width:720px;margin:0 auto">
+                <div class="flex items-center gap-2 mb-2 flex-wrap">
+                    <span class="text-sm font-bold text-slate-800">${escapeHtml(collab.userName || '-')}</span>
+                    <span class="text-sm text-slate-500">·</span>
+                    <span class="text-sm text-slate-600">${escapeHtml(collab.serviceName || '-')}</span>
+                    <span class="badge bg-slate-100 text-slate-600" style="font-size:10px">${typeName}</span>
+                    <span class="text-xs text-slate-400 ml-auto">${dateStr} · ${elapsedText}</span>
+                </div>
+                <div class="flex items-center gap-2 mb-3 flex-wrap">
+                    <span class="badge ${approvalSt.bg} ${approvalSt.text}">${approvalSt.label}</span>
+                    ${execBadgeHtml}
+                    ${directionHtml ? `<div class="flex items-center gap-1.5 text-sm">${directionHtml}</div>` : ''}
+                </div>
+                ${renderApprovalStepper(collab.approvalStatus)}
+            </div>`;
+    }
+
+    // ── Detail Content (통합 뷰) ──
+    function renderDetailColumns() {
+        const linkageId = detailLinkageId;
+        const collab = allLinkages.find(c => c.id === linkageId);
+        if (!collab) return;
+        const ed = expandedCardData[linkageId];
+
+        let html = '';
+        if (!ed) {
+            html = '<p class="text-sm text-slate-400 text-center py-8">데이터 로딩 중...</p>';
+        } else if (ed.error) {
+            html = '<p class="text-sm text-red-400 text-center py-8">데이터를 불러올 수 없습니다.</p>';
+        } else {
+            // AI 상담 요약
+            if (ed.conversationSummary) {
+                html += `<div class="mb-4">
+                    <div class="p-4 bg-purple-50 border border-purple-100 rounded-xl">
+                        <div class="flex items-center gap-1.5 mb-2">
+                            <span class="material-symbols-outlined text-sm text-purple-500" aria-hidden="true">smart_toy</span>
+                            <span class="text-xs font-bold text-purple-600">AI 상담 요약</span>
+                        </div>
+                        <p class="text-sm text-slate-700 whitespace-pre-line leading-relaxed">${escapeHtml(ed.conversationSummary)}</p>
+                    </div>
+                </div>`;
+            }
+        }
+
+        // 연계 흐름도 + 이력 (통합)
+        html += renderLinkageTab(collab, ed);
+
+        document.getElementById('detail-unified').innerHTML = html;
+    }
+
+    // ── Linkage Tab (허브-스포크 시각화) ──
+    function lfDeptLabel(collab, ed, side) {
+        if (side === 'origin') {
+            if (collab.fromDept) return getDeptName(collab.fromDept);
+            if (collab.originDept) return getDeptName(collab.originDept);
+            return ed?.serviceName || collab.serviceName || '요청 부서';
+        }
+        if (collab.toDept) return getDeptName(collab.toDept);
+        if (collab.targetDept) return getDeptName(collab.targetDept);
+        if (collab.targetService) return collab.targetService;
+        return '대상 부서';
+    }
+
+    function renderLinkageTab(collab, ed) {
+        let html = '';
+
+        // 허브-스포크 연계 흐름도
+        const allPersonLinkages = allLinkages.filter(l => l.userName && l.userName === collab.userName);
+        const sortedLinkages = [collab, ...allPersonLinkages.filter(l => l.id !== collab.id)];
+        const totalCount = sortedLinkages.length;
+        const originName = lfDeptLabel(collab, ed, 'origin');
+
+        // 승인상태 → 배지 매핑 (approved가 아닐 때 실행상태 대신 표시)
+        const APPROVAL_BADGE = {
+            pending:              { label: '승인대기', icon: 'hourglass_empty', color: '#A16207', bg: '#FEF9C3' },
+            rejected:             { label: '반려',     icon: 'cancel',          color: '#DC2626', bg: '#FEE2E2' },
+            revision_requested:   { label: '수정요청', icon: 'refresh',         color: '#EA580C', bg: '#FFF7ED' },
+            admin_rejected:       { label: '관리자반려', icon: 'cancel',        color: '#DC2626', bg: '#FEE2E2' },
+            admin_revision_requested: { label: '관리자수정요청', icon: 'refresh', color: '#EA580C', bg: '#FFF7ED' },
+            dept_approved:        { label: '부서승인', icon: 'check_circle',    color: '#2563EB', bg: '#DBEAFE' },
+            origin_approved:      { label: '1차승인', icon: 'check_circle',    color: '#0284C7', bg: '#E0F2FE' },
+            target_approved:      { label: '2차승인', icon: 'check_circle',    color: '#2563EB', bg: '#DBEAFE' },
+        };
+
+        // 대상 부서 정보 수집
+        const targetMap = new Map();
+        sortedLinkages.forEach(l => {
+            const deptId = l.toDept || l.targetDept || l.targetService || null;
+            if (!deptId) return;
+            if (!targetMap.has(deptId)) targetMap.set(deptId, []);
+            // approved면 실행상태, 아니면 승인상태 배지 표시
+            const isApproved = l.approvalStatus === 'approved';
+            const badge = isApproved
+                ? (LF_EXEC[l.executionStatus] || LF_EXEC.not_started)
+                : (APPROVAL_BADGE[l.approvalStatus] || APPROVAL_BADGE.pending);
+            targetMap.set(deptId, [...targetMap.get(deptId), {
+                linkage: l,
+                typeName: COLLAB_TYPE_MAP[l.type] || l.type || '연계',
+                exec: badge,
+                isCurrent: l.id === collab.id,
+            }]);
+        });
+
+        const allDepts = getHubDeptList();
+        const allDeptIds = new Set(allDepts.map(d => d.id));
+        const extraTargets = [];
+        for (const [deptId] of targetMap) {
+            if (!allDeptIds.has(deptId)) extraTargets.push({ id: deptId, name: getDeptName(deptId) });
+        }
+
+        html += `<div class="lf-card mb-4">`;
+        html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+            <span class="material-symbols-outlined" style="font-size:18px;color:#6366F1" aria-hidden="true">hub</span>
+            <span style="font-size:13px;font-weight:800;color:#1E293B">${escapeHtml(collab.userName)} 님 연계 흐름도</span>
+            <span style="font-size:11px;color:#94A3B8;font-weight:600">${totalCount}건</span>
+        </div>`;
+
+        // 허브-스포크 레이아웃
+        html += `<div class="lf-hub-layout">`;
+        html += `<div class="lf-hub-origin">
+            <div class="lf-hub-origin-icon">
+                <span class="material-symbols-outlined" style="font-size:20px;color:#6366F1" aria-hidden="true">apartment</span>
+            </div>
+            <div class="lf-hub-origin-name">${escapeHtml(originName)}</div>
+            <div style="font-size:9px;color:#94A3B8;margin-top:3px">요청 부서</div>
+        </div>`;
+
+        html += `<div class="lf-hub-depts">`;
+        allDepts.forEach(dept => {
+            const linkages = targetMap.get(dept.id);
+            const isTarget = !!linkages;
+            const icon = HUB_DEPT_ICONS[dept.id] || 'domain';
+            if (isTarget) {
+                linkages.forEach(info => {
+                    html += `<div class="lf-hub-dept lf-target">`;
+                    html += `<div class="lf-hub-arrow-inline">
+                        <span class="lf-hub-type-label">${escapeHtml(info.typeName)}</span>
+                        <span class="lf-hub-arrow-line"></span>
+                        <span class="lf-hub-arrow-head"></span>
+                    </div>`;
+                    html += `<div class="lf-hub-dept-icon">
+                        <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">${icon}</span>
+                    </div>`;
+                    html += `<span class="lf-hub-dept-name">${escapeHtml(dept.name)}</span>`;
+                    html += `<span class="lf-exec-badge" style="background:${info.exec.bg};color:${info.exec.color};font-size:9px;padding:1px 6px;margin-left:auto">
+                        <span class="material-symbols-outlined" style="font-size:10px" aria-hidden="true">${info.exec.icon}</span>${info.exec.label}
+                    </span>`;
+                    if (info.isCurrent) {
+                        html += `<span style="font-size:8px;font-weight:700;color:white;background:#6366F1;padding:1px 5px;border-radius:3px;margin-left:2px">현재</span>`;
+                    }
+                    html += `</div>`;
+                });
+            } else {
+                html += `<div class="lf-hub-dept lf-inactive">`;
+                html += `<div class="lf-hub-dept-icon">
+                    <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">${icon}</span>
+                </div>`;
+                html += `<span class="lf-hub-dept-name">${escapeHtml(dept.name)}</span>`;
+                html += `</div>`;
+            }
+        });
+
+        // 별도 노드
+        extraTargets.forEach(extra => {
+            const linkages = targetMap.get(extra.id);
+            if (linkages) {
+                linkages.forEach(info => {
+                    html += `<div class="lf-hub-extra-node">`;
+                    html += `<div class="lf-hub-arrow-inline">
+                        <span class="lf-hub-type-label">${escapeHtml(info.typeName)}</span>
+                        <span class="lf-hub-arrow-line"></span>
+                        <span class="lf-hub-arrow-head"></span>
+                    </div>`;
+                    html += `<div class="lf-hub-dept-icon">
+                        <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">open_in_new</span>
+                    </div>`;
+                    html += `<span class="lf-hub-dept-name">${escapeHtml(extra.name)}</span>`;
+                    html += `<span class="lf-exec-badge" style="background:${info.exec.bg};color:${info.exec.color};font-size:9px;padding:1px 6px;margin-left:auto">
+                        <span class="material-symbols-outlined" style="font-size:10px" aria-hidden="true">${info.exec.icon}</span>${info.exec.label}
+                    </span>`;
+                    if (info.isCurrent) {
+                        html += `<span style="font-size:8px;font-weight:700;color:white;background:#6366F1;padding:1px 5px;border-radius:3px;margin-left:2px">현재</span>`;
+                    }
+                    html += `</div>`;
+                });
+            }
+        });
+
+        html += `</div>`; // .lf-hub-depts
+        html += `</div>`; // .lf-hub-layout
+
+        // 각 연계별 승인 파이프라인
+        sortedLinkages.forEach(l => {
+            const isCurrent = l.id === collab.id;
+            const redirects = l.redirectHistory || [];
+            const additionalDepts = l.additionalDepts || [];
+            const tName = lfDeptLabel(l, isCurrent ? ed : null, 'target');
+            const hasExtra = redirects.length > 0 || additionalDepts.length > 0;
+
+            if (hasExtra || isCurrent) {
+                const border = isCurrent ? 'border:1.5px solid #C7D2FE;background:#FAFAFF' : 'border:1px solid #E2E8F0;background:white';
+                html += `<div style="${border};border-radius:8px;padding:6px 10px;margin-top:6px;position:relative">`;
+                html += `<div style="font-size:10px;font-weight:700;color:#64748B;margin-bottom:4px">
+                    <span class="material-symbols-outlined" style="font-size:12px;vertical-align:-2px" aria-hidden="true">arrow_forward</span>
+                    ${escapeHtml(tName)}
+                </div>`;
+                if (redirects.length > 0) {
+                    html += `<div class="lf-redirect-bar" style="margin-bottom:4px;font-size:9px;padding:3px 6px">
+                        <span class="material-symbols-outlined text-purple-500" style="font-size:11px" aria-hidden="true">swap_horiz</span>`;
+                    redirects.forEach(r => {
+                        html += `<span style="font-weight:700;color:#4338CA">${getDeptName(r.fromDept)}</span>
+                            <span class="material-symbols-outlined text-purple-400" style="font-size:10px" aria-hidden="true">trending_flat</span>
+                            <span style="font-weight:700;color:#047857">${getDeptName(r.toDept)}</span>`;
+                    });
+                    html += `</div>`;
+                }
+                if (additionalDepts.length > 0) {
+                    html += `<div class="lf-add-dept-bar" style="margin-bottom:4px;font-size:9px;padding:3px 6px">
+                        <span class="material-symbols-outlined text-amber-500" style="font-size:11px" aria-hidden="true">group_add</span>
+                        ${additionalDepts.map(d => `<span style="padding:1px 5px;background:white;border-radius:3px;border:1px solid #FCD34D;font-weight:700;color:#92400E">${getDeptName(d)}</span>`).join('')}
+                    </div>`;
+                }
+                html += renderApprovalPipelineInline(l);
+                html += `</div>`;
+            } else {
+                html += `<div style="margin-top:4px;padding:2px 8px">`;
+                html += `<span style="font-size:9px;color:#94A3B8;margin-right:4px">${escapeHtml(tName)}:</span>`;
+                html += renderApprovalPipelineInline(l);
+                html += `</div>`;
+            }
+        });
+
+        html += `</div>`; // .lf-card
+
+        // 접이식 상세
+        if (collab.reason || (collab.requiredServices && collab.requiredServices.length > 0)) {
+            html += `<div class="mb-2">
+                <div class="case-collapse-toggle flex items-center gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer" onclick="toggleCaseCollapse('lf-detail-info', this)">
+                    <span class="material-symbols-outlined text-slate-400" style="font-size:14px" aria-hidden="true">info</span>
+                    <span class="text-xs font-semibold text-slate-600">연계 사유 · 필요 서비스</span>
+                    <span class="material-symbols-outlined text-slate-400 case-collapse-icon ml-auto" style="font-size:16px" aria-hidden="true">expand_more</span>
+                </div>
+                <div id="lf-detail-info" class="case-collapse-body">
+                    <div class="px-3 pt-2 pb-1 space-y-2 text-sm">
+                        ${collab.reason ? `<p class="text-slate-700 text-[13px]">${escapeHtml(collab.reason)}</p>` : ''}
+                        ${collab.requiredServices?.length > 0 ? `<div class="flex flex-wrap gap-1">${collab.requiredServices.map(s => `<span class="badge bg-blue-50 text-blue-600">${escapeHtml(s)}</span>`).join('')}</div>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        if (collab.approvalHistory && collab.approvalHistory.length > 0) {
+            html += `<div class="mb-2">
+                <div class="case-collapse-toggle flex items-center gap-1.5 p-2 bg-blue-50 border border-blue-100 rounded-lg cursor-pointer" onclick="toggleCaseCollapse('lf-approval-hist', this)">
+                    <span class="material-symbols-outlined text-blue-500" style="font-size:14px" aria-hidden="true">timeline</span>
+                    <span class="text-xs font-semibold text-blue-700">승인 이력 (${collab.approvalHistory.length}건)</span>
+                    <span class="material-symbols-outlined text-blue-400 case-collapse-icon ml-auto" style="font-size:16px" aria-hidden="true">expand_more</span>
+                </div>
+                <div id="lf-approval-hist" class="case-collapse-body">
+                    <div class="pt-2 px-1">${renderApprovalTimeline(collab.approvalHistory)}</div>
+                </div>
+            </div>`;
+        }
+
+        const linkageNotes = collab.notes || [];
+        if (linkageNotes.length > 0) {
+            html += `<div class="mb-2">
+                <div class="case-collapse-toggle flex items-center gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer" onclick="toggleCaseCollapse('lf-notes', this)">
+                    <span class="material-symbols-outlined text-indigo-500" style="font-size:14px" aria-hidden="true">sticky_note_2</span>
+                    <span class="text-xs font-semibold text-slate-600">연계 메모 (${linkageNotes.length}건)</span>
+                    <span class="material-symbols-outlined text-slate-400 case-collapse-icon ml-auto" style="font-size:16px" aria-hidden="true">expand_more</span>
+                </div>
+                <div id="lf-notes" class="case-collapse-body">
+                    <div class="pt-2 px-1 space-y-1.5">${linkageNotes.map(n => `<div class="p-2 bg-indigo-50 rounded-lg text-[12px]">
+                        <span class="font-semibold text-indigo-700">${escapeHtml(n.dept || n.author || '관리자')}</span>
+                        <span class="text-slate-500 ml-1">${escapeHtml(n.text)}</span>
+                        <span class="text-[9px] text-slate-400 ml-1">${safeDateStr(n.createdAt)}</span>
+                    </div>`).join('')}</div>
+                </div>
+            </div>`;
+        }
+
+        return html;
+    }
+
+    // ── 승인 이력 타임라인 (접이식 내부) ──
+    function renderApprovalTimeline(approvalHistory) {
+        if (!approvalHistory || approvalHistory.length === 0) return '';
+        const ACTOR_ROLE_LABELS = { dept_coordinator: '부장', sub_coordinator: '센터장', admin: '본부장' };
+        let html = '<div class="unified-timeline" style="padding-left:1.25rem">';
+        approvalHistory.forEach(h => {
+            const actionLabels = {
+                submitted: '제출', approved: '승인', origin_approved: '1차 승인', target_approved: '2차 승인',
+                dept_approved: '부서 승인', rejected: '반려', revision_requested: '수정요청',
+                admin_rejected: '반려', admin_revision_requested: '수정요청',
+            };
+            const iconMap = {
+                submitted: 'ut-submitted', approved: 'ut-approved', origin_approved: 'ut-approved',
+                target_approved: 'ut-approved', dept_approved: 'ut-approved',
+                rejected: 'ut-rejected', admin_rejected: 'ut-rejected',
+                revision_requested: 'ut-revision', admin_revision_requested: 'ut-revision',
+            };
+            const dateStr = safeDateStr(h.timestamp || h.at || h.date);
+            const roleTxt = h.actorRole ? ' ' + (ACTOR_ROLE_LABELS[h.actorRole] || h.actorRole) : '';
+            html += `<div class="unified-timeline-item" style="padding-bottom:0.5rem">
+                <div class="ut-dot ${iconMap[h.action] || 'ut-default'}"></div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[12px] font-semibold text-slate-700">${actionLabels[h.action] || h.action}</span>
+                    <span class="text-[11px] text-slate-500">${escapeHtml((h.actor || h.by || '') + roleTxt)}</span>
+                    <span class="text-[10px] text-slate-400 ml-auto">${dateStr}</span>
+                </div>
+                ${h.comment || h.reason ? `<p class="text-[11px] text-slate-400 mt-0.5 truncate">${escapeHtml(h.comment || h.reason)}</p>` : ''}
+            </div>`;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    // ── Collapse toggle ──
+    function toggleCaseCollapse(id, toggleEl) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('open');
+        if (toggleEl) toggleEl.classList.toggle('active');
+    }
+
+    // ── Detail Actions ──
+    let detailActionType = null;
+
+    function toggleDetailComment(actionType) {
+        const area = document.getElementById('detail-comment-area');
+        const followupArea = document.getElementById('detail-followup-area');
+        const label = document.getElementById('detail-comment-label');
+        const submitBtn = document.getElementById('detail-comment-submit');
+        const input = document.getElementById('detail-comment-input');
+
+        if (!actionType || detailActionType === actionType) {
+            area.classList.remove('open');
+            if (followupArea) followupArea.classList.remove('open');
+            detailActionType = null;
+            return;
+        }
+
+        detailActionType = actionType;
+
+        // 후속연계 폼은 별도 영역 사용
+        if (actionType === 'followup') {
+            area.classList.remove('open');
+            if (followupArea) followupArea.classList.add('open');
+            return;
+        }
+
+        if (followupArea) followupArea.classList.remove('open');
+
+        const labels = {
+            approve: '승인 코멘트 (선택)',
+            reject: '반려 사유 (필수)',
+            revision: '수정 요청 사유 (필수)',
+            resubmit: '재제출 코멘트 (선택)',
+        };
+        const btnLabels = { approve: '부서 승인', reject: '반려', revision: '수정요청', resubmit: '재제출' };
+        const btnColors = {
+            approve: 'bg-green-600 hover:bg-green-700',
+            reject: 'bg-red-600 hover:bg-red-700',
+            revision: 'bg-orange-600 hover:bg-orange-700',
+            resubmit: 'bg-blue-600 hover:bg-blue-700',
+        };
+
+        label.textContent = labels[actionType] || '코멘트';
+        submitBtn.textContent = btnLabels[actionType] || '확인';
+        submitBtn.className = `px-4 py-2 text-white rounded-lg text-sm font-semibold transition-colors ${btnColors[actionType] || 'bg-indigo-600 hover:bg-indigo-700'}`;
+        if (input) input.value = '';
+        area.classList.add('open');
+        setTimeout(() => input?.focus(), 200);
+    }
+
+    async function submitDetailAction() {
+        const linkageId = detailLinkageId;
+        if (!linkageId || !detailActionType) return;
+
+        const comment = document.getElementById('detail-comment-input')?.value.trim() || '';
+
+        // Validation
+        if (detailActionType === 'reject' && !comment) {
+            alert('반려 사유를 입력하세요.'); return;
+        }
+        if (detailActionType === 'revision' && !comment) {
+            alert('수정 요청 사유를 입력하세요.'); return;
+        }
+
+        const endpointMap = {
+            approve: 'approve',
+            reject: 'reject',
+            revision: 'revision',
+            resubmit: 'resubmit',
+        };
+        const endpoint = endpointMap[detailActionType];
+        if (!endpoint) return;
+
+        try {
+            const resp = await fetch(`/api/dept/linkage/${linkageId}/${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment }),
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || '처리 실패');
+            }
+
+            const actionLabels = { approve: '부서 승인', reject: '반려', revision: '수정요청', resubmit: '재제출' };
+            alert(`${actionLabels[detailActionType]} 처리가 완료되었습니다.`);
+
+            delete expandedCardData[linkageId];
+            detailActionType = null;
+            hideDetail();
+            loadData();
+        } catch (e) {
+            alert(e.message || '처리 실패');
+        }
+    }
+
+    // ── 실행상태 변경 ──
+    async function submitExecChange(newStatus) {
+        const linkageId = detailLinkageId;
+        if (!linkageId) return;
+
+        const statusLabels = { in_progress: '착수(진행중)', completed: '완료', on_hold: '보류', cancelled: '취소' };
+        if (!confirm(`실행상태를 "${statusLabels[newStatus] || newStatus}"(으)로 변경하시겠습니까?`)) return;
+
+        try {
+            const resp = await fetch(`/api/dept-coord/linkage/${linkageId}/execution`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ executionStatus: newStatus }),
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || '실행상태 변경 실패');
+            }
+            alert(`실행상태가 "${statusLabels[newStatus]}"(으)로 변경되었습니다.`);
+            delete expandedCardData[linkageId];
+            detailActionType = null;
+            hideDetail();
+            loadData();
+        } catch (e) {
+            alert(e.message || '실행상태 변경 실패');
+        }
+    }
+
+    // ── 후속연계 생성 ──
+    async function submitFollowup() {
+        const linkageId = detailLinkageId;
+        if (!linkageId) return;
+
+        const type = document.getElementById('followup-type')?.value;
+        const toDept = document.getElementById('followup-dept')?.value;
+        const reason = document.getElementById('followup-reason')?.value.trim();
+
+        if (!type || !toDept) { alert('유형과 대상 부서를 선택하세요.'); return; }
+        if (!reason) { alert('후속연계 사유를 입력하세요.'); return; }
+
+        try {
+            const resp = await fetch(`/api/dept-coord/linkage/${linkageId}/followup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type, toDept, reason }),
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || '후속연계 생성 실패');
+            }
+            alert('후속연계가 생성되었습니다.');
+            delete expandedCardData[linkageId];
+            detailActionType = null;
+            hideDetail();
+            loadData();
+        } catch (e) {
+            alert(e.message || '후속연계 생성 실패');
+        }
+    }
+
+    // ── Topbar time ──
+    function updateTopbarTime() {
+        const now = new Date();
+        const str = now.toLocaleString('ko-KR', { month:'numeric', day:'numeric', weekday:'short', hour:'2-digit', minute:'2-digit' });
+        const el = document.getElementById('topbar-time');
+        if (el) el.textContent = str;
+    }
+
+    // ── Init ──
+    checkAuth();
+    updateTopbarTime();
+    setInterval(updateTopbarTime, 60000);
+    </script>
+
+</body>
+</html>
