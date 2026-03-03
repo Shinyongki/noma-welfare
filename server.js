@@ -1388,7 +1388,7 @@ app.post('/api/service-request/connect', async (req, res) => {
             from: { name: '노마 AI', address: process.env.SMTP_USER },
             to: DEV_RECIPIENT,
             subject,
-            html: { content: Buffer.from(htmlContent, 'utf-8'), contentType: 'text/html; charset=utf-8' },
+            html: htmlContent,
         });
         console.log(`[이메일 발송 완료] ${serviceName} → ${DEV_RECIPIENT} (ID: ${requestId})`);
     } catch (err) {
@@ -2538,7 +2538,7 @@ app.post('/api/admin/linkage/:lid/approve', async (req, res) => {
             from: { name: '노마 AI', address: process.env.SMTP_USER },
             to: DEV_RECIPIENT,
             subject,
-            html: { content: Buffer.from(html, 'utf-8'), contentType: 'text/html; charset=utf-8' },
+            html: html,
         });
         console.log(`[승인 후 이메일 발송 완료] ${subject}`);
 
@@ -2953,11 +2953,11 @@ app.listen(PORT, () => {
     console.log(`Noma API Server running on http://localhost:${PORT}`);
 
     // SMTP 연결 검증
-    if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
         emailTransporter.verify()
             .then(() => console.log('[SMTP] 메일 서버 연결 확인 완료'))
             .catch(err => console.error('[SMTP] 메일 서버 연결 실패:', err.message));
     } else {
-        console.warn('[SMTP] SMTP_USER 또는 SMTP_PASSWORD 환경변수가 설정되지 않았습니다.');
+        console.warn('[SMTP] SMTP_USER 또는 SMTP_PASS 환경변수가 설정되지 않았습니다.');
     }
 });
