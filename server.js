@@ -7,7 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import { EdgeTTS } from '@andresaya/edge-tts';
-import nodemailer from 'nodemailer';
+// nodemailer 대신 Resend HTTP API 사용 (Railway Hobby 플랜 SMTP 포트 차단 대응)
 import session from 'express-session';
 import crypto from 'crypto';
 import helmet from 'helmet';
@@ -251,13 +251,26 @@ const PORT = process.env.PORT || 5000;
 const BASE_URL = process.env.BASE_URL || 'http://localhost:' + PORT;
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GEMINI_API_KEY });
 
-const smtpPort = parseInt(process.env.SMTP_PORT, 10) || 465;
-const transporter = process.env.SMTP_HOST ? nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-}) : null;
+// ── Resend 이메일 발송 함수 ──
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const RESEND_FROM = process.env.RESEND_FROM || '노마 AI <onboarding@resend.dev>';
+
+async function sendEmail({ to, subject, html }) {
+    if (!RESEND_API_KEY) {
+        console.warn('[이메일] RESEND_API_KEY 미설정 — 발송 건너뜀');
+        return null;
+    }
+    const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: RESEND_FROM, to: [].concat(to), subject, html }),
+    });
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Resend API ${res.status}: ${err}`);
+    }
+    return res.json();
+}
 
 // ── Welfare Knowledge Base (RAG) Loading ──
 const KB_FILE = path.join(__dirname, '경상남도사회서비스원_지식베이스.csv');
@@ -702,23 +715,20 @@ app.get('/dept', (req, res) => res.redirect('/admin'));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.use('/.well-known', (req, res) => res.status(404).end());
 
-// ── 임시 SMTP 진단 엔드포인트 (디버깅 후 제거) ──
+// ── 임시 이메일 진단 엔드포인트 (디버깅 후 제거) ──
 app.get('/api/smtp-check', async (req, res) => {
     const info = {
-        SMTP_HOST: process.env.SMTP_HOST || '(미설정)',
-        SMTP_PORT: process.env.SMTP_PORT || '(미설정)',
-        SMTP_USER: process.env.SMTP_USER ? process.env.SMTP_USER.replace(/(.{3}).*(@.*)/, '$1***$2') : '(미설정)',
-        SMTP_PASS: process.env.SMTP_PASS ? '설정됨' : '(미설정)',
-        transporterExists: !!emailTransporter,
+        service: 'Resend HTTP API',
+        RESEND_API_KEY: RESEND_API_KEY ? '설정됨 (' + RESEND_API_KEY.slice(0, 6) + '...)' : '(미설정)',
+        RESEND_FROM: RESEND_FROM,
+        DEFAULT_RECIPIENTS,
     };
-    if (emailTransporter) {
+    if (RESEND_API_KEY) {
         try {
-            const verifyPromise = emailTransporter.verify();
-            const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('10초 타임아웃')), 10000));
-            await Promise.race([verifyPromise, timeout]);
-            info.verify = '성공';
+            await sendEmail({ to: 'shinyongki71@gmail.com', subject: '[노마 AI] 이메일 연동 테스트', html: '<b>Resend 이메일 발송 테스트 성공!</b>' });
+            info.testSend = '성공';
         } catch (err) {
-            info.verify = '실패: ' + err.message;
+            info.testSend = '실패: ' + err.message;
         }
     }
     res.json(info);
@@ -1209,8 +1219,7 @@ app.get('/api/services', (req, res) => {
     res.json(Object.values(grouped));
 });
 
-// ── 기존 이메일 트랜스포터 설정 (충돌 해결 후 유지) ──
-const emailTransporter = transporter;
+// ── 이메일 발송: sendEmail() 함수 사용 (Resend HTTP API) ──
 
 // 기본 수신자 주소 (향후 deptServiceMap.email로 부서별 라우팅 확장 가능)
 const DEFAULT_RECIPIENTS = ['nhkim@gn.pass.or.kr', 'shinyongki71@gmail.com'];
@@ -1413,12 +1422,7 @@ app.post('/api/service-request/connect', async (req, res) => {
 
     const recipients = getRecipients(deptInfo);
     try {
-        await emailTransporter.sendMail({
-            from: { name: '노마 AI', address: process.env.SMTP_USER },
-            to: recipients,
-            subject,
-            html: htmlContent,
-        });
+        await sendEmail({ to: recipients, subject, html: htmlContent });
         console.log(`[이메일 발송 완료] ${serviceName} → ${recipients.join(', ')} (ID: ${requestId})`);
     } catch (err) {
         console.error('[이메일 발송 실패]', err.message);
@@ -2567,12 +2571,7 @@ app.post('/api/admin/linkage/:lid/approve', async (req, res) => {
         : deptServiceMap[targetReq.serviceName] || null;
     const approvalRecipients = getRecipients(approvalDeptInfo);
     try {
-        await emailTransporter.sendMail({
-            from: { name: '노마 AI', address: process.env.SMTP_USER },
-            to: approvalRecipients,
-            subject,
-            html: html,
-        });
+        await sendEmail({ to: approvalRecipients, subject, html });
         console.log(`[승인 후 이메일 발송 완료] ${subject} → ${approvalRecipients.join(', ')}`);
 
         // 4. executionStatus = 'email_sent'
@@ -2985,12 +2984,10 @@ process.on('uncaughtException', (err) => {
 app.listen(PORT, () => {
     console.log(`Noma API Server running on http://localhost:${PORT}`);
 
-    // SMTP 연결 검증
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        emailTransporter.verify()
-            .then(() => console.log('[SMTP] 메일 서버 연결 확인 완료'))
-            .catch(err => console.error('[SMTP] 메일 서버 연결 실패:', err.message));
+    // Resend API 키 확인
+    if (RESEND_API_KEY) {
+        console.log('[이메일] Resend API 설정 확인 완료');
     } else {
-        console.warn('[SMTP] SMTP_USER 또는 SMTP_PASS 환경변수가 설정되지 않았습니다.');
+        console.warn('[이메일] RESEND_API_KEY 환경변수가 설정되지 않았습니다.');
     }
 });
