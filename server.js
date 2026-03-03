@@ -713,7 +713,9 @@ app.get('/api/smtp-check', async (req, res) => {
     };
     if (emailTransporter) {
         try {
-            await emailTransporter.verify();
+            const verifyPromise = emailTransporter.verify();
+            const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('10초 타임아웃')), 10000));
+            await Promise.race([verifyPromise, timeout]);
             info.verify = '성공';
         } catch (err) {
             info.verify = '실패: ' + err.message;
