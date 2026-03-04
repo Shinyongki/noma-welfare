@@ -19,15 +19,15 @@
 | UC-09 | 후속 대화로 서비스 좁혀가기 | 도민 | Should |
 | UC-10 | 예시 칩으로 빠른 검색 | 도민 | Nice |
 | UC-11 | 서비스 연계 요청 (이메일 경로) | 복지담당자 | Should |
-| UC-12 | 관리자/담당자 로그인 | 관리자/담당자 | Must |
+| UC-12 | 역할 기반 로그인 (3-role) | 관리자/부서장/담당자 | Must |
 | UC-13 | 대시보드 현황 모니터링 | 관리자 | Must |
 | UC-14 | 상담 요청 관리 (관리자) | 관리자 | Must |
-| UC-15 | 상담 처리 (담당자) | 담당자 | Must |
+| UC-15 | 상담 처리 (담당자) | 담당자(staff) | Must |
 | UC-16 | 연계/협업 요청 생성 | 담당자 | Must |
-| UC-17 | 2단계 승인 처리 | 부서 조정자/관리자 | Must |
+| UC-17 | 유형별 승인 처리 | 부서장(dept) | Must |
 | UC-18 | 담당자 AI 상담 | 담당자 | Should |
 | UC-19 | 분석 및 KPI 확인 | 관리자 | Should |
-| UC-20 | 서비스 계획 수립 | 관리자 | Should |
+| UC-20 | 서비스 계획 수립 | 관리자/부서장 | Should |
 
 ---
 
@@ -180,7 +180,7 @@
 | 10 | | POST /api/service-request/connect 호출 (chatHistory 포함) |
 | 11 | | Gemini로 대화 요약 생성 + AI 배정 근거 생성 |
 | 12 | | requestStore에 요청 저장 (원자적 쓰기 + 백업) |
-| 13 | | Nodemailer로 담당 기관 이메일 발송 (신청 정보 + 대화 요약 + 배정 근거 + 연계 버튼 + case 처리 링크) |
+| 13 | | Resend HTTP API로 담당 기관 이메일 발송 (신청 정보 + 대화 요약 + 배정 근거 + 연계 버튼 + case 처리 링크) |
 | 14 | | analyticsStore에 이벤트 기록 |
 | 15 | | Step 3: 완료 화면 (체크 아이콘 + 신청 정보 요약) |
 | 16 | | "김순자님, 긴급돌봄지원사업 상담 신청이 완료되었습니다" |
@@ -228,7 +228,7 @@
 | 7 | | AI: 확인 문구 + `<noma-apply>` 태그 출력 (3필드 완성) |
 | 8 | | 클라이언트: `parseNomaApply()` → JSON 파싱 + 유효성 검증 |
 | 9 | | POST /api/service-request/connect (chatHistory 포함) |
-| 10 | | 이메일 발송 (신청 정보 + AI 대화 요약 + 배정 근거 + 연계 버튼 + case 처리 링크) |
+| 10 | | Resend HTTP API로 이메일 발송 (신청 정보 + AI 대화 요약 + 배정 근거 + 연계 버튼 + case 처리 링크) |
 | 11 | | 인라인 초록색 확인 카드 표시: "김순자님, 노인맞춤돌봄서비스 담당 기관에 상담 요청을 보냈습니다" |
 
 ### 대안 흐름
@@ -444,47 +444,40 @@
 
 ---
 
-## UC-12. 관리자/담당자 로그인
+## UC-12. 역할 기반 로그인 (3-role)
 
 ### 기본 정보
 | 항목 | 내용 |
 |------|------|
-| **액터** | 관리자, 담당자, 부서 조정자 |
-| **목적** | 관리 페이지(admin.html, case.html)에 접근하기 위해 인증한다 |
-| **사전 조건** | ADMIN_PASSWORD 환경변수가 서버에 설정된 상태 |
-| **사후 조건** | 세션 쿠키가 발급되어 보호된 API 접근 가능, 로그인 게이트가 닫히고 메인 콘텐츠 표시 |
+| **액터** | 관리자, 부서장, 담당자 |
+| **목적** | 관리 페이지(admin.html, case.html)에 역할 기반으로 접근한다 |
+| **사전 조건** | 서버가 실행 중인 상태 |
+| **사후 조건** | 역할(role), 부서(deptId), 서비스(serviceName) 정보가 포함된 세션 쿠키가 발급되어 보호된 API 접근 가능, 로그인 게이트가 닫히고 역할 기반 UI 표시 |
 
 ### 기본 흐름
 | # | 액터 | 시스템 |
 |---|------|--------|
 | 1 | /admin 또는 /case/:id 접속 | |
-| 2 | | GET /api/auth/status 호출하여 기존 세션 확인 |
-| 3 | | 세션 없음 → 로그인 게이트 표시 (비밀번호 입력 + 로그인 버튼) |
-| 4 | 비밀번호 입력 | |
-| 5 | 로그인 버튼 클릭 (또는 Enter) | |
-| 6 | | POST /api/auth/login 호출 |
-| 7 | | 비밀번호 일치 → 세션 발급 (authenticated=true, 8시간 유효) |
-| 8 | | 로그인 게이트 숨김, 메인 콘텐츠(#main-content) 표시 |
-| 9 | | 데이터 로드 시작 (admin: stats/requests/analytics, case: 사건 상세) |
+| 2 | | GET /api/unified-auth/status 호출하여 기존 세션 확인 |
+| 3 | | 세션 없음 → 로그인 게이트 표시 (3개 역할 카드: 관리자/부서장/담당자) |
+| 4 | 역할 카드 선택 | |
+| 5 | | (admin 선택 시) 바로 Step 7로 이동 |
+| 6a | | (dept/staff 선택 시) Step 2: 부서 선택 화면 표시 (4개 부서: care(공공돌봄), private(민간지원), facility(국공립시설), research(연구활동)) |
+| 6b | 부서 선택 | |
+| 6c | | (staff 선택 시) Step 3: 해당 부서 내 서비스 선택 화면 표시 |
+| 6d | 서비스 선택 | |
+| 7 | | POST /api/unified-auth/login (role, deptId, serviceName) |
+| 8 | | 세션 발급 (role, deptId, deptName, serviceName(staff만), 8시간 유효) |
+| 9 | | 로그인 게이트 숨김, 역할 기반 UI 표시 |
+| 10 | | 데이터 로드 시작 (admin: stats/requests/analytics, dept: pending-approvals, staff: 사건 상세) |
 
 ### 대안 흐름
 
-**A1. 비밀번호 불일치**
+**A1. 이미 인증된 세션 존재**
 | # | 시스템 |
 |---|--------|
-| 7a | 403 응답: "비밀번호가 올바르지 않습니다." |
-| 8a | 에러 메시지를 로그인 게이트에 표시 |
-
-**A2. ADMIN_PASSWORD 미설정**
-| # | 시스템 |
-|---|--------|
-| 7a | 500 응답: "ADMIN_PASSWORD 환경변수가 설정되지 않았습니다." |
-
-**A3. 이미 인증된 세션 존재**
-| # | 시스템 |
-|---|--------|
-| 2a | GET /api/auth/status → authenticated: true |
-| 3a | 로그인 게이트 자동 스킵, 바로 메인 콘텐츠 표시 |
+| 2a | GET /api/unified-auth/status → authenticated: true, role/deptId/deptName 포함 |
+| 3a | 로그인 게이트 자동 스킵, 바로 역할 기반 UI 표시 |
 
 ---
 
@@ -494,7 +487,7 @@
 | 항목 | 내용 |
 |------|------|
 | **액터** | 관리자 |
-| **목적** | 전체 상담 현황을 실시간으로 파악하고, 미처리 건을 식별한다 |
+| **목적** | 전체 상담 현황을 실시간으로 파악하고, 미처리 건을 식별한다 (모니터링 전용, 승인 액션 없음) |
 | **사전 조건** | UC-12에 의해 admin.html 로그인 완료 |
 | **사후 조건** | KPI, 칸반 보드, 추이 차트를 통해 전체 현황을 파악했다 |
 
@@ -505,7 +498,7 @@
 | 2 | | GET /api/admin/stats 호출 |
 | 3 | | KPI 카드 4종 렌더링: 총 접수, 처리 중, 연계 활성, 완료율 |
 | 4 | | 칸반 보드 5컬럼 렌더링 (접수/확인/연락/연결/완료) |
-| 5 | | 각 컬럼에 해당 상태의 요청 카드 배치 (카운트 뱃지 포함) |
+| 5 | | 각 컬럼에 해당 상태의 요청 카드 배치 (카운트 뱃지 포함), 승인 버튼 없음 (모니터링 전용) |
 | 6 | | 14일 접수 추이 막대 차트 렌더링 (Chart.js) |
 | 7 | 칸반 카드 클릭 | |
 | 8 | | 카드 확장: 상세 정보(서비스명, 신청자, 연락처, 일시) + 메모 + 상태변경 + 연계체인 |
@@ -606,7 +599,7 @@
 | **액터** | 담당자 |
 | **목적** | 현재 사건을 타 부서와 협업하거나, 다른 서비스로 연계한다 |
 | **사전 조건** | UC-15에 의해 case.html에서 사건을 처리 중인 상태 |
-| **사후 조건** | 연계 요청이 생성되어 부서 조정자 승인 대기 상태가 된다 (pending) |
+| **사후 조건** | 연계 요청이 생성되어 부서장(dept) 승인 대기 상태가 된다 (pending) |
 
 ### 기본 흐름 (부서 협업)
 | # | 액터 | 시스템 |
@@ -614,15 +607,15 @@
 | 1 | "연계 요청하기" 버튼 클릭 | |
 | 2 | | 연계 요청 폼 표시 (토글) |
 | 3 | "부서 협업" 탭 선택 (기본) | |
-| 4 | 우리팀(from) 드롭다운에서 소속 부서 선택 | |
-| 5 | 대상팀(to) 드롭다운에서 협업 요청할 부서 선택 | |
-| 6 | 유형 선택: 자문(consultation) / 공동처리(joint) / 이관(transfer) | |
+| 4 | | 우리팀(from): 세션 deptId에서 자동 입력 |
+| 5 | 대상팀(to) 드롭다운에서 협업 요청할 부서 선택 (4개 부서: care, private, facility, research) | |
+| 6 | 유형 선택: 자문(consultation) / 의뢰(referral) / 공동처리(joint) / 이관(transfer) | |
 | 7 | 사유 입력 | |
 | 8 | "요청 보내기" 버튼 클릭 | |
 | 9 | | POST /api/case/:id/linkage (category=collaboration) |
 | 10 | | linkage 생성 (approvalStatus=pending, executionStatus=pending) |
 | 11 | | 연계 목록에 새 항목 표시 (부서 검토 대기 배지) |
-| 12 | | "관리자 승인 후 실행됩니다" 안내 |
+| 12 | | "부서장 승인 후 실행됩니다" 안내 |
 
 ### 기본 흐름 (서비스 연계)
 | # | 액터 | 시스템 |
@@ -648,48 +641,55 @@
 
 ---
 
-## UC-17. 2단계 승인 처리
+## UC-17. 유형별 승인 처리
 
 ### 기본 정보
 | 항목 | 내용 |
 |------|------|
-| **액터** | 부서 조정자 (1단계), 관리자 (2단계) |
-| **목적** | 연계/협업 요청을 검토하고, 근거 기반으로 승인/반려/수정요청한다 |
+| **액터** | 부서장(dept) |
+| **목적** | 연계/협업 요청을 유형에 따라 1단계 또는 2단계로 승인/반려/수정요청한다 |
 | **사전 조건** | UC-16에 의해 연계 요청이 생성된 상태 (pending) |
-| **사후 조건** | 1단계 완료 시 dept_approved → 관리자 검토 대기. 2단계 승인 시 이메일 자동 발송. 반려/수정요청 시 담당자에게 재제출 요청 |
+| **사후 조건** | 자문(consultation)/의뢰(referral): 1단계 승인 → approved + 이메일 발송. 공동처리(joint)/이관(transfer): 2단계 승인 (출발 부서장 → dept_approved → 대상 부서장 → approved + 이메일 발송). 반려/수정요청 시 담당자에게 재제출 요청 |
+| **승인 상태** | pending, dept_approved, approved, rejected, revision_requested (5종만 사용) |
 
-### 기본 흐름 (1단계: 부서 조정자 승인)
+### 기본 흐름 (1단계: 자문/의뢰 — 부서장 단독 승인)
 | # | 액터 | 시스템 |
 |---|------|--------|
-| 1 | admin.html → 연계 조정 탭 선택 | |
+| 1 | admin.html → 승인 대기 탭 선택 | |
 | 2 | | GET /api/dept/pending-approvals 호출 |
-| 3 | | 승인 대기 목록 표시 (사건 정보, 연계 유형, 사유) |
+| 3 | | 승인 대기 목록 표시 (사건 정보, 연계 유형(consultation/referral), 사유) |
 | 4 | 연계 항목의 사유와 근거 검토 | |
 | 5 | 코멘트 입력 (선택) | |
 | 6 | "승인" 버튼 클릭 | |
 | 7 | | POST /api/dept/linkage/:lid/approve |
-| 8 | | approvalStatus: pending → dept_approved |
-| 9 | | approvalHistory에 기록 추가 (action=dept_approved, comment, at) |
-| 10 | | 목록 갱신 → 관리자 최종 승인 대기로 이동 |
+| 8 | | approvalStatus: pending → approved (직접 최종 승인) |
+| 9 | | Resend HTTP API로 연계 대상 기관에 이메일 자동 발송 |
+| 10 | | executionStatus: pending → email_sent |
+| 11 | | approvalHistory에 기록 추가 (action=approved, comment, at) |
 
-### 기본 흐름 (2단계: 관리자 최종 승인)
+### 기본 흐름 (2단계: 공동처리/이관 — 출발 부서장 + 대상 부서장)
 | # | 액터 | 시스템 |
 |---|------|--------|
-| 1 | admin.html → 연계 조정 탭 → 관리자 승인 대기 섹션 | |
-| 2 | | GET /api/admin/pending-approvals 호출 |
-| 3 | | dept_approved 상태 목록 표시 (승인 타임라인 포함) |
-| 4 | 사유 + 부서 조정자 코멘트 검토 | |
-| 5 | 코멘트 입력 (선택) | |
-| 6 | "최종 승인" 버튼 클릭 | |
-| 7 | | POST /api/admin/linkage/:lid/approve |
-| 8 | | approvalStatus: dept_approved → approved |
-| 9 | | 연계 대상 기관에 이메일 자동 발송 (Nodemailer) |
-| 10 | | executionStatus: pending → email_sent |
-| 11 | | approvalHistory에 기록 추가 |
+| 1 | 출발 부서장: admin.html → 승인 대기 탭 선택 | |
+| 2 | | GET /api/dept/pending-approvals 호출 |
+| 3 | | 승인 대기 목록 표시 (사건 정보, 연계 유형(joint/transfer), 사유) |
+| 4 | 사유 검토 후 "승인" 버튼 클릭 | |
+| 5 | | POST /api/dept/linkage/:lid/approve |
+| 6 | | approvalStatus: pending → dept_approved |
+| 7 | | approvalHistory에 기록 추가 (action=dept_approved) |
+| 8 | 대상 부서장: admin.html → 수신 요청 확인 | |
+| 9 | | GET /api/dept/incoming-requests 호출 |
+| 10 | | dept_approved 상태의 수신 요청 목록 표시 |
+| 11 | 사유 + 출발 부서장 코멘트 검토 | |
+| 12 | "승인" 버튼 클릭 | |
+| 13 | | POST /api/dept/linkage/:lid/approve |
+| 14 | | approvalStatus: dept_approved → approved |
+| 15 | | Resend HTTP API로 연계 대상 기관에 이메일 자동 발송 |
+| 16 | | executionStatus: pending → email_sent |
 
 ### 대안 흐름
 
-**A1. 부서 조정자 반려**
+**A1. 부서장 반려**
 | # | 액터 | 시스템 |
 |---|------|--------|
 | 6a | "반려" 버튼 + 반려 사유 입력 | |
@@ -697,29 +697,20 @@
 | 8a | | approvalStatus → rejected |
 | 9a | | 담당자 case.html에서 배지로 반려 상태 표시 |
 
-**A2. 부서 조정자 수정 요청**
+**A2. 부서장 수정 요청**
 | # | 액터 | 시스템 |
 |---|------|--------|
 | 6a | "수정 요청" 버튼 + 수정 사유 입력 | |
 | 7a | | POST /api/dept/linkage/:lid/revision |
 | 8a | | approvalStatus → revision_requested |
-| 9a | | 담당자가 사유 수정 후 재제출 (PATCH로 approvalStatus → pending 리셋) |
+| 9a | | 담당자가 사유 수정 후 재제출 (PATCH /api/case/:id/linkage/:lid → approvalStatus → pending 리셋) |
 
-**A3. 관리자 반려**
+**A3. 대상 부서장 반려 (2단계)**
 | # | 액터 | 시스템 |
 |---|------|--------|
-| 6a | "반려" 버튼 + 반려 사유 입력 | |
-| 7a | | POST /api/admin/linkage/:lid/reject |
-| 8a | | approvalStatus → admin_rejected |
-| 9a | | 담당자 재제출 시 → approvalStatus → dept_approved (관리자 반환이므로 부서 조정자 재검토 불필요) |
-
-**A4. 관리자 수정 요청**
-| # | 액터 | 시스템 |
-|---|------|--------|
-| 6a | "수정 요청" 버튼 + 수정 사유 입력 | |
-| 7a | | POST /api/admin/linkage/:lid/revision |
-| 8a | | approvalStatus → admin_revision_requested |
-| 9a | | 담당자 재제출 시 → approvalStatus → dept_approved |
+| 12a | "반려" 버튼 + 반려 사유 입력 | |
+| 13a | | POST /api/dept/linkage/:lid/reject |
+| 14a | | approvalStatus → rejected |
 
 ---
 
@@ -736,7 +727,7 @@
 ### 기본 흐름
 | # | 액터 | 시스템 |
 |---|------|--------|
-| 1 | AI 상담 섹션에서 역할 선택 (담당자/부서 조정자/관리자 조정자/타부서 담당자/타부서 조정자) | |
+| 1 | AI 상담 섹션에서 역할 선택 (담당자(staff)/부서장(dept)/관리자(admin)) | |
 | 2 | 빠른 질문 버튼 클릭 (예: "배정 근거") | |
 | 3 | | POST /api/staff/chat 호출 (messages + requestId + role) |
 | 4 | | 서버: 사건 컨텍스트 구성 (신청자 정보, 담당 부서, KB 상세, 처리 메모, 연계 이력) |
@@ -858,42 +849,47 @@
                  브라우징   서비스 연계
                           (이메일)
 
-                    ┌──────────┐
-                    │  담당자   │
-                    └─────┬────┘
-                          │
-              ┌───────────┼───────────┐
-              ▼           ▼           ▼
-           UC-12       UC-15       UC-16
-           로그인      상담 처리    연계/협업
-                          │        요청 생성
-                          ▼
-                       UC-18
-                       AI 상담
+                  ┌────────────┐
+                  │담당자(staff)│
+                  └─────┬──────┘
+                        │
+            ┌───────────┼───────────┐
+            ▼           ▼           ▼
+         UC-12       UC-15       UC-16
+         로그인      상담 처리    연계/협업
+                        │        요청 생성
+                        ▼
+                     UC-18
+                     AI 상담
 
-                    ┌──────────┐
-                    │부서 조정자│
-                    └─────┬────┘
-                          │
-                     ┌────┴────┐
-                     ▼         ▼
-                  UC-12     UC-17
-                  로그인    2단계 승인
-                          (1단계)
+                  ┌────────────┐
+                  │부서장(dept) │
+                  └─────┬──────┘
+                        │
+            ┌───────────┼───────────┐
+            ▼           ▼           ▼
+         UC-12       UC-17       UC-13
+         로그인    유형별 승인    현황판
+                                   │
+                              ┌────┴────┐
+                              ▼         ▼
+                           UC-19     UC-20
+                           분석    서비스계획
 
-                    ┌──────────┐
-                    │  관리자   │
-                    └─────┬────┘
-                          │
-              ┌───────┬───┼───────┬────────┐
-              ▼       ▼   ▼       ▼        ▼
-           UC-12   UC-13 UC-14  UC-17    UC-19
-           로그인  현황판 상담관리 2단계승인 분석
-                                (2단계)
-                                  │
-                                  ▼
-                               UC-20
-                            서비스계획
+                  ┌────────────┐
+                  │관리자(admin)│
+                  └─────┬──────┘
+                        │
+            ┌───────────┼───────────┐
+            ▼           ▼           ▼
+         UC-12       UC-13       UC-14
+         로그인    현황판       상담관리
+                 (모니터링)
+                        │
+                   ┌────┴────┐
+                   ▼         ▼
+                UC-19     UC-20
+                분석    서비스계획
 ```
 
 ---
@@ -924,8 +920,8 @@
 ### NF-04. 관리자 세션 관리
 | 항목 | 내용 |
 |------|------|
-| **트리거** | 관리자/담당자 세션 생성 시 |
-| **동작** | httpOnly + sameSite(lax) + secure(production) 쿠키로 8시간 유지 |
+| **트리거** | 관리자/부서장/담당자 세션 생성 시 |
+| **동작** | httpOnly + sameSite(lax) + secure(production) 쿠키로 8시간 유지. 세션에 role, deptId, deptName, serviceName(staff만) 포함 |
 | **목적** | 세션 탈취 방지, CSRF 방어, 적절한 세션 수명 |
 
 ### NF-05. 데이터 안정성

@@ -10,9 +10,9 @@
 | **제품명** | 노마(Noma) - AI 맞춤형 복지 내비게이터 |
 | **소유 기관** | 경상남도사회서비스원 |
 | **목적** | 도민이 일상 언어로 복지 서비스를 검색·신청하고, 담당자가 사건을 처리·연계·협업할 수 있는 통합 AI 복지 플랫폼 |
-| **대상 사용자** | 일반 도민, 고령자, 정보 취약계층, 담당자, 부서 조정자, 관리자 |
+| **대상 사용자** | 일반 도민, 고령자, 정보 취약계층, 담당자(staff), 부서장(dept), 관리자(admin) |
 | **플랫폼** | 모바일 웹 (반응형, 데스크톱 겸용) |
-| **기술 스택** | Node.js/Express, Google Gemini 2.0 Flash (RAG), Edge TTS, Nodemailer (Naver SMTP), TailwindCSS (CDN), Web Speech API, Chart.js, express-session |
+| **기술 스택** | Node.js/Express, Google Gemini 2.0 Flash (RAG), Edge TTS, Resend HTTP API, TailwindCSS (CDN), Web Speech API, Chart.js, express-session |
 
 ---
 
@@ -35,7 +35,7 @@
 - **경로형 안내**: 대상 확인 → 신청 방법 → 혜택 → 연락처를 단계별로 제시
 - **관리자 대시보드**: 칸반 보드, KPI, 분석 차트로 전체 현황 실시간 모니터링
 - **상담 처리 시스템**: 담당자가 상태 진행, 메모 작성, 연계 요청, AI 상담을 한 화면에서 처리
-- **2단계 승인 워크플로우**: 부서 조정자 → 관리자 순차 승인으로 연계·협업 품질 관리
+- **유형별 차등 승인**: 자문/서비스연계는 1단계(부서장), 공동처리/이관은 2단계(부서장→대상부서장). 관리자는 모니터링 전용
 
 ---
 
@@ -59,22 +59,22 @@
 - **행동 특성**: 전체 서비스 목록 브라우징, 서비스 상세정보 확인
 - **핵심 가치**: 정확한 공식 정보
 
-### P4. 정미영 (42세, 돌봄서비스과 담당자)
+### P4. 정미영 (42세, 돌봄서비스과 담당자(staff))
 - **환경**: 데스크톱, 이메일 알림으로 상담 신청 수신
 - **니즈**: 접수된 상담을 빠르게 확인하고 대상자에게 연락, 필요 시 타 부서 연계
 - **행동 특성**: case.html에서 상태 업데이트, 메모 작성, AI와 배정 근거 논의
 - **핵심 가치**: 정확한 배정 근거, 연계 절차 간소화
 
-### P5. 김준호 (48세, 부서 조정자)
-- **환경**: 데스크톱, admin.html의 연계 조정 탭 사용
+### P5. 김준호 (48세, 부서장(dept))
+- **환경**: 데스크톱, admin.html의 승인 대기/수신 요청 탭 사용
 - **니즈**: 소속 부서 담당자의 연계 요청을 검토하고 승인/반려/수정요청
 - **행동 특성**: 승인 대기 목록 확인, 사유 검토 후 코멘트와 함께 판단
 - **핵심 가치**: 근거 기반 의사결정, 부서 간 협업 품질 관리
 
-### P6. 최관리 (50세, 관리자)
+### P6. 최관리 (50세, 관리자(admin))
 - **환경**: 데스크톱, admin.html 대시보드
-- **니즈**: 전체 상담 현황 모니터링, KPI 확인, 최종 승인 처리, 서비스 계획 수립
-- **행동 특성**: 칸반 보드로 전체 흐름 파악, 분석 탭으로 추이 확인, 승인 대기건 처리
+- **니즈**: 전체 상담 현황 모니터링, KPI 확인, 이상 건 모니터링, 강제 상태 변경, 서비스 계획 수립
+- **행동 특성**: 칸반 보드로 전체 흐름 파악, 분석 탭으로 추이 확인, 이상 알림 확인. 관리자는 승인 흐름에 직접 개입하지 않음
 - **핵심 가치**: 데이터 기반 운영 의사결정
 
 ---
@@ -110,7 +110,7 @@
 | F-13 | 서비스 북마크 | "내 서랍" 저장 기능 (LocalStorage, 동의 필수) |
 | F-14 | 상담 신청 (카드 버튼) | 카드 하단 버튼 → 모달에서 이름·전화번호 입력 → 담당 기관 이메일 발송 |
 | F-14a | 대화형 상담 신청 | AI 대화 중 이름·전화번호 수집 → `<noma-apply>` 태그로 자동 신청 → 인라인 확인 카드 |
-| F-14b | 이메일 알림 | Nodemailer(Naver SMTP)로 담당 기관에 상담 신청 이메일 발송 + AI 대화 요약 포함 |
+| F-14b | 이메일 알림 | Resend HTTP API로 담당 기관에 상담 신청 이메일 발송 + AI 대화 요약 포함 |
 | F-14c | 서비스 연계 요청 | 이메일 내 "타 서비스 연계" 버튼 → 연계 폼 페이지 → 연쇄 연계 지원 |
 
 ### 4.4 전체 서비스 브라우징 (Should-Have)
@@ -133,19 +133,19 @@
 
 | ID | 요구사항 | 상세 |
 |----|---------|------|
-| F-21 | 세션 기반 인증 | express-session으로 관리자/담당자 인증. 비밀번호 로그인 → 8시간 세션 유지 |
-| F-22 | 로그인 게이트 | admin.html, case.html에 로그인 UI 게이트. 인증 전 메인 콘텐츠 숨김 |
+| F-21 | 역할 기반 인증 | express-session으로 역할 기반 로그인 (admin/dept/staff 3역할, 비밀번호 없음) → 8시간 세션 유지 |
+| F-22 | 로그인 게이트 | admin.html, case.html에 3역할 카드 + 2단계 부서 선택 UI. 인증 전 메인 콘텐츠 숨김 |
 | F-23 | API 보호 | /api/case/*, /api/dept/*, /api/admin/*, /api/staff/* 경로에 requireAuth 미들웨어 적용 |
-| F-24 | 인증 상태 확인 | GET /api/auth/status로 세션 유효 확인 → 이미 로그인 시 게이트 자동 스킵 |
+| F-24 | 인증 상태 확인 | GET /api/unified-auth/status로 세션 유효 확인 → 이미 로그인 시 게이트 자동 스킵 |
 
 ### 4.7 관리자 대시보드 (Must-Have)
 
 | ID | 요구사항 | 상세 |
 |----|---------|------|
-| F-25 | 현황판 (Dashboard) | KPI 카드 4종(총 접수, 처리 중, 연계 활성, 완료율) + 칸반 보드(5단계 컬럼) + 14일 접수 추이 차트 |
+| F-25 | 현황판 (Dashboard) | KPI 카드 4종(총 접수, 처리 중, 연계 활성, 완료율) + 칸반 보드 5상태 컬럼(pending/dept_approved/approved/rejected/revision_requested) + 14일 접수 추이 차트 |
 | F-26 | 상담 요청 관리 | 필터(상태)/검색(이름·전화·서비스)/정렬/페이지네이션 + 상세 모달(상태변경, 메모, 연계체인) |
 | F-27 | 분석 탭 | 서비스별 인기도 막대 차트 + 카테고리 분포 도넛 차트 + KPI 추이 + 일별 이벤트 추이 |
-| F-28 | 연계 조정 탭 | 2단계 승인 대기 목록(부서→관리자) + 승인/반려/수정요청 처리 + 승인 타임라인 + 이메일 자동 발송(최종 승인 시) |
+| F-28 | 이상 알림 탭 | 이상 알림 탭(72시간 미처리 건), 연계 전체 현황 모니터링. 관리자는 승인 흐름에서 제외됨 |
 | F-29 | 서비스 계획 수립 | 상담 요청 상세에서 단계별 서비스 계획 작성·저장 |
 
 ### 4.8 상담 처리 시스템 (Must-Have)
@@ -154,28 +154,29 @@
 |----|---------|------|
 | F-30 | 상태 진행 스테퍼 | open → confirmed → contacted → connected → closed 5단계 전진형 상태관리 |
 | F-31 | 처리 메모 | 담당자가 메모 추가, 시간순 정렬, 스크롤 |
-| F-32 | 통합 연계 요청 | 부서 협업(자문/공동처리/이관) + 서비스 연계를 하나의 폼에서 생성. 2단계 승인 필요 |
+| F-32 | 통합 연계 요청 | 부서 협업(자문/공동처리/이관) + 서비스 연계를 하나의 폼에서 생성. 부서장 승인 필요 (유형별 1단계 또는 2단계) |
 | F-33 | 승인 상태 추적 | pending → dept_approved → approved (또는 rejected/revision_requested). 배지로 실시간 표시 |
 | F-34 | 배정 근거 표시 | AI가 생성한 서비스 배정 근거(법적·제도적·실무적)와 담당 부서 정보 표시 |
 | F-35 | 담당자 AI 상담 | 사건 컨텍스트 기반 AI와 대화. 배정 근거 분석, 처리 방안 제안, 연계 필요성 평가, 보고 요약 생성 |
 | F-36 | 연계 체인 뷰 | 연쇄 연계 이력을 시각적 체인으로 표시 |
 | F-37 | 서비스 계획 뷰어 | 관리자가 수립한 서비스 계획을 읽기 전용으로 표시 |
 
-### 4.9 2단계 승인 워크플로우 (Must-Have)
+### 4.9 유형별 차등 승인 워크플로우 (Must-Have)
 
 | ID | 요구사항 | 상세 |
 |----|---------|------|
-| F-38 | 부서 조정자 승인 | pending → dept_approved/rejected/revision_requested. 코멘트 필수 |
-| F-39 | 관리자 최종 승인 | dept_approved → approved/admin_rejected/admin_revision_requested. 승인 시 이메일 자동 발송 |
-| F-40 | 반려/수정요청 처리 | 반려 시 사유 필수. 수정요청 시 담당자가 재제출 가능 (approvalStatus 자동 리셋) |
+| F-38 | 부서장 승인 | 자문/서비스연계는 pending → approved (즉시 승인), 공동처리/이관은 pending → dept_approved. 코멘트 필수 |
+| F-39 | 대상부서장 수락 | 공동처리/이관만 해당. dept_approved → approved. 승인 시 이메일 자동 발송 |
+| F-40 | 반려/수정요청 처리 | 반려 시 사유 필수. 재제출은 PATCH /api/case/:id/linkage/:lid 단일화 |
 | F-41 | 승인 타임라인 | 각 승인 단계 일시, 코멘트, 처리자를 타임라인으로 시각화 |
+| - | 관리자 모니터링 전용 | 관리자는 승인 흐름에 직접 개입하지 않음. 이상 건 모니터링 및 강제 상태 변경만 가능 |
 
 ### 4.10 부서 간 협업 (Should-Have)
 
 | ID | 요구사항 | 상세 |
 |----|---------|------|
-| F-42 | 협업 유형 | 자문(consultation), 공동처리(joint), 이관(transfer) 3가지 유형 |
-| F-43 | 부서 목록 | 8개 부서(경영지원과, 전략기획과, 사회서비스품질과 등) + 4개 시설 |
+| F-42 | 협업 유형 | 자문(consultation), 공동처리(joint), 이관(transfer), 서비스연계(service) 4가지 유형 |
+| F-43 | 부서 목록 | 4개 부서(공공돌봄/민간지원/국공립시설/연구활동) |
 | F-44 | 협업 메모 | 부서 간 의견 교환용 메모 (author, dept, timestamp 포함) |
 | F-45 | 실행 상태 관리 | 승인 후 in_progress → completed/declined 실행 상태 추적 |
 
@@ -241,7 +242,7 @@
      │                      │
      │                ┌─────┴──────┐
      │                │ 이메일 발송 │──→ 담당 기관 이메일 (연계 버튼 포함)
-     │                │ (Nodemailer)│
+     │                │ (Resend)   │
      │                └─────┬──────┘
      │                      │
      │                ┌─────┴──────┐
@@ -252,7 +253,9 @@
 
 [담당자 브라우저 - case.html]
      │
-     ├── 로그인 ──→ POST /api/auth/login ──→ 세션 발급
+     ├── 로그인 ──→ POST /api/unified-auth/login (role:'staff') ──→ 세션 발급
+     │
+     ├── 내 사건 목록 ──→ GET /api/staff/cases
      │
      ├── 사건 조회 ──→ GET /api/case/:id ──→ 상세 + linkages + 연계체인
      │
@@ -260,13 +263,15 @@
      │
      ├── 메모 추가 ──→ POST /api/case/:id/notes
      │
-     ├── 연계 요청 ──→ POST /api/case/:id/linkage ──→ 2단계 승인 대기
+     ├── 연계 요청 ──→ POST /api/case/:id/linkage ──→ 부서장 승인 대기
+     │
+     ├── 연계 재제출 ──→ PATCH /api/case/:id/linkage/:lid
      │
      └── AI 상담 ──→ POST /api/staff/chat ──→ Gemini AI (사건 컨텍스트 + KB)
 
 [관리자 브라우저 - admin.html]
      │
-     ├── 로그인 ──→ POST /api/auth/login ──→ 세션 발급
+     ├── 로그인 ──→ POST /api/unified-auth/login (role:'admin') ──→ 세션 발급
      │
      ├── 현황판 ──→ GET /api/admin/stats (KPI + 14일 추이 + 미처리 알림)
      │
@@ -277,14 +282,13 @@
      │        ──→ GET /api/admin/kpi (KPI 통계)
      │        ──→ GET /api/admin/trends (일별 이벤트 추이)
      │
-     └── 연계 조정 ──→ GET /api/admin/pending-approvals
-                  ──→ POST /api/admin/linkage/:lid/approve (최종 승인 + 이메일)
-                  ──→ POST /api/admin/linkage/:lid/reject
+     └── 이상 알림 ──→ GET /api/admin/alert-items (72시간 미처리 건)
 
-[부서 조정자 API]
+[부서장 API]
      ├── GET /api/dept/pending-approvals (부서 승인 대기)
-     ├── POST /api/dept/linkage/:lid/approve (부서 승인)
-     ├── POST /api/dept/linkage/:lid/reject (부서 반려)
+     ├── GET /api/dept/incoming-requests (수신 요청)
+     ├── POST /api/dept/linkage/:lid/approve (부서장 승인)
+     ├── POST /api/dept/linkage/:lid/reject (부서장 반려)
      └── POST /api/dept/linkage/:lid/revision (수정 요청)
 ```
 
@@ -310,10 +314,8 @@
 | 변수 | 설명 | 기본값 |
 |------|------|--------|
 | `GEMINI_API_KEY` | Google Gemini API 키 | (필수) |
-| `ADMIN_PASSWORD` | 관리자/담당자 로그인 비밀번호 | (필수) |
 | `SESSION_SECRET` | express-session 서명 키 | crypto.randomUUID() |
-| `EMAIL_USER` | Naver SMTP 사용자 | (필수) |
-| `EMAIL_PASS` | Naver SMTP 비밀번호 | (필수) |
+| `RESEND_API_KEY` | Resend HTTP API 키 | (필수) |
 | `EMAIL_RECIPIENT` | 개발용 이메일 수신자 | admin@example.com |
 | `ALLOWED_ORIGINS` | CORS 허용 오리진 (쉼표 구분) | 전체 허용 |
 | `NODE_ENV` | 실행 환경 (production 시 secure 쿠키) | development |
@@ -326,8 +328,8 @@
 ### 현재 제약
 - Gemini 무료 티어: 분당 요청 제한 (429 시 자동 재시도)
 - 이메일 수신 주소: 개발용 환경변수 설정 (운영 시 기관별 매핑 필요)
-- 지식베이스: CSV 18건 (확장 필요)
-- 인증 체계: 단일 비밀번호 방식 (운영 시 개인 계정 + 역할 기반 접근제어 필요)
+- 지식베이스: CSV 21건 (확장 필요)
+- 인증 체계: 역할 기반 인증(비밀번호 없음). 운영 시 SSO 연동 필요
 - 요청 저장소: JSON 파일 기반 (운영 시 DB 전환 필요)
 - CDN Tailwind: 런타임 빌드 (로컬 빌드 전환 필요)
 
