@@ -18,6 +18,24 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config();
 
+const kbDetailPath = path.join(__dirname, 'welfare_kb_detail_v2.json');
+let welfareKBDetail = {};
+
+function loadKBDetail() {
+  try {
+    const raw = fs.readFileSync(kbDetailPath, 'utf-8');
+    const parsed = JSON.parse(raw);
+    welfareKBDetail = Object.fromEntries(
+      parsed.services.map(s => [s['사업명'], s])
+    );
+    console.log(`[KB Detail] ${Object.keys(welfareKBDetail).length}개 서비스 로딩 완료`);
+  } catch (e) {
+    console.error('[KB Detail] 로딩 실패 — 기존 데이터 유지:', e.message);
+  }
+}
+
+loadKBDetail();
+
 const app = express();
 
 // ── 리버스 프록시 신뢰 (Render 등 클라우드 배포 시 필수) ──
@@ -902,7 +920,26 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                 ragContext += `   - 부서 책임: ${deptInfo.responsibility}\n`;
                 ragContext += `   - 핵심 자격: ${deptInfo.keyEligibility.join(', ')}\n`;
             }
-            ragContext += `   - 대상: ${svc['지원 대상']}\n   - 방법: ${svc['신청 방법']}\n   - 혜택: ${svc['지원 내용']}\n   - 연락처: ${svc['문의처']}\n\n`;
+            ragContext += `   - 대상: ${svc['지원 대상']}\n   - 방법: ${svc['신청 방법']}\n   - 혜택: ${svc['지원 내용']}\n   - 연락처: ${svc['문의처']}\n`;
+
+            const detail = welfareKBDetail[svc['사업명']];
+            if (detail) {
+              if (detail.cost?.summary)
+                ragContext += `   - 비용: ${detail.cost.summary}\n`;
+              if (detail.keyEligibility?.length)
+                ragContext += `   - 핵심자격: ${detail.keyEligibility.join(' / ')}\n`;
+              if (detail.notEligible?.length)
+                ragContext += `   - 제외대상: ${detail.notEligible.map(n => `${n.case}(대안:${n.alternative})`).join(' / ')}\n`;
+              if (detail.differentFrom?.length)
+                ragContext += `   - 유사서비스구분: ${detail.differentFrom.map(d => `vs ${d.compareWith}: ${d.difference}`).join(' / ')}\n`;
+              if (detail.faq?.length)
+                ragContext += `   - FAQ: ${detail.faq.map(f => `Q.${f.q}→A.${f.a}`).join(' | ')}\n`;
+              if (detail.urgencyLevel)
+                ragContext += `   - 긴급도: ${detail.urgencyLevel}\n`;
+              if (detail.processDays)
+                ragContext += `   - 처리소요: ${detail.processDays}\n`;
+            }
+            ragContext += '\n';
         });
     }
 
@@ -969,6 +1006,12 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 [상담 원칙]
 1. 사용자의 어려움에 먼저 공감하고, 그 다음에 서비스를 안내하세요.
 2. [Strict Grounding] 복지 서비스를 추천할 때는 반드시 아래 [지식베이스 검색 결과]에 근거해서만 답변하세요. 지식베이스에 없는 서비스를 절대 지어내지 마세요. 검색 결과에 포함되지 않은 서비스는 언급조차 하지 마세요. 사용자의 상황을 임의로 추측하여 관련 없는 서비스를 연결하지 마세요. 예: "퇴원 후 돌봄"을 요청한 사용자에게 장애인 보조기기를 추천하면 안 됩니다. 사용자가 직접 언급하지 않은 상황(장애, 학대 등)을 가정하지 마세요.
+2-1. [상세 정보 활용] 지식베이스 검색 결과에 비용·핵심자격·제외대상·FAQ·유사서비스구분 항목이 포함되어 있으면 반드시 활용하세요.
+  - 사용자가 비용을 물으면 '비용' 항목을 그대로 안내하세요. 없으면 "담당자에게 문의해 주세요"라고 안내하세요.
+  - 사용자가 "저 해당되나요?"라고 물으면 '핵심자격'과 '제외대상'을 참고해 판단하세요. 확실하지 않으면 "전화로 확인해 보시는 게 좋을 것 같아요"라고 안내하세요.
+  - 사용자가 두 서비스의 차이를 물으면 '유사서비스구분' 항목을 참고해 쉬운 말로 설명하세요.
+  - FAQ에 사용자 질문과 유사한 내용이 있으면 해당 답변을 우선 참고하세요.
+  - 단, 이 정보도 검색 결과에 포함된 경우에만 사용하세요. 없는 내용을 지어내지 마세요.
 3. 지식베이스에 관련 서비스가 없으면, 경상남도사회서비스원 대표번호 055-230-8200으로 전화 문의를 안내하세요.
 4. 사용자가 추가 질문을 할 수 있도록 대화를 이어가세요.
 5. 개발, 코딩, 시스템, 버그 등 기술적인 질문에는 절대 답변하지 마세요. "저는 복지 서비스 안내만 도와드릴 수 있어요"라고 안내하세요.
@@ -2840,6 +2883,16 @@ app.get('/api/admin/collaborations', (req, res) => {
                                             : 'requested',
     }));
     res.json(mapped);
+});
+
+// welfare_kb_detail_v2.json 수동 리로드
+app.post('/api/admin/reload-kb', requireAuth, (req, res) => {
+  loadKBDetail();
+  res.json({
+    success: true,
+    count: Object.keys(welfareKBDetail).length,
+    reloadedAt: new Date().toISOString()
+  });
 });
 
 // A-09 + A-10: 서비스 인기도 + 카테고리 분포
