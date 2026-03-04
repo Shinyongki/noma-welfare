@@ -738,64 +738,68 @@
             <div id="login-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"></div>
 
             <!-- 역할 선택 카드 (초기 화면) -->
-            <div id="login-role-cards" class="grid grid-cols-2 gap-3">
+            <div id="login-role-cards" class="grid grid-cols-3 gap-3">
                 <button onclick="selectLoginRole('admin')" class="bg-white rounded-2xl p-5 text-center shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 group">
                     <div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center mx-auto mb-3 group-hover:bg-indigo-200 transition-colors">
                         <span class="material-symbols-outlined text-indigo-600 text-2xl" aria-hidden="true">admin_panel_settings</span>
                     </div>
                     <div class="font-bold text-slate-800 text-sm">관리자</div>
-                    <p class="text-[11px] text-slate-400 mt-1">전체 연계 관리 및 승인</p>
+                    <p class="text-[11px] text-slate-400 mt-1">모니터링 및 분석</p>
                 </button>
                 <button onclick="selectLoginRole('dept')" class="bg-white rounded-2xl p-5 text-center shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 group">
                     <div class="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center mx-auto mb-3 group-hover:bg-teal-200 transition-colors">
                         <span class="material-symbols-outlined text-teal-600 text-2xl" aria-hidden="true">supervisor_account</span>
                     </div>
-                    <div class="font-bold text-slate-800 text-sm">부서 조정자</div>
-                    <p class="text-[11px] text-slate-400 mt-1">소속 부서 연계 검토</p>
+                    <div class="font-bold text-slate-800 text-sm">부서장</div>
+                    <p class="text-[11px] text-slate-400 mt-1">소속 부서 승인/검토</p>
+                </button>
+                <button onclick="selectLoginRole('staff')" class="bg-white rounded-2xl p-5 text-center shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 group">
+                    <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center mx-auto mb-3 group-hover:bg-amber-200 transition-colors">
+                        <span class="material-symbols-outlined text-amber-600 text-2xl" aria-hidden="true">person</span>
+                    </div>
+                    <div class="font-bold text-slate-800 text-sm">담당자</div>
+                    <p class="text-[11px] text-slate-400 mt-1">담당 케이스 처리</p>
                 </button>
             </div>
 
-            <!-- 부서 선택 (부서 조정자 선택 시) -->
+            <!-- 부서 선택 (2단계: 부서 카테고리 → 서비스 선택) -->
             <div id="login-dept-area" class="hidden">
                 <div class="bg-white rounded-2xl shadow-lg p-6">
                     <div class="flex items-center gap-2 mb-4">
-                        <button onclick="backToRoleSelect()" class="p-1 rounded-lg hover:bg-slate-100 transition-colors">
+                        <button onclick="loginStepBack()" class="p-1 rounded-lg hover:bg-slate-100 transition-colors">
                             <span class="material-symbols-outlined text-slate-400 text-xl" aria-hidden="true">arrow_back</span>
                         </button>
-                        <h2 class="text-sm font-bold text-slate-800">소속 부서 선택</h2>
+                        <h2 id="login-step-title" class="text-sm font-bold text-slate-800">소속 부서 선택</h2>
                     </div>
-                    <div id="login-dept-list" class="space-y-2">
-                        <button onclick="doLoginDept('care')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50 transition-all text-left group">
+                    <!-- Step 1: 부서 카테고리 -->
+                    <div id="login-step-dept" class="space-y-2">
+                        <button onclick="loginSelectDept('care')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50 transition-all text-left group">
                             <div class="w-9 h-9 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0 group-hover:bg-teal-200 transition-colors">
                                 <span class="material-symbols-outlined text-teal-600 text-lg" aria-hidden="true">favorite</span>
                             </div>
-                            <div><div class="text-sm font-semibold text-slate-700">통합돌봄팀</div><div class="text-[11px] text-slate-400">돌봄 서비스 총괄</div></div>
+                            <div><div class="text-sm font-semibold text-slate-700">공공돌봄</div><div class="text-[11px] text-slate-400">돌봄 서비스 총괄</div></div>
                         </button>
-                        <button onclick="doLoginDept('emergency')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50 transition-all text-left group">
-                            <div class="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0 group-hover:bg-red-200 transition-colors">
-                                <span class="material-symbols-outlined text-red-600 text-lg" aria-hidden="true">emergency</span>
-                            </div>
-                            <div><div class="text-sm font-semibold text-slate-700">긴급지원팀</div><div class="text-[11px] text-slate-400">긴급돌봄 및 위기개입</div></div>
-                        </button>
-                        <button onclick="doLoginDept('facility')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50 transition-all text-left group">
-                            <div class="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-200 transition-colors">
-                                <span class="material-symbols-outlined text-amber-600 text-lg" aria-hidden="true">account_balance</span>
-                            </div>
-                            <div><div class="text-sm font-semibold text-slate-700">시설운영팀</div><div class="text-[11px] text-slate-400">국공립시설 운영</div></div>
-                        </button>
-                        <button onclick="doLoginDept('casemanage')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50 transition-all text-left group">
-                            <div class="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-200 transition-colors">
-                                <span class="material-symbols-outlined text-blue-600 text-lg" aria-hidden="true">folder_shared</span>
-                            </div>
-                            <div><div class="text-sm font-semibold text-slate-700">사례관리팀</div><div class="text-[11px] text-slate-400">통합 사례관리</div></div>
-                        </button>
-                        <button onclick="doLoginDept('private')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50 transition-all text-left group">
+                        <button onclick="loginSelectDept('private')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-purple-300 hover:bg-purple-50 transition-all text-left group">
                             <div class="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200 transition-colors">
                                 <span class="material-symbols-outlined text-purple-600 text-lg" aria-hidden="true">handshake</span>
                             </div>
-                            <div><div class="text-sm font-semibold text-slate-700">민간협력팀</div><div class="text-[11px] text-slate-400">민간기관 지원 및 협력</div></div>
+                            <div><div class="text-sm font-semibold text-slate-700">민간지원</div><div class="text-[11px] text-slate-400">민간기관 지원 및 협력</div></div>
+                        </button>
+                        <button onclick="loginSelectDept('facility')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition-all text-left group">
+                            <div class="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-200 transition-colors">
+                                <span class="material-symbols-outlined text-amber-600 text-lg" aria-hidden="true">account_balance</span>
+                            </div>
+                            <div><div class="text-sm font-semibold text-slate-700">국공립시설</div><div class="text-[11px] text-slate-400">국공립시설 운영</div></div>
+                        </button>
+                        <button onclick="loginSelectDept('research')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all text-left group">
+                            <div class="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-200 transition-colors">
+                                <span class="material-symbols-outlined text-blue-600 text-lg" aria-hidden="true">science</span>
+                            </div>
+                            <div><div class="text-sm font-semibold text-slate-700">연구활동</div><div class="text-[11px] text-slate-400">정책연구 및 데이터 분석</div></div>
                         </button>
                     </div>
+                    <!-- Step 2: 서비스 선택 (staff만) -->
+                    <div id="login-step-service" class="hidden space-y-2"></div>
                 </div>
             </div>
         </div>
@@ -851,8 +855,28 @@
             </div>
             <div onclick="switchTab('collab')" id="nav-collab" class="nav-item">
                 <span class="material-symbols-outlined text-lg" aria-hidden="true">hub</span>
-                연계 조정
+                연계 전체현황
                 <span id="sidebar-collab-badge" class="nav-badge" style="display:none">0</span>
+            </div>
+            <div onclick="switchTab('approvals')" id="nav-approvals" class="nav-item" style="display:none">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">approval</span>
+                승인 대기
+            </div>
+            <div onclick="switchTab('incoming')" id="nav-incoming" class="nav-item" style="display:none">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">move_to_inbox</span>
+                수신 요청
+            </div>
+            <div onclick="switchTab('alerts')" id="nav-alerts" class="nav-item" style="display:none">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">warning</span>
+                이상알림
+            </div>
+            <div onclick="switchTab('cases')" id="nav-cases" class="nav-item" style="display:none">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">assignment</span>
+                담당 케이스
+            </div>
+            <div onclick="switchTab('completed')" id="nav-completed" class="nav-item" style="display:none">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">task_alt</span>
+                처리 완료
             </div>
         </nav>
 
@@ -1167,35 +1191,42 @@
                     </div>
                 </div>
 
-                <!-- Stats ribbon (3단계 승인 흐름) -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-dept-review')">
+                <!-- Stats ribbon (5단계 승인 흐름) -->
+                <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-pending')">
                         <div class="flex items-center justify-center gap-1.5 mb-1">
-                            <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
-                            <span class="text-xs font-semibold text-slate-500">부서 검토</span>
+                            <span class="w-2.5 h-2.5 rounded-full bg-orange-400"></span>
+                            <span class="text-xs font-semibold text-slate-500">부서장 검토</span>
                         </div>
-                        <p id="kb-st-dept-review" class="text-xl font-bold text-yellow-700">-</p>
+                        <p id="kb-st-pending" class="text-xl font-bold text-orange-700">-</p>
                     </div>
-                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-admin-review')">
+                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-dept-approved')">
                         <div class="flex items-center justify-center gap-1.5 mb-1">
                             <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
-                            <span class="text-xs font-semibold text-slate-500">관리자 결재</span>
+                            <span class="text-xs font-semibold text-slate-500">대상부서 수락</span>
                         </div>
-                        <p id="kb-st-admin-review" class="text-xl font-bold text-blue-700">-</p>
+                        <p id="kb-st-dept-approved" class="text-xl font-bold text-blue-700">-</p>
                     </div>
-                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-completed')">
+                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-approved')">
                         <div class="flex items-center justify-center gap-1.5 mb-1">
                             <span class="w-2.5 h-2.5 rounded-full bg-green-400"></span>
-                            <span class="text-xs font-semibold text-slate-500">처리 완료</span>
+                            <span class="text-xs font-semibold text-slate-500">완료</span>
                         </div>
-                        <p id="kb-st-completed" class="text-xl font-bold text-green-700">-</p>
+                        <p id="kb-st-approved" class="text-xl font-bold text-green-700">-</p>
                     </div>
-                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-returned')">
+                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-rejected')">
                         <div class="flex items-center justify-center gap-1.5 mb-1">
                             <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                            <span class="text-xs font-semibold text-slate-500">반려/재배정</span>
+                            <span class="text-xs font-semibold text-slate-500">반려</span>
                         </div>
-                        <p id="kb-st-returned" class="text-xl font-bold text-red-600">-</p>
+                        <p id="kb-st-rejected" class="text-xl font-bold text-red-600">-</p>
+                    </div>
+                    <div class="kanban-stat card-elevated !p-3 text-center" onclick="scrollToKanbanCol('col-revision')">
+                        <div class="flex items-center justify-center gap-1.5 mb-1">
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                            <span class="text-xs font-semibold text-slate-500">수정 요청</span>
+                        </div>
+                        <p id="kb-st-revision" class="text-xl font-bold text-slate-600">-</p>
                     </div>
                 </div>
 
@@ -1204,58 +1235,70 @@
                     <span id="bulk-count" class="text-sm font-semibold whitespace-nowrap">0건 선택</span>
                     <select id="bulk-status-select" class="rounded border-slate-600 bg-slate-700 text-white text-xs py-1 px-2">
                         <option value="">상태 변경...</option>
-                        <option value="pending">승인대기</option>
-                        <option value="target_approved">관리자 결재 대기</option>
-                        <option value="approved">처리 완료</option>
+                        <option value="pending">부서장 검토 대기</option>
+                        <option value="dept_approved">대상부서 수락 대기</option>
+                        <option value="approved">완료</option>
                         <option value="rejected">반려</option>
+                        <option value="revision_requested">수정 요청</option>
                     </select>
                     <button onclick="bulkChangeStatus()" class="bg-indigo-500 hover:bg-indigo-600 text-white">적용</button>
                     <button onclick="clearBulkSelection()" class="bg-slate-600 hover:bg-slate-500 text-white">취소</button>
                 </div>
 
-                <!-- Kanban board (3단계 승인 흐름, 설계문서 §3 기반) -->
+                <!-- Kanban board (5단계 승인 흐름) -->
                 <div id="collab-kanban" class="kanban-container">
-                    <!-- Column 1: 부서 검토 (1·2차 대기) -->
-                    <div id="col-dept-review" class="kanban-col" data-col="dept_review" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'pending')">
-                        <div class="kanban-header text-yellow-700">
-                            <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
-                            부서 검토
-                            <span class="kanban-count bg-yellow-100 text-yellow-700" id="cnt-dept-review">0</span>
+                    <!-- Column 1: 부서장 검토 대기 -->
+                    <div id="col-pending" class="kanban-col" data-col="pending" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'pending')">
+                        <div class="kanban-header text-orange-700">
+                            <span class="w-2.5 h-2.5 rounded-full bg-orange-400"></span>
+                            부서장 검토
+                            <span class="kanban-count bg-orange-100 text-orange-700" id="cnt-pending">0</span>
                         </div>
-                        <div class="kanban-body" id="body-dept-review">
+                        <div class="kanban-body" id="body-pending">
                             <p class="text-slate-400 text-xs text-center py-4">로딩 중...</p>
                         </div>
                     </div>
-                    <!-- Column 2: 관리자 결재 대기 (highlighted) -->
-                    <div id="col-admin-review" class="kanban-col kanban-highlight" data-col="admin_review" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'target_approved')">
+                    <!-- Column 2: 대상부서 수락 대기 -->
+                    <div id="col-dept-approved" class="kanban-col kanban-highlight" data-col="dept_approved" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'dept_approved')">
                         <div class="kanban-header text-blue-700">
                             <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
-                            관리자 결재
-                            <span class="kanban-count bg-blue-100 text-blue-700" id="cnt-admin-review">0</span>
+                            대상부서 수락
+                            <span class="kanban-count bg-blue-100 text-blue-700" id="cnt-dept-approved">0</span>
                         </div>
-                        <div class="kanban-body" id="body-admin-review">
+                        <div class="kanban-body" id="body-dept-approved">
                             <p class="text-slate-400 text-xs text-center py-4">로딩 중...</p>
                         </div>
                     </div>
-                    <!-- Column 3: 처리 완료 -->
-                    <div id="col-completed" class="kanban-col" data-col="completed" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'approved')">
+                    <!-- Column 3: 완료 -->
+                    <div id="col-approved" class="kanban-col" data-col="approved" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'approved')">
                         <div class="kanban-header text-green-700">
                             <span class="w-2.5 h-2.5 rounded-full bg-green-400"></span>
-                            처리 완료
-                            <span class="kanban-count bg-green-100 text-green-700" id="cnt-completed">0</span>
+                            완료
+                            <span class="kanban-count bg-green-100 text-green-700" id="cnt-approved">0</span>
                         </div>
-                        <div class="kanban-body" id="body-completed">
+                        <div class="kanban-body" id="body-approved">
                             <p class="text-slate-400 text-xs text-center py-4">로딩 중...</p>
                         </div>
                     </div>
-                    <!-- Column 4: 반려/재배정 -->
-                    <div id="col-returned" class="kanban-col" data-col="returned" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'rejected')">
+                    <!-- Column 4: 반려 -->
+                    <div id="col-rejected" class="kanban-col" data-col="rejected" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'rejected')">
                         <div class="kanban-header text-red-600">
                             <span class="w-2.5 h-2.5 rounded-full bg-red-400"></span>
-                            반려/재배정
-                            <span class="kanban-count bg-red-100 text-red-600" id="cnt-returned">0</span>
+                            반려
+                            <span class="kanban-count bg-red-100 text-red-600" id="cnt-rejected">0</span>
                         </div>
-                        <div class="kanban-body" id="body-returned">
+                        <div class="kanban-body" id="body-rejected">
+                            <p class="text-slate-400 text-xs text-center py-4">로딩 중...</p>
+                        </div>
+                    </div>
+                    <!-- Column 5: 수정 요청 -->
+                    <div id="col-revision" class="kanban-col" data-col="revision_requested" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, 'revision_requested')">
+                        <div class="kanban-header text-slate-600">
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                            수정 요청
+                            <span class="kanban-count bg-slate-100 text-slate-600" id="cnt-revision">0</span>
+                        </div>
+                        <div class="kanban-body" id="body-revision">
                             <p class="text-slate-400 text-xs text-center py-4">로딩 중...</p>
                         </div>
                     </div>
@@ -1291,6 +1334,31 @@
                     <div id="collab-detail-summary"></div>
                     <div id="collab-detail-unified" class="collab-detail-unified"></div>
                 </div>
+            </section>
+
+            <!-- Tab: 승인 대기 (dept) -->
+            <section id="panel-approvals" class="hidden">
+                <div class="p-8 text-center text-slate-400">로딩 중...</div>
+            </section>
+
+            <!-- Tab: 수신 요청 (dept) -->
+            <section id="panel-incoming" class="hidden">
+                <div class="p-8 text-center text-slate-400">로딩 중...</div>
+            </section>
+
+            <!-- Tab: 이상 알림 (admin) -->
+            <section id="panel-alerts" class="hidden">
+                <div class="p-8 text-center text-slate-400">로딩 중...</div>
+            </section>
+
+            <!-- Tab: 담당 케이스 (staff) -->
+            <section id="panel-cases" class="hidden">
+                <div class="p-8 text-center text-slate-400">로딩 중...</div>
+            </section>
+
+            <!-- Tab: 처리 완료 (staff) -->
+            <section id="panel-completed" class="hidden">
+                <div class="p-8 text-center text-slate-400">로딩 중...</div>
             </section>
 
         </div>
@@ -1367,13 +1435,15 @@
     let bulkSelected = new Set();
 
     // ── Session State (통합 인증) ──
-    let sessionRole = null;   // 'admin' | 'dept'
+    let sessionRole = null;   // 'admin' | 'dept' | 'staff'
     let sessionDeptId = null;
     let sessionDeptName = null;
+    let sessionServiceName = null;
 
     function isAdmin() { return sessionRole === 'admin'; }
-    function isSourceDept(linkage) { return sessionRole === 'dept' && linkage && linkage.fromDept === sessionDeptId; }
-    function isTargetDept(linkage) { return sessionRole === 'dept' && linkage && linkage.toDept === sessionDeptId; }
+    function isStaff() { return sessionRole === 'staff'; }
+    function isSourceDept(linkage) { return (sessionRole === 'dept' || sessionRole === 'staff') && linkage && linkage.fromDept === sessionDeptId; }
+    function isTargetDept(linkage) { return (sessionRole === 'dept' || sessionRole === 'staff') && linkage && linkage.toDept === sessionDeptId; }
 
     // ── Collab Detail View State ──
     let collabDetailActive = false;
@@ -1445,16 +1515,21 @@
         if (tab === 'dashboard' && sessionRole === 'dept' && sessionDeptName) {
             return sessionDeptName + ' 현황';
         }
-        const titles = { dashboard: '현황판', requests: '상담 요청', analytics: '분석', collab: '연계 조정' };
+        if (tab === 'cases' && sessionRole === 'staff' && sessionServiceName) {
+            return sessionServiceName + ' 케이스';
+        }
+        const titles = { dashboard: '현황판', requests: '상담 요청', analytics: '분석', collab: '연계 전체현황', approvals: '승인 대기', incoming: '수신 요청', alerts: '이상알림', cases: '담당 케이스', completed: '처리 완료' };
         return titles[tab] || tab;
     }
 
     // ── Tab switching ──
     function switchTab(tab) {
-        // 부서 조정자는 분석 탭 접근 불가
-        if (tab === 'analytics' && sessionRole === 'dept') {
-            tab = 'dashboard';
-        }
+        // 역할별 접근 제한
+        if (tab === 'analytics' && sessionRole !== 'admin') tab = 'dashboard';
+        if (tab === 'approvals' && sessionRole !== 'dept') tab = 'dashboard';
+        if (tab === 'incoming' && sessionRole !== 'dept') tab = 'dashboard';
+        if (tab === 'alerts' && sessionRole !== 'admin') tab = 'dashboard';
+        if ((tab === 'cases' || tab === 'completed') && sessionRole !== 'staff') tab = 'dashboard';
 
         // Clean up detail view if active
         if (collabDetailActive) {
@@ -1471,8 +1546,9 @@
         document.getElementById('topbar-title').textContent = getTabTitle(tab);
 
         // Toggle panels
-        ['dashboard', 'requests', 'analytics', 'collab'].forEach(p => {
+        ['dashboard', 'requests', 'analytics', 'collab', 'approvals', 'incoming', 'alerts', 'cases', 'completed'].forEach(p => {
             const panel = document.getElementById('panel-' + p);
+            if (!panel) return;
             if (p === tab) {
                 panel.classList.remove('hidden');
                 panel.classList.add('panel-content');
@@ -1491,6 +1567,11 @@
         else if (tab === 'requests') loadRequests();
         else if (tab === 'analytics') loadAnalytics();
         else if (tab === 'collab') loadCollabPanel();
+        else if (tab === 'approvals') loadApprovals();
+        else if (tab === 'incoming') loadIncoming();
+        else if (tab === 'alerts') loadAlerts();
+        else if (tab === 'cases') loadStaffCases();
+        else if (tab === 'completed') loadCompletedCases();
 
         // Close sidebar on mobile
         closeSidebar();
@@ -1568,6 +1649,26 @@
     // 자문(consultation)은 연계 파이프라인에서 분리 (설계문서 §14)
     const COLLAB_TYPE_MAP = {
         joint: '공동처리', transfer: '이관', service_referral: '서비스연계',
+        consultation: '자문', referral: '서비스연계',
+    };
+
+    const DEPT_SERVICES = {
+        care: {
+            name: '공공돌봄',
+            services: ['긴급돌봄지원사업', '경남발달장애인긴급돌봄센터', '경상남도 통합돌봄지원센터(경남형 희망나눔)', '퇴원환자 지역사회 연계서비스', '창원종합재가센터 통합재가서비스', '김해종합재가센터 통합재가서비스', '일상돌봄 병원동행서비스(바우처)', '노인맞춤돌봄서비스 광역지원', '응급안전안심서비스', 'AI 온하나케어 스마트 돌봄', '1인가구 안전안심 라이프링 긴급구조 알림']
+        },
+        private: {
+            name: '민간지원',
+            services: ['사회복지시설 종사자 대체인력 지원사업', '맞춤형 통합지원', '품질관리 종합 컨설팅사업', '사회복지시설 안전점검 지원사업', '장기요양기관 평가지원 및 컨설팅']
+        },
+        facility: {
+            name: '국공립시설',
+            services: ['경상남도청 어린이집', '경상남도 보조기기센터', '경상남도 피해장애인쉼터', '경상남도장애인종합복지관']
+        },
+        research: {
+            name: '연구활동',
+            services: ['사회서비스 정책연구 및 데이터 분석']
+        }
     };
 
     function renderCollabItem(c) {
@@ -1904,20 +2005,27 @@
         });
     }
 
-    // 칸반 4열 분류 (부서→부서 직접 연계)
+    // 칸반 5열 분류 (5개 승인 상태)
     function classifyCollabs(collabs) {
-        const cols = { dept_review: [], target_accept: [], in_progress: [], done_rejected: [] };
+        const cols = { pending: [], dept_approved: [], approved: [], rejected: [], revision_requested: [] };
         collabs.forEach(c => {
-            const as = c.approvalStatus || 'pending';
-            // Col 1: 소속부서 검토 (pending, revision_requested)
-            if (as === 'pending' || as === 'revision_requested') cols.dept_review.push(c);
-            // Col 2: 대상부서 수락 대기 (dept_approved, target_revision_requested, target_rejected → 재제출 대기)
-            else if (as === 'dept_approved' || as === 'target_rejected' || as === 'target_revision_requested') cols.target_accept.push(c);
-            // Col 3: 진행중 (approved)
-            else if (as === 'approved') cols.in_progress.push(c);
-            // Col 4: 완료/반려
-            else if (as === 'rejected') cols.done_rejected.push(c);
-            else cols.dept_review.push(c);
+            let as = c.approvalStatus || 'pending';
+            // Legacy 매핑
+            if (as === 'target_rejected' || as === 'admin_rejected') as = 'rejected';
+            if (as === 'target_revision_requested' || as === 'admin_revision_requested') as = 'revision_requested';
+            if (as === 'origin_approved') as = 'dept_approved';
+            if (as === 'target_approved') as = 'approved';
+            // Col 1: 부서장 검토 대기
+            if (as === 'pending') cols.pending.push(c);
+            // Col 2: 대상부서 수락 대기
+            else if (as === 'dept_approved') cols.dept_approved.push(c);
+            // Col 3: 완료
+            else if (as === 'approved') cols.approved.push(c);
+            // Col 4: 반려
+            else if (as === 'rejected') cols.rejected.push(c);
+            // Col 5: 수정 요청
+            else if (as === 'revision_requested') cols.revision_requested.push(c);
+            else cols.pending.push(c);
         });
         return cols;
     }
@@ -2126,21 +2234,7 @@
                 <button onclick="toggleDetailComment('dept_reject')" class="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-colors">반려</button>`;
         }
 
-        // 4) 관리자 최종 승인 (target_approved)
-        const isAdminFinal = sessionRole === 'admin' && collab.approvalStatus === 'target_approved';
-        if (isAdminFinal) {
-            actionBtns = `
-                <button onclick="toggleDetailComment('approve')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1">
-                    <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">check_circle</span>최종승인
-                </button>
-                <button onclick="toggleDetailComment('reject')" class="px-3 py-1.5 bg-white border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-colors">반려</button>
-                <button onclick="toggleDetailComment('redirect')" class="px-3 py-1.5 bg-white border border-purple-300 text-purple-600 rounded-lg text-xs font-semibold hover:bg-purple-50 transition-colors flex items-center gap-1">
-                    <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">swap_horiz</span>부서변경
-                </button>
-                <button onclick="toggleDetailComment('add_dept')" class="px-3 py-1.5 bg-white border border-indigo-300 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-50 transition-colors flex items-center gap-1">
-                    <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">group_add</span>부서추가
-                </button>`;
-        }
+        // 4) 관리자는 승인 흐름에서 제외 (모니터링 전용 — 액션 버튼 없음)
 
         document.getElementById('collab-detail-header').innerHTML = `
             <div class="collab-detail-sticky-header">
@@ -3100,24 +3194,8 @@
             </div>`;
         }
 
-        // ── 4) 관리자 최종 승인 (approved 상태 아닌 dept_approved를 관리자가 직접 최종 승인하는 경우) ──
-        // 관리자는 위 2)에서 대상부서 역할로 수락 가능하므로, 별도 관리자 최종 승인은 target_approved/legacy 흐름용
-        const isAdminFinalReview = sessionRole === 'admin' && collab.approvalStatus === 'target_approved';
-        if (isAdminFinalReview) {
-            leftHtml += `<div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h5 class="text-xs font-bold text-blue-700 mb-2 flex items-center gap-1">
-                    <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">approval</span>관리자 최종 승인
-                </h5>
-                <textarea id="kb-comment-${collab.id}" rows="2" placeholder="코멘트 입력 (선택)..." class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 mb-3 focus:ring-primary focus:border-primary resize-none"></textarea>
-                <div class="flex gap-2 flex-wrap">
-                    <button onclick="kanbanApproveFromModal('${collab.id}')" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 flex items-center gap-1.5 transition-colors">
-                        <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">check_circle</span>최종 승인
-                    </button>
-                    <button onclick="kanbanRejectFromModal('${collab.id}')" class="px-4 py-2 bg-white border border-red-300 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors">반려</button>
-                    <button onclick="kanbanRevisionFromModal('${collab.id}')" class="px-4 py-2 bg-white border border-orange-300 text-orange-600 rounded-lg text-sm font-semibold hover:bg-orange-50 transition-colors">수정요청</button>
-                </div>
-            </div>`;
-        }
+        // ── 4) 관리자는 승인 흐름에서 제외 (모니터링 전용) ──
+        // 관리자 승인 버튼 제거됨 — 부서장과 대상부서 간 직접 승인 흐름 사용
 
         // Notes in left column (linkage-specific notes)
         if (ed && !ed.error) {
@@ -3283,58 +3361,10 @@
         }
     }
 
-    async function kanbanApproveFromModal(linkageId) {
-        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
-        try {
-            const resp = await fetch(`/api/admin/linkage/${linkageId}/approve`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ comment }),
-            });
-            if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || ''); }
-            closeKanbanModal();
-            delete expandedCardData[linkageId];
-            loadCollabPanel();
-        } catch (e) {
-            alert('승인 처리 실패');
-        }
-    }
-
-    async function kanbanRejectFromModal(linkageId) {
-        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
-        if (!comment) { alert('반려 사유를 입력하세요.'); return; }
-        try {
-            const resp = await fetch(`/api/admin/linkage/${linkageId}/reject`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ comment }),
-            });
-            if (!resp.ok) throw new Error();
-            closeKanbanModal();
-            delete expandedCardData[linkageId];
-            loadCollabPanel();
-        } catch (e) {
-            alert('반려 처리 실패');
-        }
-    }
-
-    async function kanbanRevisionFromModal(linkageId) {
-        const comment = document.getElementById('kb-comment-' + linkageId)?.value.trim() || '';
-        if (!comment) { alert('수정 요청 사항을 입력하세요.'); return; }
-        try {
-            const resp = await fetch(`/api/admin/linkage/${linkageId}/revision`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ comment }),
-            });
-            if (!resp.ok) throw new Error();
-            closeKanbanModal();
-            delete expandedCardData[linkageId];
-            loadCollabPanel();
-        } catch (e) {
-            alert('수정 요청 실패');
-        }
-    }
+    // 관리자 승인/반려/수정요청 — 승인 흐름에서 제외됨 (레거시 호환용 no-op)
+    async function kanbanApproveFromModal(linkageId) { alert('관리자는 승인 권한이 없습니다. 부서장 승인 흐름을 이용하세요.'); }
+    async function kanbanRejectFromModal(linkageId) { alert('관리자는 반려 권한이 없습니다. 부서장 승인 흐름을 이용하세요.'); }
+    async function kanbanRevisionFromModal(linkageId) { alert('관리자는 수정요청 권한이 없습니다. 부서장 승인 흐름을 이용하세요.'); }
 
     // ── 부서 조정자 액션 (칸반 모달) ──
     async function kanbanDeptApprove(linkageId) {
@@ -3528,30 +3558,35 @@
         document.getElementById('collab-total-count').textContent = `총 ${filtered.length}건`;
 
         // Stats ribbon
-        const stDept = document.getElementById('kb-st-dept-review');
-        const stTarget = document.getElementById('kb-st-admin-review');
-        const stProgress = document.getElementById('kb-st-completed');
-        const stDone = document.getElementById('kb-st-returned');
-        if (stDept) stDept.textContent = cols.dept_review.length;
-        if (stTarget) stTarget.textContent = cols.target_accept.length;
-        if (stProgress) stProgress.textContent = cols.in_progress.length;
-        if (stDone) stDone.textContent = cols.done_rejected.length;
+        const stPending = document.getElementById('kb-st-pending');
+        const stDeptApproved = document.getElementById('kb-st-dept-approved');
+        const stApproved = document.getElementById('kb-st-approved');
+        const stRejected = document.getElementById('kb-st-rejected');
+        const stRevision = document.getElementById('kb-st-revision');
+        if (stPending) stPending.textContent = cols.pending.length;
+        if (stDeptApproved) stDeptApproved.textContent = cols.dept_approved.length;
+        if (stApproved) stApproved.textContent = cols.approved.length;
+        if (stRejected) stRejected.textContent = cols.rejected.length;
+        if (stRevision) stRevision.textContent = cols.revision_requested.length;
 
         // Column counts
-        const cntDept = document.getElementById('cnt-dept-review');
-        const cntTarget = document.getElementById('cnt-admin-review');
-        const cntProgress = document.getElementById('cnt-completed');
-        const cntDone = document.getElementById('cnt-returned');
-        if (cntDept) cntDept.textContent = cols.dept_review.length;
-        if (cntTarget) cntTarget.textContent = cols.target_accept.length;
-        if (cntProgress) cntProgress.textContent = cols.in_progress.length;
-        if (cntDone) cntDone.textContent = cols.done_rejected.length;
+        const cntPending = document.getElementById('cnt-pending');
+        const cntDeptApproved = document.getElementById('cnt-dept-approved');
+        const cntApproved = document.getElementById('cnt-approved');
+        const cntRejected = document.getElementById('cnt-rejected');
+        const cntRevision = document.getElementById('cnt-revision');
+        if (cntPending) cntPending.textContent = cols.pending.length;
+        if (cntDeptApproved) cntDeptApproved.textContent = cols.dept_approved.length;
+        if (cntApproved) cntApproved.textContent = cols.approved.length;
+        if (cntRejected) cntRejected.textContent = cols.rejected.length;
+        if (cntRevision) cntRevision.textContent = cols.revision_requested.length;
 
         // Render columns
-        renderKanbanColumn('body-dept-review', cols.dept_review, true);
-        renderKanbanColumn('body-admin-review', cols.target_accept, true);
-        renderKanbanColumn('body-completed', cols.in_progress, false);
-        renderKanbanColumn('body-returned', cols.done_rejected, false);
+        renderKanbanColumn('body-pending', cols.pending, true);
+        renderKanbanColumn('body-dept-approved', cols.dept_approved, true);
+        renderKanbanColumn('body-approved', cols.approved, false);
+        renderKanbanColumn('body-rejected', cols.rejected, false);
+        renderKanbanColumn('body-revision', cols.revision_requested, false);
 
         // Clean stale bulk selections and update bar
         const validIds = new Set(filtered.map(c => c.id));
@@ -4772,41 +4807,94 @@
         document.getElementById('topbar-time').textContent = str;
     }
 
+    // ── 로그인 2단계 상태 ──
+    let _loginRole = null;   // 선택 중인 역할
+    let _loginDeptId = null; // 선택 중인 부서
+    let _loginStep = 0;      // 0=역할선택, 1=부서선택, 2=서비스선택
+
     // ── 역할 카드 선택 ──
     function selectLoginRole(role) {
         if (role === 'admin') {
             doLoginAs('admin');
+            return;
+        }
+        _loginRole = role;
+        _loginDeptId = null;
+        _loginStep = 1;
+        document.getElementById('login-role-cards').classList.add('hidden');
+        document.getElementById('login-dept-area').classList.remove('hidden');
+        document.getElementById('login-step-dept').classList.remove('hidden');
+        document.getElementById('login-step-service').classList.add('hidden');
+        document.getElementById('login-step-title').textContent = role === 'dept' ? '소속 부서 선택 (부서장)' : '소속 부서 선택 (담당자)';
+    }
+
+    function loginSelectDept(deptId) {
+        _loginDeptId = deptId;
+        if (_loginRole === 'dept') {
+            // 부서장: 부서 선택만으로 충분
+            doLoginAs('dept', deptId);
         } else {
-            document.getElementById('login-role-cards').classList.add('hidden');
-            document.getElementById('login-dept-area').classList.remove('hidden');
+            // 담당자: 서비스 선택 필요
+            _loginStep = 2;
+            document.getElementById('login-step-dept').classList.add('hidden');
+            const serviceEl = document.getElementById('login-step-service');
+            serviceEl.classList.remove('hidden');
+            document.getElementById('login-step-title').textContent = (DEPT_SERVICES[deptId]?.name || deptId) + ' - 서비스 선택';
+            const services = DEPT_SERVICES[deptId]?.services || [];
+            serviceEl.innerHTML = services.map(s =>
+                `<button onclick="loginSelectService('${escapeHtml(s)}')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition-all text-left">
+                    <div class="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-amber-600 text-sm" aria-hidden="true">description</span>
+                    </div>
+                    <span class="text-sm font-medium text-slate-700">${escapeHtml(s)}</span>
+                </button>`
+            ).join('');
         }
     }
 
-    function backToRoleSelect() {
-        document.getElementById('login-dept-area').classList.add('hidden');
-        document.getElementById('login-role-cards').classList.remove('hidden');
-        document.getElementById('login-error').classList.add('hidden');
+    function loginSelectService(serviceName) {
+        doLoginAs('staff', _loginDeptId, serviceName);
     }
 
-    function doLoginDept(deptId) {
-        doLoginAs('dept', deptId);
+    function loginStepBack() {
+        document.getElementById('login-error').classList.add('hidden');
+        if (_loginStep === 2) {
+            // 서비스 선택 → 부서 선택으로
+            _loginStep = 1;
+            document.getElementById('login-step-service').classList.add('hidden');
+            document.getElementById('login-step-dept').classList.remove('hidden');
+            document.getElementById('login-step-title').textContent = _loginRole === 'dept' ? '소속 부서 선택 (부서장)' : '소속 부서 선택 (담당자)';
+        } else {
+            // 부서 선택 → 역할 선택으로
+            _loginStep = 0;
+            _loginRole = null;
+            _loginDeptId = null;
+            document.getElementById('login-dept-area').classList.add('hidden');
+            document.getElementById('login-role-cards').classList.remove('hidden');
+        }
     }
+
+    // Legacy compat
+    function backToRoleSelect() { loginStepBack(); }
 
     // ── 로그인 (통합 인증) ──
-    async function doLoginAs(role, deptId) {
+    async function doLoginAs(role, deptId, serviceName) {
         const errEl = document.getElementById('login-error');
         errEl.classList.add('hidden');
         try {
+            const body = { role, deptId };
+            if (serviceName) body.serviceName = serviceName;
             const resp = await fetch('/api/unified-auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role, deptId }),
+                body: JSON.stringify(body),
             });
             const data = await resp.json();
             if (resp.ok && data.success) {
                 sessionRole = data.role || role;
                 sessionDeptId = data.deptId || null;
                 sessionDeptName = data.deptName || null;
+                sessionServiceName = data.serviceName || serviceName || null;
                 document.getElementById('login-gate').classList.add('hidden');
                 document.getElementById('main-content').classList.remove('hidden');
                 initApp();
@@ -4824,12 +4912,23 @@
     function initApp() {
         updateSidebarRole();
         loadDeptMap();
-        loadDashboard();
+        // 역할별 초기 탭
+        if (sessionRole === 'staff') {
+            switchTab('cases');
+        } else if (sessionRole === 'dept') {
+            switchTab('dashboard');
+        } else {
+            switchTab('dashboard');
+        }
         updateTopbarTime();
         if (!_initTimers) {
             _initTimers = true;
             setInterval(updateTopbarTime, 60000);
-            setInterval(() => { if (!document.hidden) loadDashboard(); }, 30000);
+            setInterval(() => {
+                if (document.hidden) return;
+                if (sessionRole === 'staff') loadStaffCases();
+                else loadDashboard();
+            }, 30000);
         }
     }
 
@@ -4840,36 +4939,238 @@
         const sub = document.getElementById('sidebar-role-sub');
         if (!icon) return;
 
-        const isDept = sessionRole === 'dept' && sessionDeptName;
-        if (isDept) {
+        if (sessionRole === 'staff') {
+            icon.textContent = 'person';
+            label.textContent = sessionServiceName || sessionDeptName || '담당자';
+            sub.textContent = '담당자';
+        } else if (sessionRole === 'dept') {
             icon.textContent = 'supervisor_account';
-            label.textContent = sessionDeptName;
-            sub.textContent = '부서 조정자';
+            label.textContent = sessionDeptName || '부서장';
+            sub.textContent = '부서장';
         } else {
             icon.textContent = 'admin_panel_settings';
             label.textContent = '관리자';
-            sub.textContent = '전체 관리';
+            sub.textContent = '모니터링';
         }
 
-        // 부서 조정자: 분석 탭 숨김
-        const navAnalytics = document.getElementById('nav-analytics');
-        if (navAnalytics) navAnalytics.style.display = isDept ? 'none' : '';
+        // 모든 역할별 nav 초기화 (숨김)
+        const allNavIds = ['nav-dashboard', 'nav-requests', 'nav-analytics', 'nav-collab', 'nav-approvals', 'nav-incoming', 'nav-alerts', 'nav-cases', 'nav-completed'];
+        allNavIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
 
-        // 부서 조정자: 시스템 KPI 섹션 숨김
+        // 역할별 표시할 nav 설정
+        let visibleNavs = [];
+        if (sessionRole === 'admin') {
+            visibleNavs = ['nav-dashboard', 'nav-requests', 'nav-analytics', 'nav-collab', 'nav-alerts'];
+        } else if (sessionRole === 'dept') {
+            visibleNavs = ['nav-dashboard', 'nav-approvals', 'nav-incoming', 'nav-collab'];
+        } else if (sessionRole === 'staff') {
+            visibleNavs = ['nav-cases', 'nav-completed'];
+        }
+        visibleNavs.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = '';
+        });
+
+        // 시스템 KPI 섹션: admin만
         const systemKpiSection = document.getElementById('system-kpi-section');
-        if (systemKpiSection) systemKpiSection.style.display = isDept ? 'none' : '';
+        if (systemKpiSection) systemKpiSection.style.display = sessionRole === 'admin' ? '' : 'none';
     }
 
     // ── 역할 전환 (로그아웃 → 로그인 게이트) ──
     async function switchRole() {
         try { await fetch('/api/unified-auth/logout', { method: 'POST' }); } catch {}
-        sessionRole = null; sessionDeptId = null; sessionDeptName = null;
+        sessionRole = null; sessionDeptId = null; sessionDeptName = null; sessionServiceName = null;
+        _loginRole = null; _loginDeptId = null; _loginStep = 0;
         document.getElementById('main-content').classList.add('hidden');
         document.getElementById('login-gate').classList.remove('hidden');
         // 로그인 카드 초기 상태로
         document.getElementById('login-role-cards').classList.remove('hidden');
         document.getElementById('login-dept-area').classList.add('hidden');
         document.getElementById('login-error').classList.add('hidden');
+    }
+
+    // ── 부서장: 승인 대기 목록 ──
+    async function loadApprovals() {
+        const data = await api('/api/dept/pending-approvals');
+        const el = document.getElementById('panel-approvals');
+        if (!data.items || data.items.length === 0) {
+            el.innerHTML = '<div class="p-8 text-center text-slate-400">승인 대기 중인 요청이 없습니다.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="p-4 space-y-3">' + data.items.map(item => {
+            const typeName = COLLAB_TYPE_MAP[item.linkage?.type] || item.linkage?.type || '-';
+            const typeColors = { consultation: 'bg-orange-100 text-orange-700', joint: 'bg-blue-100 text-blue-700', transfer: 'bg-purple-100 text-purple-700', referral: 'bg-green-100 text-green-700', service_referral: 'bg-green-100 text-green-700' };
+            const typeColor = typeColors[item.linkage?.type] || 'bg-slate-100 text-slate-600';
+            const stepInfo = ['consultation','referral','service_referral'].includes(item.linkage?.type)
+                ? '<span class="text-xs text-green-600">1단계 -- 승인 즉시 실행</span>'
+                : '<span class="text-xs text-blue-600">2단계 -- 대상부서 수락 필요</span>';
+            return `<div class="card-elevated p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="badge ${typeColor}">${typeName}</span>
+                    ${stepInfo}
+                    <span class="text-xs text-slate-400 ml-auto">${safeDateStr(item.linkage?.createdAt)}</span>
+                </div>
+                <p class="text-sm font-semibold text-slate-800">${escapeHtml(item.serviceName || '')}</p>
+                <p class="text-xs text-slate-500 mt-1">${escapeHtml(item.userName || '')} · ${escapeHtml(item.userPhone || '')}</p>
+                ${item.linkage?.reason ? '<p class="text-xs text-slate-600 mt-2 bg-slate-50 p-2 rounded">' + escapeHtml(item.linkage.reason) + '</p>' : ''}
+                <div class="flex gap-2 mt-3">
+                    <button onclick="deptApproveLinkage('${item.linkage?.id}')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">승인</button>
+                    <button onclick="deptRejectLinkage('${item.linkage?.id}')" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600">반려</button>
+                    <button onclick="deptRevisionLinkage('${item.linkage?.id}')" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs rounded-lg hover:bg-slate-300">수정요청</button>
+                </div>
+            </div>`;
+        }).join('') + '</div>';
+    }
+
+    // ── 부서장: 수신 요청 목록 ──
+    async function loadIncoming() {
+        const data = await api('/api/dept/incoming-requests');
+        const el = document.getElementById('panel-incoming');
+        if (!data.items || data.items.length === 0) {
+            el.innerHTML = '<div class="p-8 text-center text-slate-400">수신된 요청이 없습니다.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="p-4 space-y-3">' + data.items.map(item => {
+            const typeName = COLLAB_TYPE_MAP[item.linkage?.type] || item.linkage?.type || '-';
+            return `<div class="card-elevated p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="badge bg-blue-100 text-blue-700">${typeName}</span>
+                    <span class="text-xs text-slate-400">from ${getDeptName(item.linkage?.fromDept)}</span>
+                </div>
+                <p class="text-sm font-semibold text-slate-800">${escapeHtml(item.serviceName || '')}</p>
+                <p class="text-xs text-slate-500 mt-1">${escapeHtml(item.userName || '')} · ${escapeHtml(item.userPhone || '')}</p>
+                ${item.linkage?.reason ? '<p class="text-xs text-slate-600 mt-2 bg-slate-50 p-2 rounded">' + escapeHtml(item.linkage.reason) + '</p>' : ''}
+                <div class="flex gap-2 mt-3">
+                    <button onclick="targetAcceptLinkage('${item.linkage?.id}')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">수락</button>
+                    <button onclick="targetRejectLinkage('${item.linkage?.id}')" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600">반려</button>
+                </div>
+            </div>`;
+        }).join('') + '</div>';
+    }
+
+    // ── 관리자: 이상 알림 목록 ──
+    async function loadAlerts() {
+        const data = await api('/api/admin/alert-items');
+        const el = document.getElementById('panel-alerts');
+        if (!data.items || data.items.length === 0) {
+            el.innerHTML = '<div class="p-8 text-center text-slate-400">이상 건이 없습니다.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="p-4 space-y-3">' + data.items.map(item => {
+            const elapsed = safeElapsed(item.createdAtISO);
+            return `<div class="card-elevated p-4 border-l-4 border-red-400">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="material-symbols-outlined text-red-500" style="font-size:18px">warning</span>
+                    <span class="text-xs font-bold text-red-600">${elapsed.text} 미처리</span>
+                </div>
+                <p class="text-sm font-semibold text-slate-800">${escapeHtml(item.serviceName || '')}</p>
+                <p class="text-xs text-slate-500 mt-1">${escapeHtml(item.userName || '')} · ${escapeHtml(item.userPhone || '')}</p>
+                <a href="/case/${item.id}" target="_blank" class="inline-block mt-2 text-xs text-blue-600 hover:underline">케이스 열기 &rarr;</a>
+            </div>`;
+        }).join('') + '</div>';
+    }
+
+    // ── 담당자: 케이스 목록 ──
+    async function loadStaffCases() {
+        const data = await api('/api/staff/cases');
+        const el = document.getElementById('panel-cases');
+        const items = (data.items || []).filter(r => r.status !== 'closed');
+        if (items.length === 0) {
+            el.innerHTML = '<div class="p-8 text-center text-slate-400">담당 케이스가 없습니다.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="p-4"><table class="w-full text-sm table-zebra"><thead><tr class="text-left text-xs text-slate-500 border-b"><th class="pb-2">서비스명</th><th class="pb-2">신청자</th><th class="pb-2">연락처</th><th class="pb-2">접수일</th><th class="pb-2">상태</th><th class="pb-2"></th></tr></thead><tbody>' +
+            items.map(r => `<tr>
+                <td class="py-2 font-medium">${escapeHtml(r.serviceName || '')}</td>
+                <td class="py-2">${escapeHtml(r.userName || '')}</td>
+                <td class="py-2">${escapeHtml(r.userPhone || '')}</td>
+                <td class="py-2 text-xs text-slate-500">${safeDateStr(r.createdAtISO || r.createdAt)}</td>
+                <td class="py-2">${statusBadge(r.status)}</td>
+                <td class="py-2"><a href="/case/${r.id}" target="_blank" class="text-xs text-blue-600 hover:underline">처리하기</a></td>
+            </tr>`).join('') +
+            '</tbody></table></div>';
+    }
+
+    // ── 담당자: 처리 완료 이력 ──
+    async function loadCompletedCases() {
+        const data = await api('/api/staff/cases');
+        const el = document.getElementById('panel-completed');
+        const items = (data.items || []).filter(r => r.status === 'closed');
+        if (items.length === 0) {
+            el.innerHTML = '<div class="p-8 text-center text-slate-400">처리 완료된 케이스가 없습니다.</div>';
+            return;
+        }
+        el.innerHTML = '<div class="p-4"><table class="w-full text-sm table-zebra"><thead><tr class="text-left text-xs text-slate-500 border-b"><th class="pb-2">서비스명</th><th class="pb-2">신청자</th><th class="pb-2">접수일</th><th class="pb-2">상태</th></tr></thead><tbody>' +
+            items.map(r => `<tr>
+                <td class="py-2">${escapeHtml(r.serviceName || '')}</td>
+                <td class="py-2">${escapeHtml(r.userName || '')}</td>
+                <td class="py-2 text-xs text-slate-500">${safeDateStr(r.createdAtISO || r.createdAt)}</td>
+                <td class="py-2">${statusBadge(r.status)}</td>
+            </tr>`).join('') +
+            '</tbody></table></div>';
+    }
+
+    // ── 부서장 승인/반려/수정요청 액션 ──
+    async function deptApproveLinkage(linkageId) {
+        if (!confirm('이 연계 요청을 승인하시겠습니까?')) return;
+        try {
+            const res = await fetch('/api/dept/linkage/' + linkageId + '/approve', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment:''}) });
+            const data = await res.json();
+            if (data.error) return alert(data.error);
+            alert('승인 완료');
+            loadApprovals();
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    async function deptRejectLinkage(linkageId) {
+        const reason = prompt('반려 사유를 입력하세요:');
+        if (!reason) return;
+        try {
+            const res = await fetch('/api/dept/linkage/' + linkageId + '/reject', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment: reason}) });
+            const data = await res.json();
+            if (data.error) return alert(data.error);
+            alert('반려 완료');
+            loadApprovals();
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    async function deptRevisionLinkage(linkageId) {
+        const reason = prompt('수정 요청 사유를 입력하세요:');
+        if (!reason) return;
+        try {
+            const res = await fetch('/api/dept/linkage/' + linkageId + '/revision', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment: reason}) });
+            const data = await res.json();
+            if (data.error) return alert(data.error);
+            alert('수정 요청 완료');
+            loadApprovals();
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    // ── 대상부서 수락/반려 액션 ──
+    async function targetAcceptLinkage(linkageId) {
+        if (!confirm('이 요청을 수락하시겠습니까?')) return;
+        try {
+            const res = await fetch('/api/target-dept/linkage/' + linkageId + '/accept', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment:''}) });
+            const data = await res.json();
+            if (data.error) return alert(data.error);
+            alert('수락 완료');
+            loadIncoming();
+        } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    async function targetRejectLinkage(linkageId) {
+        const reason = prompt('반려 사유를 입력하세요:');
+        if (!reason) return;
+        try {
+            const res = await fetch('/api/target-dept/linkage/' + linkageId + '/reject', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment: reason}) });
+            const data = await res.json();
+            if (data.error) return alert(data.error);
+            alert('반려 완료');
+            loadIncoming();
+        } catch(e) { alert('오류: ' + e.message); }
     }
 
     // ── Init: 인증 상태 확인 (통합 인증) ──
@@ -4881,6 +5182,7 @@
                 sessionRole = data.role || 'admin';
                 sessionDeptId = data.deptId || null;
                 sessionDeptName = data.deptName || null;
+                sessionServiceName = data.serviceName || null;
                 document.getElementById('login-gate').classList.add('hidden');
                 document.getElementById('main-content').classList.remove('hidden');
                 initApp();
