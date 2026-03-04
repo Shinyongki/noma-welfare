@@ -223,6 +223,7 @@ export const DEPARTMENTS = [
     { id: 'facility', name: '시설운영팀', icon: 'account_balance', desc: '국공립시설 운영' },
     { id: 'casemanage', name: '사례관리팀', icon: 'folder_shared', desc: '통합 사례관리' },
     { id: 'private', name: '민간협력팀', icon: 'handshake', desc: '민간기관 지원·협력' },
+    { id: 'research', name: '정책연구팀', icon: 'analytics', desc: '정책연구 및 데이터 분석' },
 ];
 
 /** 협업 요청 추가 */
