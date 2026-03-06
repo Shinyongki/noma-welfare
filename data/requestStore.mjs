@@ -130,27 +130,35 @@ function readAll() {
     return {};
 }
 
+// ── 쓰기 직렬화 큐 (동시 요청 시 데이터 유실 방지) ──
+let _writeQueue = Promise.resolve();
+
 function writeAll(data) {
-    const dataForDisk = encryptStoreForWrite(data);
-    const json = JSON.stringify(dataForDisk, null, 2);
-    // 1. 기존 파일을 백업
-    if (fs.existsSync(DATA_FILE)) {
-        try { fs.copyFileSync(DATA_FILE, BACKUP_FILE); } catch {}
-    }
-    // 2. 임시 파일에 쓰기 → rename (원자적 쓰기)
-    const tmpFile = DATA_FILE + '.tmp';
-    fs.writeFileSync(tmpFile, json, 'utf-8');
-    fs.renameSync(tmpFile, DATA_FILE);
-    // 3. 캐시 갱신
-    _cache = data;
-    try { _cacheMtime = fs.statSync(DATA_FILE).mtimeMs; } catch { _cacheMtime = Date.now(); }
+    _writeQueue = _writeQueue.then(() => {
+        const dataForDisk = encryptStoreForWrite(data);
+        const json = JSON.stringify(dataForDisk, null, 2);
+        // 1. 기존 파일을 백업
+        if (fs.existsSync(DATA_FILE)) {
+            try { fs.copyFileSync(DATA_FILE, BACKUP_FILE); } catch {}
+        }
+        // 2. 임시 파일에 쓰기 → rename (원자적 쓰기)
+        const tmpFile = DATA_FILE + '.tmp';
+        fs.writeFileSync(tmpFile, json, 'utf-8');
+        fs.renameSync(tmpFile, DATA_FILE);
+        // 3. 캐시 갱신
+        _cache = data;
+        try { _cacheMtime = fs.statSync(DATA_FILE).mtimeMs; } catch { _cacheMtime = Date.now(); }
+    }).catch(err => {
+        console.error('[requestStore] 쓰기 큐 처리 오류:', err);
+    });
+    return _writeQueue;
 }
 
 /** 새 요청 저장 */
-export function save(request) {
+export async function save(request) {
     const store = readAll();
     store[request.id] = request;
-    writeAll(store);
+    await writeAll(store);
     return request;
 }
 
@@ -160,13 +168,13 @@ export function findById(id) {
 }
 
 /** 연계 기록 추가 */
-export function addReferral(id, referral) {
+export async function addReferral(id, referral) {
     const store = readAll();
     const req = store[id];
     if (!req) return null;
     if (!req.referrals) req.referrals = [];
     req.referrals.push(referral);
-    writeAll(store);
+    await writeAll(store);
     return req;
 }
 
@@ -195,24 +203,24 @@ export function listAll() {
 }
 
 /** 상태 변경 */
-export function updateStatus(id, status) {
+export async function updateStatus(id, status) {
     const store = readAll();
     const req = store[id];
     if (!req) return null;
     req.status = status;
     req.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return req;
 }
 
 /** 담당자 메모 추가 */
-export function addNote(id, note, author = '관리자') {
+export async function addNote(id, note, author = '관리자') {
     const store = readAll();
     const req = store[id];
     if (!req) return null;
     if (!req.notes) req.notes = [];
     req.notes.push({ text: note, author, createdAt: new Date().toISOString() });
-    writeAll(store);
+    await writeAll(store);
     return req;
 }
 
@@ -225,7 +233,7 @@ export const DEPARTMENTS = [
 ];
 
 /** 협업 요청 추가 */
-export function addCollaboration(requestId, { fromDept, toDept, reason, type }) {
+export async function addCollaboration(requestId, { fromDept, toDept, reason, type }) {
     const store = readAll();
     const req = store[requestId];
     if (!req) return null;
@@ -242,12 +250,12 @@ export function addCollaboration(requestId, { fromDept, toDept, reason, type }) 
         notes: [],
     };
     req.collaborations.push(collab);
-    writeAll(store);
+    await writeAll(store);
     return collab;
 }
 
 /** 협업 상태 변경 */
-export function updateCollaboration(requestId, collabId, { status }) {
+export async function updateCollaboration(requestId, collabId, { status }) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.collaborations) return null;
@@ -255,12 +263,12 @@ export function updateCollaboration(requestId, collabId, { status }) {
     if (!collab) return null;
     collab.status = status;
     collab.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return collab;
 }
 
 /** 협업 메모 추가 */
-export function addCollaborationNote(requestId, collabId, text, author, dept) {
+export async function addCollaborationNote(requestId, collabId, text, author, dept) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.collaborations) return null;
@@ -268,7 +276,7 @@ export function addCollaborationNote(requestId, collabId, text, author, dept) {
     if (!collab) return null;
     collab.notes.push({ text, author, dept, createdAt: new Date().toISOString() });
     collab.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return collab;
 }
 
@@ -295,7 +303,7 @@ export function getActiveCollaborations() {
 // ── 통합 연계(Linkage) 시스템 ──
 
 /** 통합 연계 요청 생성 (승인 대기 상태) */
-export function addLinkage(requestId, data) {
+export async function addLinkage(requestId, data) {
     const store = readAll();
     const req = store[requestId];
     if (!req) return null;
@@ -321,14 +329,14 @@ export function addLinkage(requestId, data) {
         notes: [],
     };
     req.linkages.push(linkage);
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
 // ── 1단계: 부서 조정자 승인/반려/수정요청 (pending → dept_approved / rejected / revision_requested) ──
 
 /** 부서 조정자 승인 (pending → dept_approved, consultation/referral은 바로 approved) */
-export function deptApproveLinkage(requestId, linkageId, comment) {
+export async function deptApproveLinkage(requestId, linkageId, comment) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return null;
@@ -348,12 +356,12 @@ export function deptApproveLinkage(requestId, linkageId, comment) {
         });
     }
     linkage.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
 /** 부서 조정자 반려 (pending → rejected) */
-export function deptRejectLinkage(requestId, linkageId, comment) {
+export async function deptRejectLinkage(requestId, linkageId, comment) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return null;
@@ -364,12 +372,12 @@ export function deptRejectLinkage(requestId, linkageId, comment) {
         action: 'rejected', by: '부서 조정자', comment: comment || '', at: new Date().toISOString(),
     });
     linkage.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
 /** 부서 조정자 수정 요청 (pending → revision_requested) */
-export function deptRequestRevision(requestId, linkageId, comment) {
+export async function deptRequestRevision(requestId, linkageId, comment) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return null;
@@ -380,14 +388,14 @@ export function deptRequestRevision(requestId, linkageId, comment) {
         action: 'revision_requested', by: '부서 조정자', comment: comment || '', at: new Date().toISOString(),
     });
     linkage.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
 // ── 2단계: 관리자 조정자 최종 승인/반려/수정요청 (dept_approved → approved / rejected / revision_requested) ──
 
 /** 관리자 최종 승인 (dept_approved → approved) */
-export function approveLinkage(requestId, linkageId, comment) {
+export async function approveLinkage(requestId, linkageId, comment) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return null;
@@ -398,12 +406,12 @@ export function approveLinkage(requestId, linkageId, comment) {
         action: 'approved', by: '관리자', comment: comment || '', at: new Date().toISOString(),
     });
     linkage.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
 /** 관리자 반려 (dept_approved → rejected) */
-export function rejectLinkage(requestId, linkageId, comment) {
+export async function rejectLinkage(requestId, linkageId, comment) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return null;
@@ -414,12 +422,12 @@ export function rejectLinkage(requestId, linkageId, comment) {
         action: 'rejected', by: '관리자', comment: comment || '', at: new Date().toISOString(),
     });
     linkage.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
 /** 관리자 수정 요청 (dept_approved → revision_requested) */
-export function requestRevision(requestId, linkageId, comment) {
+export async function requestRevision(requestId, linkageId, comment) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return null;
@@ -430,14 +438,14 @@ export function requestRevision(requestId, linkageId, comment) {
         action: 'revision_requested', by: '관리자', comment: comment || '', at: new Date().toISOString(),
     });
     linkage.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
 // ── 대상부서 수락/반려/수정요청 ──
 
 /** 대상부서 수락 (dept_approved → approved) */
-export function targetDeptAcceptLinkage(requestId, linkageId, comment, deptName) {
+export async function targetDeptAcceptLinkage(requestId, linkageId, comment, deptName) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return null;
@@ -448,12 +456,12 @@ export function targetDeptAcceptLinkage(requestId, linkageId, comment, deptName)
         action: 'approved', by: deptName || '대상부서', comment: comment || '', at: new Date().toISOString(),
     });
     linkage.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
 /** 대상부서 반려 (dept_approved → rejected) */
-export function targetDeptRejectLinkage(requestId, linkageId, comment, deptName) {
+export async function targetDeptRejectLinkage(requestId, linkageId, comment, deptName) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return null;
@@ -464,12 +472,12 @@ export function targetDeptRejectLinkage(requestId, linkageId, comment, deptName)
         action: 'rejected', by: deptName || '대상부서', comment: comment || '', at: new Date().toISOString(),
     });
     linkage.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
 /** 대상부서 수정요청 (dept_approved → revision_requested) */
-export function targetDeptRequestRevision(requestId, linkageId, comment, deptName) {
+export async function targetDeptRequestRevision(requestId, linkageId, comment, deptName) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return null;
@@ -480,7 +488,7 @@ export function targetDeptRequestRevision(requestId, linkageId, comment, deptNam
         action: 'revision_requested', by: deptName || '대상부서', comment: comment || '', at: new Date().toISOString(),
     });
     linkage.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
@@ -501,7 +509,7 @@ const APPROVAL_TRANSITIONS = {
 };
 
 /** 연계 상태 변경 (실행 상태 등) */
-export function updateLinkage(requestId, linkageId, updates) {
+export async function updateLinkage(requestId, linkageId, updates) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return null;
@@ -526,12 +534,12 @@ export function updateLinkage(requestId, linkageId, updates) {
     if (updates.type !== undefined) linkage.type = updates.type;
     if (updates.followupLinkageId !== undefined) linkage.followupLinkageId = updates.followupLinkageId;
     linkage.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
 /** 연계 메모 추가 */
-export function addLinkageNote(requestId, linkageId, text, author, dept) {
+export async function addLinkageNote(requestId, linkageId, text, author, dept) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return null;
@@ -539,7 +547,7 @@ export function addLinkageNote(requestId, linkageId, text, author, dept) {
     if (!linkage) return null;
     linkage.notes.push({ text, author, dept, createdAt: new Date().toISOString() });
     linkage.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return linkage;
 }
 
@@ -603,7 +611,7 @@ export function getPendingApprovals() {
 }
 
 /** 케이스 완료(closed) → 승인된 연계의 executionStatus를 completed로 일괄 변경 */
-export function completeApprovedLinkages(requestId) {
+export async function completeApprovedLinkages(requestId) {
     const store = readAll();
     const req = store[requestId];
     if (!req || !req.linkages) return 0;
@@ -617,13 +625,13 @@ export function completeApprovedLinkages(requestId) {
     }
     if (changed > 0) {
         req.updatedAt = new Date().toISOString();
-        writeAll(store);
+        await writeAll(store);
     }
     return changed;
 }
 
 /** 연계 최종 승인 → 케이스 상태를 connected로 자동 변경 (이미 connected/closed/referred면 무시) */
-export function autoConnectOnApproval(requestId) {
+export async function autoConnectOnApproval(requestId) {
     const store = readAll();
     const req = store[requestId];
     if (!req) return false;
@@ -631,12 +639,12 @@ export function autoConnectOnApproval(requestId) {
     if (skip.includes(req.status)) return false;
     req.status = 'connected';
     req.updatedAt = new Date().toISOString();
-    writeAll(store);
+    await writeAll(store);
     return true;
 }
 
 /** 서비스 계획 저장 */
-export function setServicePlan(requestId, plan) {
+export async function setServicePlan(requestId, plan) {
     const store = readAll();
     const req = store[requestId];
     if (!req) return null;
@@ -645,12 +653,12 @@ export function setServicePlan(requestId, plan) {
         steps: plan.steps || [],
         createdAt: plan.createdAt || new Date().toISOString(),
     };
-    writeAll(store);
+    await writeAll(store);
     return req.servicePlan;
 }
 
 /** 기존 데이터 마이그레이션 (collaborations + referrals → linkages) */
-export function migrateToLinkages() {
+export async function migrateToLinkages() {
     const store = readAll();
     let migrated = 0;
 
@@ -721,7 +729,7 @@ export function migrateToLinkages() {
     }
 
     if (migrated > 0) {
-        writeAll(store);
+        await writeAll(store);
     }
     return migrated;
 }

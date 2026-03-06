@@ -117,6 +117,15 @@
             border: 1px solid #E2E8F0; padding: 0.75rem;
             cursor: pointer; transition: all 0.2s;
             font-size: 0.8125rem;
+            min-height: 5.5rem;
+        }
+        .kanban-card .card-direction {
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            overflow: hidden; line-height: 1.4;
+        }
+        .kanban-card .card-reason-preview {
+            font-size: 11px; color: #94A3B8; font-style: italic;
+            margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .kanban-card:hover {
             border-color: #CBD5E1;
@@ -172,6 +181,7 @@
         }
         .kanban-modal-col {
             overflow-y: auto; padding: 1.25rem;
+            position: relative;
         }
         .kanban-modal-col-left {
             border-right: 1px solid #E2E8F0;
@@ -1180,6 +1190,7 @@
                     <div class="flex-1 min-w-[180px]">
                         <input id="collab-search" type="text" placeholder="이름, 서비스, 부서 검색..." oninput="debounceCollabSearch()" class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary" />
                     </div>
+                    <span id="collab-my-count" class="text-xs font-semibold text-slate-400"></span>
                     <span id="collab-total-count" class="text-xs text-slate-400">-</span>
                     <div class="flex gap-1 ml-auto">
                         <button id="view-kanban-btn" class="view-toggle-btn active" onclick="switchCollabView('kanban')" title="칸반 뷰">
@@ -1445,6 +1456,16 @@
     function isSourceDept(linkage) { return (sessionRole === 'dept' || sessionRole === 'staff') && linkage && linkage.fromDept === sessionDeptId; }
     function isTargetDept(linkage) { return (sessionRole === 'dept' || sessionRole === 'staff') && linkage && linkage.toDept === sessionDeptId; }
 
+    // ── Toast notification ──
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 z-[100] px-5 py-3 rounded-lg text-white text-sm font-medium shadow-lg transition-all ${type === 'success' ? 'bg-green-600' : type === 'warning' ? 'bg-orange-500' : 'bg-red-500'}`;
+        toast.style.cssText = 'animation: fade-in 0.2s ease-out both';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+    }
+
     // ── Collab Detail View State ──
     let collabDetailActive = false;
     let collabDetailLinkageId = null;
@@ -1706,7 +1727,7 @@
                     ${directionHtml}
                     <span class="text-xs text-slate-400 ml-1">(${typeName})</span>
                 </div>
-                <p class="text-xs text-slate-500 truncate mt-0.5">${c.userName || '-'} · ${c.serviceName || '-'} · ${c.reason || ''}</p>
+                <p class="text-xs text-slate-500 truncate mt-0.5">${escapeHtml(c.userName || '-')} · ${escapeHtml(c.serviceName || '-')} · ${escapeHtml(c.reason || '')}</p>
             </div>
             <div class="text-xs text-slate-400 flex-shrink-0">${safeDateStr(c.createdAtISO || c.createdAt)}</div>
         </div>`;
@@ -1783,7 +1804,7 @@
             </div>
             ${renderApprovalStepper(c.approvalStatus)}
             <div class="text-sm mb-1">${directionHtml}</div>
-            <p class="text-xs text-slate-600 mb-1">${c.userName || '-'} · ${c.serviceName || '-'}</p>
+            <p class="text-xs text-slate-600 mb-1">${escapeHtml(c.userName || '-')} · ${escapeHtml(c.serviceName || '-')}</p>
             <p class="text-sm text-slate-700 mb-3">${escapeHtml(c.reason || '')}</p>
             <div class="flex gap-2 items-center">
                 <button onclick="approveLinkage('${c.id}',event)" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1">
@@ -2040,14 +2061,13 @@
 
         let directionHtml = '';
         if (c.category === 'referral' && c.targetService) {
-            directionHtml = `<span class="font-semibold text-blue-700 text-xs truncate">${escapeHtml(c.targetService)}</span>`;
+            directionHtml = `<span class="font-semibold text-blue-700 text-xs">${escapeHtml(c.targetService)}</span>`;
         } else if (c.fromDept && c.toDept) {
             directionHtml = `<span class="font-semibold text-indigo-700 text-xs">${getDeptName(c.fromDept)}</span>
                 <span class="material-symbols-outlined text-slate-400" aria-hidden="true" style="font-size:12px">arrow_forward</span>
                 <span class="font-semibold text-green-700 text-xs">${getDeptName(c.toDept)}</span>`;
         }
 
-        const dateStr = safeDateStr(c.createdAtISO || c.createdAt);
         const isBulkSelected = bulkSelected.has(c.id);
 
         // Elapsed time
@@ -2077,11 +2097,13 @@
             }
         }
 
-        // AI summary preview (from cache only, no extra API call)
-        const cached = expandedCardData[c.id];
-        let aiPreview = '';
-        if (cached && cached.conversationSummary) {
-            aiPreview = cached.conversationSummary.slice(0, 30) + (cached.conversationSummary.length > 30 ? '...' : '');
+        // Category label
+        const catLabel = c.category === 'referral' ? '서비스연계' : '부서협업';
+
+        // Reason preview (first 40 chars)
+        let reasonPreview = '';
+        if (c.reason) {
+            reasonPreview = c.reason.length > 40 ? c.reason.slice(0, 40) + '...' : c.reason;
         }
 
         return `
@@ -2090,11 +2112,17 @@
                 <div class="flex items-center gap-1.5">
                     <input type="checkbox" class="bulk-checkbox rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 flex-shrink-0" ${isBulkSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleBulkSelect('${c.id}', this.checked)" />
                     <span class="badge ${approvalSt.bg} ${approvalSt.text}" style="font-size:10px;padding:1px 6px">${approvalSt.label}</span>
-                    <span class="flex-1 min-w-0 flex items-center gap-1 truncate">${directionHtml || `<span class="text-xs text-slate-500 truncate">${escapeHtml(c.userName || '-')}</span>`}</span>
+                    <span class="flex-1"></span>
                     <span class="card-elapsed ${elapsedClass}">${elapsedText}</span>
                 </div>
+                ${directionHtml ? `<div class="card-direction flex items-center gap-1 mt-1">${directionHtml}</div>` : ''}
+                <div class="flex items-center gap-1 mt-1 text-xs text-slate-500">
+                    <span>${escapeHtml(c.userName || '-')}</span>
+                    <span class="text-slate-300">&middot;</span>
+                    <span>${catLabel}</span>
+                </div>
+                ${reasonPreview ? `<div class="card-reason-preview" title="${escapeHtml(c.reason)}">"${escapeHtml(reasonPreview)}"</div>` : ''}
                 ${actionLabel ? `<div class="card-action-label"><span class="material-symbols-outlined" style="font-size:12px" aria-hidden="true">arrow_forward</span>${actionLabel}</div>` : ''}
-                ${aiPreview ? `<div class="card-ai-preview" title="${escapeHtml(cached.conversationSummary)}"><span class="material-symbols-outlined" style="font-size:11px;vertical-align:middle" aria-hidden="true">smart_toy</span> ${escapeHtml(aiPreview)}</div>` : ''}
             </div>
         </div>`;
     }
@@ -2103,7 +2131,10 @@
         const el = document.getElementById(bodyId);
         if (!el) return;
         if (items.length === 0) {
-            el.innerHTML = '<p class="text-slate-400 text-xs text-center py-6">항목 없음</p>';
+            el.innerHTML = `<div class="text-center py-8 text-slate-400">
+                <span class="material-symbols-outlined" style="font-size:2rem">check_circle</span>
+                <p class="mt-2 text-sm">검토할 항목이 없습니다</p>
+            </div>`;
             return;
         }
         el.innerHTML = items.map(c => renderKanbanCard(c, isActionable)).join('');
@@ -2505,7 +2536,7 @@
             const targetIdx = STEPS.indexOf(status);
             if (targetIdx > maxIdx) {
                 const approvalLabel = collab.approvalStatus === 'dept_approved' ? '부서 승인' : '최종 승인';
-                alert(`${approvalLabel} 완료 후 "${STATUS_MAP[status]?.label || status}" 단계로 변경할 수 있습니다.`);
+                showToast(`${approvalLabel} 완료 후 "${STATUS_MAP[status]?.label || status}" 단계로 변경할 수 있습니다.`, 'warning');
                 return;
             }
         }
@@ -2521,7 +2552,7 @@
             if (linkageId) expandedCardData[linkageId] = data;
             renderDetailColumns();
         } catch (e) {
-            alert('상태 변경 실패');
+            showToast('상태 변경 실패', 'error');
         }
     }
 
@@ -2540,7 +2571,7 @@
             if (linkageId) expandedCardData[linkageId] = data;
             renderDetailColumns();
         } catch (e) {
-            alert('메모 추가 실패');
+            showToast('메모 추가 실패', 'error');
         }
     }
 
@@ -2562,7 +2593,7 @@
             if (linkageId) expandedCardData[linkageId] = updated;
             renderDetailColumns();
         } catch (e) {
-            alert('서비스 계획 저장 실패');
+            showToast('서비스 계획 저장 실패', 'error');
         }
     }
 
@@ -3033,16 +3064,16 @@
         // Validation
         const rejectTypes = ['reject', 'dept_reject', 'target_reject', 'target_revision'];
         if (rejectTypes.includes(detailActionType) && !comment) {
-            alert('사유를 입력하세요.'); return;
+            showToast('사유를 입력하세요.', 'error'); return;
         }
         if (detailActionType === 'dept_revision' && !comment) {
-            alert('수정요청 사항을 입력하세요.'); return;
+            showToast('수정요청 사항을 입력하세요.', 'error'); return;
         }
         if ((detailActionType === 'redirect' || detailActionType === 'add_dept') && !selectedDept) {
-            alert('대상 부서를 선택하세요.'); return;
+            showToast('대상 부서를 선택하세요.', 'error'); return;
         }
         if ((detailActionType === 'redirect' || detailActionType === 'add_dept') && !comment) {
-            alert('사유를 입력하세요.'); return;
+            showToast('사유를 입력하세요.', 'error'); return;
         }
 
         // Build request — 액션별 API 엔드포인트 매핑
@@ -3081,7 +3112,7 @@
             hideCollabDetail();
             loadCollabPanel();
         } catch (e) {
-            alert(e.message || '처리 실패');
+            showToast(e.message || '처리 실패', 'error');
         }
     }
 
@@ -3104,10 +3135,10 @@
                 <span class="font-semibold text-green-700">${getDeptName(collab.toDept)}</span>`;
         }
 
-        // ── LEFT COLUMN: 연계 조정 ──
+        // ── LEFT COLUMN: 판단 근거 ──
         let leftHtml = '';
 
-        // Category / Type / Direction info
+        // ① 요청 요약 (유형/방향/대상자/사유)
         leftHtml += `<div class="mb-4 pb-4 border-b border-slate-100">
             <div class="flex items-center gap-2 mb-2">
                 <span class="badge bg-indigo-50 text-indigo-600" style="font-size:11px">${catLabel}</span>
@@ -3116,18 +3147,90 @@
             </div>
             ${directionHtml ? `<div class="flex items-center gap-1.5 text-sm mb-2">${directionHtml}</div>` : ''}
             <p class="text-sm text-slate-600">${escapeHtml(collab.userName || '-')} · ${escapeHtml(collab.serviceName || '-')}</p>
-            ${collab.reason ? `<p class="text-sm text-slate-500 mt-1">${escapeHtml(collab.reason)}</p>` : ''}
+            ${collab.reason ? `<p class="text-sm text-slate-700 mt-2 whitespace-pre-line">${escapeHtml(collab.reason)}</p>` : ''}
         </div>`;
 
-        // Approval stepper (3-step progress)
-        leftHtml += `<div class="mb-4">
-            <h5 class="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
-                <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">verified</span>승인 단계
-            </h5>
-            ${renderApprovalStepper(collab.approvalStatus)}
-        </div>`;
+        // ② AI 상담 요약 (판단 근거 바로 아래)
+        if (ed && !ed.error && ed.conversationSummary) {
+            leftHtml += `<div class="mb-4 p-3 bg-purple-50 border border-purple-100 rounded-xl">
+                <h5 class="text-xs font-bold text-purple-700 mb-2 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sm" aria-hidden="true">smart_toy</span>AI 상담 요약
+                </h5>
+                <p class="text-sm text-slate-700 whitespace-pre-line leading-relaxed">${escapeHtml(ed.conversationSummary)}</p>
+            </div>`;
+        }
 
-        // Approval timeline
+        // ③ 케이스 현황
+        if (ed && !ed.error) {
+            leftHtml += `<div class="mb-4 pb-4 border-b border-slate-100">
+                <h5 class="text-xs font-bold text-slate-500 mb-3 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sm text-green-600" aria-hidden="true">person</span>대상자 · 케이스
+                </h5>
+                <div class="bg-slate-50 rounded-xl p-3 space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-slate-400">이름</span><span class="font-semibold text-slate-800">${escapeHtml(ed.userName || '-')}</span></div>
+                    <div class="border-t border-slate-100"></div>
+                    <div class="flex justify-between"><span class="text-slate-400">전화번호</span><span class="font-semibold text-slate-800">${escapeHtml(ed.userPhone || '-')}</span></div>
+                    <div class="border-t border-slate-100"></div>
+                    <div class="flex justify-between"><span class="text-slate-400">서비스명</span><span class="font-semibold text-slate-800">${escapeHtml(ed.serviceName || '-')}</span></div>
+                    <div class="border-t border-slate-100"></div>
+                    <div class="flex justify-between"><span class="text-slate-400">접수일</span><span class="text-slate-700">${ed.createdAt || '-'}</span></div>
+                </div>
+            </div>`;
+
+            // Case status stepper (read-only)
+            leftHtml += renderCaseStatusStepper(ed);
+
+            // 처리 메모 (최근 2개 + 전체 보기)
+            const caseNotes = ed.notes || [];
+            const recentNotes = caseNotes.slice(-2);
+            leftHtml += `<div class="mb-4">
+                <h5 class="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-sm text-amber-500" aria-hidden="true">sticky_note_2</span>처리 메모 (${caseNotes.length})
+                </h5>
+                <div class="space-y-1.5 mb-2">
+                    ${recentNotes.length > 0 ? recentNotes.map(n => {
+                        const author = n.author || '관리자';
+                        const authorBadge = author === '담당자'
+                            ? '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700">담당자</span>'
+                            : '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700">관리자</span>';
+                        return `<div class="p-2.5 bg-amber-50 rounded-lg text-sm">
+                            <div class="flex items-center gap-1.5 mb-0.5">${authorBadge}<span class="text-[10px] text-slate-400">${safeDateStr(n.createdAt)}</span></div>
+                            <p class="text-slate-700 text-[13px]">${escapeHtml(n.text)}</p>
+                        </div>`;
+                    }).join('') : '<p class="text-sm text-slate-400 py-2">메모 없음</p>'}
+                </div>
+                ${caseNotes.length > 2 ? `<button onclick="document.getElementById('km-all-notes').style.display=document.getElementById('km-all-notes').style.display==='none'?'':'none'" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold mb-2">전체 ${caseNotes.length}개 보기</button>
+                <div id="km-all-notes" class="space-y-1.5 mb-2 max-h-[200px] overflow-y-auto" style="display:none">
+                    ${caseNotes.map(n => {
+                        const author = n.author || '관리자';
+                        const authorBadge = author === '담당자'
+                            ? '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700">담당자</span>'
+                            : '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700">관리자</span>';
+                        return `<div class="p-2.5 bg-amber-50 rounded-lg text-sm">
+                            <div class="flex items-center gap-1.5 mb-0.5">${authorBadge}<span class="text-[10px] text-slate-400">${safeDateStr(n.createdAt)}</span></div>
+                            <p class="text-slate-700 text-[13px]">${escapeHtml(n.text)}</p>
+                        </div>`;
+                    }).join('')}
+                </div>` : ''}
+            </div>`;
+
+            // Linkage history
+            const linkages = ed.linkages || [];
+            if (linkages.length > 0) {
+                leftHtml += `<div class="mb-4">
+                    <h5 class="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-sm text-indigo-500" aria-hidden="true">hub</span>연계 이력 (${linkages.length})
+                    </h5>
+                    <div class="space-y-3">${linkages.map(l => renderCasePanelLinkage(l)).join('')}</div>
+                </div>`;
+            }
+        } else if (!ed) {
+            leftHtml += '<p class="text-sm text-slate-400 text-center py-8">로딩 중...</p>';
+        } else if (ed.error) {
+            leftHtml += '<p class="text-sm text-red-400 text-center py-8">데이터를 불러올 수 없습니다.</p>';
+        }
+
+        // ④ 승인 이력 타임라인 (좌측 하단)
         if (collab.approvalHistory && collab.approvalHistory.length > 0) {
             leftHtml += `<div class="mb-4">
                 <h5 class="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
@@ -3137,70 +3240,102 @@
             </div>`;
         }
 
-        // ── 1) 소속부서 검토 (pending 상태 → 소속부서 또는 관리자가 승인/반려/수정요청) ──
+        // ── RIGHT COLUMN: 지금 할 일 (sticky) ──
+        let rightHtml = '';
+
+        // "지금 할 일" 안내 문구
+        const statusGuideMap = {
+            pending: '소속부서 검토가 필요합니다',
+            dept_approved: '대상부서 수락 검토가 필요합니다',
+            target_rejected: '재제출 또는 반려 처리가 필요합니다',
+            target_revision_requested: '재제출 또는 반려 처리가 필요합니다',
+        };
+        const guideText = statusGuideMap[collab.approvalStatus] || '';
+        const approvalSt = APPROVAL_STATUS_MAP[collab.approvalStatus] || APPROVAL_STATUS_MAP.pending;
+
+        rightHtml += `<div style="position:sticky;top:1rem">`;
+
+        // 현재 상태 + 안내
+        rightHtml += `<div class="mb-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="badge ${approvalSt.bg} ${approvalSt.text}" style="font-size:11px">${approvalSt.label}</span>
+            </div>
+            ${guideText ? `<p class="text-sm font-semibold text-slate-700">${guideText}</p>` : '<p class="text-xs text-slate-400">추가 작업이 필요하지 않습니다</p>'}
+        </div>`;
+
+        // 승인 단계 스테퍼
+        rightHtml += `<div class="mb-4">
+            <h5 class="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
+                <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">verified</span>승인 단계
+            </h5>
+            ${renderApprovalStepper(collab.approvalStatus)}
+        </div>`;
+
+        // ── 액션 패널들 (기존 로직 동일, 버튼 크기만 확대) ──
+
+        // 1) 소속부서 검토
         const canReviewAsDept = collab.approvalStatus === 'pending'
             && (sessionRole === 'admin' || (sessionRole === 'dept' && collab.fromDept === sessionDeptId));
         if (canReviewAsDept) {
-            leftHtml += `<div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            rightHtml += `<div class="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <h5 class="text-xs font-bold text-yellow-700 mb-2 flex items-center gap-1">
                     <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">supervisor_account</span>소속부서 검토
                 </h5>
                 <textarea id="kb-dept-comment-${collab.id}" rows="2" placeholder="코멘트 입력 (선택)..." class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 mb-3 focus:ring-primary focus:border-primary resize-none"></textarea>
                 <div class="flex gap-2 flex-wrap">
-                    <button onclick="kanbanDeptApprove('${collab.id}')" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 flex items-center gap-1.5 transition-colors">
+                    <button onclick="kanbanDeptApprove('${collab.id}')" class="py-3 px-6 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 flex items-center gap-1.5 transition-colors">
                         <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">check_circle</span>승인
                     </button>
-                    <button onclick="kanbanDeptReject('${collab.id}')" class="px-4 py-2 bg-white border border-red-300 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors">반려</button>
-                    <button onclick="kanbanDeptRevision('${collab.id}')" class="px-4 py-2 bg-white border border-orange-300 text-orange-600 rounded-lg text-sm font-semibold hover:bg-orange-50 transition-colors">수정요청</button>
+                    <button onclick="kanbanDeptReject('${collab.id}')" class="py-3 px-6 bg-white border border-red-300 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors">반려</button>
+                    <button onclick="kanbanDeptRevision('${collab.id}')" class="py-3 px-6 bg-white border border-orange-300 text-orange-600 rounded-lg text-sm font-semibold hover:bg-orange-50 transition-colors">수정요청</button>
                 </div>
             </div>`;
         }
 
-        // ── 2) 대상부서 수락/반려/수정요청 (dept_approved 상태 → 대상부서 또는 관리자가 처리) ──
+        // 2) 대상부서 수락/반려/수정요청
         const canReviewAsTarget = collab.approvalStatus === 'dept_approved'
             && (sessionRole === 'admin' || (sessionRole === 'dept' && collab.toDept === sessionDeptId));
         if (canReviewAsTarget) {
-            leftHtml += `<div class="mb-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+            rightHtml += `<div class="mb-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
                 <h5 class="text-xs font-bold text-teal-700 mb-2 flex items-center gap-1">
                     <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">domain_verification</span>대상부서 수락 검토
                 </h5>
                 <textarea id="kb-target-comment-${collab.id}" rows="2" placeholder="코멘트 입력 (선택)..." class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 mb-3 focus:ring-primary focus:border-primary resize-none"></textarea>
                 <div class="flex gap-2 flex-wrap">
-                    <button onclick="kanbanTargetAccept('${collab.id}')" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 flex items-center gap-1.5 transition-colors">
+                    <button onclick="kanbanTargetAccept('${collab.id}')" class="py-3 px-6 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 flex items-center gap-1.5 transition-colors">
                         <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">check_circle</span>수락
                     </button>
-                    <button onclick="kanbanTargetReject('${collab.id}')" class="px-4 py-2 bg-white border border-red-300 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors">반려</button>
-                    <button onclick="kanbanTargetRevision('${collab.id}')" class="px-4 py-2 bg-white border border-orange-300 text-orange-600 rounded-lg text-sm font-semibold hover:bg-orange-50 transition-colors">수정요청</button>
+                    <button onclick="kanbanTargetReject('${collab.id}')" class="py-3 px-6 bg-white border border-red-300 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors">반려</button>
+                    <button onclick="kanbanTargetRevision('${collab.id}')" class="py-3 px-6 bg-white border border-orange-300 text-orange-600 rounded-lg text-sm font-semibold hover:bg-orange-50 transition-colors">수정요청</button>
                 </div>
             </div>`;
         }
 
-        // ── 3) 대상부서 반환 → 소속부서 재제출 (target_rejected / target_revision_requested) ──
+        // 3) 대상부서 반환 → 소속부서 재제출
         const canResubmitToTarget = (collab.approvalStatus === 'target_rejected' || collab.approvalStatus === 'target_revision_requested')
             && (sessionRole === 'admin' || (sessionRole === 'dept' && collab.fromDept === sessionDeptId));
         if (canResubmitToTarget) {
             const returnLabel = collab.approvalStatus === 'target_rejected' ? '대상부서가 반려했습니다' : '대상부서가 수정을 요청했습니다';
-            leftHtml += `<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            rightHtml += `<div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <h5 class="text-xs font-bold text-red-700 mb-2 flex items-center gap-1">
                     <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">assignment_return</span>${returnLabel}
                 </h5>
                 <textarea id="kb-dept-comment-${collab.id}" rows="2" placeholder="수정사항 또는 코멘트 입력..." class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 mb-3 focus:ring-primary focus:border-primary resize-none"></textarea>
                 <div class="flex gap-2 flex-wrap">
-                    <button onclick="kanbanResubmitToTarget('${collab.id}')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-1.5 transition-colors">
+                    <button onclick="kanbanResubmitToTarget('${collab.id}')" class="py-3 px-6 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 flex items-center gap-1.5 transition-colors">
                         <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">send</span>수정 후 재제출
                     </button>
-                    <button onclick="kanbanDeptReject('${collab.id}')" class="px-4 py-2 bg-white border border-red-300 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors">반려</button>
+                    <button onclick="kanbanDeptReject('${collab.id}')" class="py-3 px-6 bg-white border border-red-300 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors">반려</button>
                 </div>
             </div>`;
         }
 
-        // ── 4) 관리자는 승인 흐름에서 제외 (모니터링 전용) ──
-        // 관리자 승인 버튼 제거됨 — 부서장과 대상부서 간 직접 승인 흐름 사용
+        // 4) 관리자는 승인 흐름에서 제외 (모니터링 전용)
 
-        // Notes in left column (linkage-specific notes)
+        // 연계 메모 + 입력
         if (ed && !ed.error) {
             const notes = collab.notes || [];
-            leftHtml += `<div class="mb-4">
+            rightHtml += `<div class="mb-4">
                 <h5 class="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
                     <span class="material-symbols-outlined" style="font-size:16px" aria-hidden="true">sticky_note_2</span>연계 메모 (${notes.length})
                 </h5>
@@ -3218,101 +3353,7 @@
             </div>`;
         }
 
-        // ── RIGHT COLUMN: 상담 처리 (케이스 상세) ──
-        let rightHtml = '';
-
-        if (!ed) {
-            rightHtml = '<p class="text-sm text-slate-400 text-center py-8">로딩 중...</p>';
-        } else if (ed.error) {
-            rightHtml = '<p class="text-sm text-red-400 text-center py-8">데이터를 불러올 수 없습니다.</p>';
-        } else {
-            // Case status stepper (read-only)
-            rightHtml += renderCaseStatusStepper(ed);
-
-            // Subject info
-            rightHtml += `<div class="mb-5">
-                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-sm text-green-600" aria-hidden="true">person</span>대상자 정보
-                </h4>
-                <div class="bg-slate-50 rounded-xl p-4 space-y-2.5 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-slate-400">이름</span>
-                        <span class="font-semibold text-slate-800">${escapeHtml(ed.userName || '-')}</span>
-                    </div>
-                    <div class="border-t border-slate-100"></div>
-                    <div class="flex justify-between">
-                        <span class="text-slate-400">전화번호</span>
-                        <span class="font-semibold text-slate-800">${escapeHtml(ed.userPhone || '-')}</span>
-                    </div>
-                    <div class="border-t border-slate-100"></div>
-                    <div class="flex justify-between">
-                        <span class="text-slate-400">서비스명</span>
-                        <span class="font-semibold text-slate-800">${escapeHtml(ed.serviceName || '-')}</span>
-                    </div>
-                    <div class="border-t border-slate-100"></div>
-                    <div class="flex justify-between">
-                        <span class="text-slate-400">접수일</span>
-                        <span class="text-slate-700">${ed.createdAt || '-'}</span>
-                    </div>
-                </div>
-            </div>`;
-
-            // AI Summary (collapsible)
-            if (ed.conversationSummary) {
-                rightHtml += `<div class="mb-5">
-                    <div class="case-collapse-toggle flex items-center justify-between p-3 bg-purple-50 border border-purple-100 rounded-xl" onclick="toggleCaseCollapse('km-ai-summary', this)">
-                        <h4 class="text-xs font-bold text-purple-700 flex items-center gap-1.5">
-                            <span class="material-symbols-outlined text-sm" aria-hidden="true">smart_toy</span>AI 상담 요약
-                        </h4>
-                        <span class="material-symbols-outlined text-purple-400 text-lg case-collapse-icon" aria-hidden="true">expand_more</span>
-                    </div>
-                    <div id="km-ai-summary" class="case-collapse-body">
-                        <div class="px-3 pt-3 pb-1">
-                            <p class="text-sm text-slate-700 whitespace-pre-line leading-relaxed">${escapeHtml(ed.conversationSummary)}</p>
-                        </div>
-                    </div>
-                </div>`;
-            }
-
-            // Notes section (request-level notes)
-            const caseNotes = ed.notes || [];
-            rightHtml += `<div class="mb-5">
-                <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                    <span class="material-symbols-outlined text-sm text-amber-500" aria-hidden="true">sticky_note_2</span>메모 (${caseNotes.length})
-                </h4>
-                <div class="space-y-2 mb-3 max-h-[200px] overflow-y-auto">
-                    ${caseNotes.length > 0 ? caseNotes.map(n => {
-                        const author = n.author || '관리자';
-                        const authorBadge = author === '담당자'
-                            ? '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700">담당자</span>'
-                            : '<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700">관리자</span>';
-                        return `<div class="p-3 bg-amber-50 rounded-lg text-sm">
-                            <div class="flex items-center gap-1.5 mb-1">${authorBadge}<span class="text-[10px] text-slate-400">${safeDateStr(n.createdAt)}</span></div>
-                            <p class="text-slate-700 text-[13px]">${escapeHtml(n.text)}</p>
-                        </div>`;
-                    }).join('') : '<p class="text-sm text-slate-400 text-center py-3">메모 없음</p>'}
-                </div>
-                <div class="flex gap-2">
-                    <input id="km-note-input" type="text" placeholder="메모 입력..." class="flex-1 rounded-lg border-slate-300 text-sm py-2 px-3 focus:ring-primary focus:border-primary" onkeydown="if(event.key==='Enter')addKanbanCaseNote('${ed.id}')" />
-                    <button onclick="addKanbanCaseNote('${ed.id}')" class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-light transition-colors flex items-center gap-1">
-                        <span class="material-symbols-outlined text-sm" aria-hidden="true">add</span>추가
-                    </button>
-                </div>
-            </div>`;
-
-            // Linkage history
-            const linkages = ed.linkages || [];
-            if (linkages.length > 0) {
-                rightHtml += `<div class="mb-5">
-                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-sm text-indigo-500" aria-hidden="true">hub</span>연계 이력 (${linkages.length})
-                    </h4>
-                    <div class="space-y-3">
-                        ${linkages.map(l => renderCasePanelLinkage(l)).join('')}
-                    </div>
-                </div>`;
-            }
-        }
+        rightHtml += `</div>`; // close sticky wrapper
 
         // Assemble 2-column layout
         body.innerHTML = `<div class="kanban-modal-2col">
@@ -3357,14 +3398,14 @@
             expandedCardData[linkageId] = data;
             renderKanbanModalContent(linkageId);
         } catch (e) {
-            alert('메모 추가 실패');
+            showToast('메모 추가 실패', 'error');
         }
     }
 
     // 관리자 승인/반려/수정요청 — 승인 흐름에서 제외됨 (레거시 호환용 no-op)
-    async function kanbanApproveFromModal(linkageId) { alert('관리자는 승인 권한이 없습니다. 부서장 승인 흐름을 이용하세요.'); }
-    async function kanbanRejectFromModal(linkageId) { alert('관리자는 반려 권한이 없습니다. 부서장 승인 흐름을 이용하세요.'); }
-    async function kanbanRevisionFromModal(linkageId) { alert('관리자는 수정요청 권한이 없습니다. 부서장 승인 흐름을 이용하세요.'); }
+    async function kanbanApproveFromModal(linkageId) { showToast('관리자는 승인 권한이 없습니다. 부서장 승인 흐름을 이용하세요.', 'warning'); }
+    async function kanbanRejectFromModal(linkageId) { showToast('관리자는 반려 권한이 없습니다. 부서장 승인 흐름을 이용하세요.', 'warning'); }
+    async function kanbanRevisionFromModal(linkageId) { showToast('관리자는 수정요청 권한이 없습니다. 부서장 승인 흐름을 이용하세요.', 'warning'); }
 
     // ── 부서 조정자 액션 (칸반 모달) ──
     async function kanbanDeptApprove(linkageId) {
@@ -3380,13 +3421,13 @@
             hideCollabDetail();
             loadCollabPanel();
         } catch (e) {
-            alert('부서 조정자 승인 실패');
+            showToast('부서 조정자 승인 실패', 'error');
         }
     }
 
     async function kanbanDeptReject(linkageId) {
         const comment = document.getElementById('kb-dept-comment-' + linkageId)?.value.trim() || '';
-        if (!comment) { alert('반려 사유를 입력하세요.'); return; }
+        if (!comment) { showToast('반려 사유를 입력하세요.', 'error'); return; }
         try {
             const resp = await fetch(`/api/dept/linkage/${linkageId}/reject`, {
                 method: 'POST',
@@ -3398,13 +3439,13 @@
             hideCollabDetail();
             loadCollabPanel();
         } catch (e) {
-            alert('부서 조정자 반려 실패');
+            showToast('부서 조정자 반려 실패', 'error');
         }
     }
 
     async function kanbanDeptRevision(linkageId) {
         const comment = document.getElementById('kb-dept-comment-' + linkageId)?.value.trim() || '';
-        if (!comment) { alert('수정 요청 사항을 입력하세요.'); return; }
+        if (!comment) { showToast('수정 요청 사항을 입력하세요.', 'error'); return; }
         try {
             const resp = await fetch(`/api/dept/linkage/${linkageId}/revision`, {
                 method: 'POST',
@@ -3416,7 +3457,7 @@
             hideCollabDetail();
             loadCollabPanel();
         } catch (e) {
-            alert('부서 조정자 수정 요청 실패');
+            showToast('부서 조정자 수정 요청 실패', 'error');
         }
     }
 
@@ -3433,7 +3474,7 @@
             hideCollabDetail();
             loadCollabPanel();
         } catch (e) {
-            alert('부서 조정자 재제출 실패');
+            showToast('부서 조정자 재제출 실패', 'error');
         }
     }
 
@@ -3451,13 +3492,13 @@
             hideCollabDetail();
             loadCollabPanel();
         } catch (e) {
-            alert('대상부서 수락 실패');
+            showToast('대상부서 수락 실패', 'error');
         }
     }
 
     async function kanbanTargetReject(linkageId) {
         const comment = document.getElementById('kb-target-comment-' + linkageId)?.value.trim() || '';
-        if (!comment) { alert('반려 사유를 입력하세요.'); return; }
+        if (!comment) { showToast('반려 사유를 입력하세요.', 'error'); return; }
         try {
             const resp = await fetch(`/api/target-dept/linkage/${linkageId}/reject`, {
                 method: 'POST',
@@ -3469,13 +3510,13 @@
             hideCollabDetail();
             loadCollabPanel();
         } catch (e) {
-            alert('대상부서 반려 실패');
+            showToast('대상부서 반려 실패', 'error');
         }
     }
 
     async function kanbanTargetRevision(linkageId) {
         const comment = document.getElementById('kb-target-comment-' + linkageId)?.value.trim() || '';
-        if (!comment) { alert('수정요청 사항을 입력하세요.'); return; }
+        if (!comment) { showToast('수정요청 사항을 입력하세요.', 'error'); return; }
         try {
             const resp = await fetch(`/api/target-dept/linkage/${linkageId}/revision`, {
                 method: 'POST',
@@ -3487,7 +3528,7 @@
             hideCollabDetail();
             loadCollabPanel();
         } catch (e) {
-            alert('대상부서 수정요청 실패');
+            showToast('대상부서 수정요청 실패', 'error');
         }
     }
 
@@ -3505,7 +3546,7 @@
             hideCollabDetail();
             loadCollabPanel();
         } catch (e) {
-            alert('대상부서 재제출 실패');
+            showToast('대상부서 재제출 실패', 'error');
         }
     }
 
@@ -3540,7 +3581,7 @@
                 <div class="timeline-dot"></div>
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-semibold text-slate-700">${actionLabel}</span>
-                    <span class="text-[10px] text-slate-600 font-medium">${h.actor || h.by || ''}</span>
+                    <span class="text-[10px] text-slate-600 font-medium">${escapeHtml(h.actor || h.by || '')}</span>
                     ${roleLabel ? `<span class="text-[9px] px-1 py-0.5 rounded bg-slate-100 text-slate-500">${roleLabel}</span>` : ''}
                     <span class="text-[10px] text-slate-400 ml-auto">${dateStr}</span>
                 </div>
@@ -3556,6 +3597,22 @@
         const cols = classifyCollabs(filtered);
 
         document.getElementById('collab-total-count').textContent = `총 ${filtered.length}건`;
+
+        // "내 처리 필요" count
+        const myCountEl = document.getElementById('collab-my-count');
+        if (myCountEl && (sessionRole === 'dept' || sessionRole === 'staff')) {
+            const myCount = filtered.filter(c =>
+                (c.approvalStatus === 'pending' && c.fromDept === sessionDeptId) ||
+                (c.approvalStatus === 'dept_approved' && c.toDept === sessionDeptId) ||
+                ((c.approvalStatus === 'target_rejected' || c.approvalStatus === 'target_revision_requested') && c.fromDept === sessionDeptId)
+            ).length;
+            myCountEl.textContent = `내 처리 필요: ${myCount}건`;
+            myCountEl.className = myCount > 0
+                ? 'text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full'
+                : 'text-xs font-semibold text-slate-400';
+        } else if (myCountEl) {
+            myCountEl.textContent = '';
+        }
 
         // Stats ribbon
         const stPending = document.getElementById('kb-st-pending');
@@ -3838,7 +3895,7 @@
             }
             loadCollabPanel();
         } catch (e) {
-            alert('상태 변경 실패');
+            showToast('상태 변경 실패', 'error');
         }
     }
 
@@ -3877,7 +3934,7 @@
 
     async function bulkChangeStatus() {
         const targetStatus = document.getElementById('bulk-status-select').value;
-        if (!targetStatus) { alert('변경할 상태를 선택하세요.'); return; }
+        if (!targetStatus) { showToast('변경할 상태를 선택하세요.', 'error'); return; }
         if (bulkSelected.size === 0) return;
 
         const ids = [...bulkSelected];
@@ -3902,7 +3959,7 @@
                 if (!resp.ok) failCount++;
             } catch { failCount++; }
         }
-        if (failCount > 0) alert(`${failCount}건 처리 실패`);
+        if (failCount > 0) showToast(`${failCount}건 처리 실패`, 'error');
         bulkSelected.clear();
         updateBulkBar();
         document.getElementById('bulk-status-select').value = '';
@@ -4005,9 +4062,9 @@
                     ${statusBadge(data.status)}
                 </div>
                 <div class="grid grid-cols-2 gap-3 text-sm">
-                    <div><span class="text-slate-400 block text-xs mb-0.5">이름</span><span class="font-medium">${data.userName || '-'}</span></div>
-                    <div><span class="text-slate-400 block text-xs mb-0.5">전화</span><span class="font-medium">${data.userPhone || '-'}</span></div>
-                    <div class="col-span-2"><span class="text-slate-400 block text-xs mb-0.5">서비스명</span><span class="font-medium">${data.serviceName || '-'}</span></div>
+                    <div><span class="text-slate-400 block text-xs mb-0.5">이름</span><span class="font-medium">${escapeHtml(data.userName || '-')}</span></div>
+                    <div><span class="text-slate-400 block text-xs mb-0.5">전화</span><span class="font-medium">${escapeHtml(data.userPhone || '-')}</span></div>
+                    <div class="col-span-2"><span class="text-slate-400 block text-xs mb-0.5">서비스명</span><span class="font-medium">${escapeHtml(data.serviceName || '-')}</span></div>
                     <div><span class="text-slate-400 block text-xs mb-0.5">접수일</span><span>${data.createdAt || '-'}</span></div>
                     <div><span class="text-slate-400 block text-xs mb-0.5">최종 수정</span><span>${data.updatedAt ? new Date(data.updatedAt).toLocaleString('ko-KR') : '-'}</span></div>
                 </div>
@@ -4032,8 +4089,8 @@
                     ${chain.map(c => `
                         <div class="flex items-center gap-2 text-sm p-2 rounded-lg ${c.current ? 'bg-primary/5 border border-primary/20' : 'bg-slate-50'}">
                             ${statusBadge(c.status)}
-                            <span class="${c.current ? 'font-semibold text-primary' : 'text-slate-600'}">${c.serviceName}</span>
-                            ${c.reason ? `<span class="text-xs text-slate-400 ml-auto">${c.reason}</span>` : ''}
+                            <span class="${c.current ? 'font-semibold text-primary' : 'text-slate-600'}">${escapeHtml(c.serviceName || '')}</span>
+                            ${c.reason ? `<span class="text-xs text-slate-400 ml-auto">${escapeHtml(c.reason)}</span>` : ''}
                         </div>
                     `).join('<div class="flex justify-center"><span class="material-symbols-outlined text-slate-300 text-sm" aria-hidden="true">arrow_downward</span></div>')}
                 </div>
@@ -4172,7 +4229,7 @@
             if (currentTab === 'requests') loadRequests();
             if (currentTab === 'dashboard') loadDashboard();
         } catch (e) {
-            alert('상태 변경 실패');
+            showToast('상태 변경 실패', 'error');
         }
     }
 
@@ -4188,7 +4245,7 @@
             });
             openDetail(id);
         } catch (e) {
-            alert('메모 추가 실패');
+            showToast('메모 추가 실패', 'error');
         }
     }
 
@@ -4204,11 +4261,11 @@
                 body: JSON.stringify({ comment }),
             });
             if (!resp.ok) { const err = await resp.json().catch(() => ({})); throw new Error(err.error || ''); }
-            alert('최종 승인 완료. 이메일이 발송되었습니다.');
+            showToast('최종 승인 완료. 이메일이 발송되었습니다.');
             if (currentTab === 'dashboard') loadDashboard();
             if (currentTab === 'collab') loadCollabPanel();
         } catch (e) {
-            alert('승인 처리 실패');
+            showToast('승인 처리 실패', 'error');
         }
     }
 
@@ -4226,7 +4283,7 @@
             if (currentTab === 'dashboard') loadDashboard();
             if (currentTab === 'collab') loadCollabPanel();
         } catch (e) {
-            alert('반려 처리 실패');
+            showToast('반려 처리 실패', 'error');
         }
     }
 
@@ -4244,7 +4301,7 @@
             if (currentTab === 'dashboard') loadDashboard();
             if (currentTab === 'collab') loadCollabPanel();
         } catch (e) {
-            alert('수정 요청 실패');
+            showToast('수정 요청 실패', 'error');
         }
     }
 
@@ -4261,7 +4318,7 @@
             input.value = '';
             openDetail(requestId);
         } catch (e) {
-            alert('메모 추가 실패');
+            showToast('메모 추가 실패', 'error');
         }
     }
 
@@ -4285,7 +4342,7 @@
             input.value = '';
             openDetail(requestId);
         } catch (e) {
-            alert('서비스 계획 저장 실패');
+            showToast('서비스 계획 저장 실패', 'error');
         }
     }
 
@@ -4796,7 +4853,7 @@
                 renderKanbanModalContent(kanbanModalLinkageId);
             }
         } catch (e) {
-            alert('메모 추가 실패');
+            showToast('메모 추가 실패', 'error');
         }
     }
 
@@ -4997,29 +5054,79 @@
         const data = await api('/api/dept/pending-approvals');
         const el = document.getElementById('panel-approvals');
         if (!data.items || data.items.length === 0) {
-            el.innerHTML = '<div class="p-8 text-center text-slate-400">승인 대기 중인 요청이 없습니다.</div>';
+            el.innerHTML = `<div class="p-8 text-center text-slate-400">
+                <span class="material-symbols-outlined" style="font-size:2rem">check_circle</span>
+                <p class="mt-2 text-sm">승인 대기 중인 요청이 없습니다.</p>
+            </div>`;
             return;
         }
         el.innerHTML = '<div class="p-4 space-y-3">' + data.items.map(item => {
-            const typeName = COLLAB_TYPE_MAP[item.linkage?.type] || item.linkage?.type || '-';
+            const lk = item.linkage || {};
+            const lid = lk.id || '';
+            const typeName = COLLAB_TYPE_MAP[lk.type] || lk.type || '-';
             const typeColors = { consultation: 'bg-orange-100 text-orange-700', joint: 'bg-blue-100 text-blue-700', transfer: 'bg-purple-100 text-purple-700', referral: 'bg-green-100 text-green-700', service_referral: 'bg-green-100 text-green-700' };
-            const typeColor = typeColors[item.linkage?.type] || 'bg-slate-100 text-slate-600';
-            const stepInfo = ['consultation','referral','service_referral'].includes(item.linkage?.type)
-                ? '<span class="text-xs text-green-600">1단계 -- 승인 즉시 실행</span>'
-                : '<span class="text-xs text-blue-600">2단계 -- 대상부서 수락 필요</span>';
-            return `<div class="card-elevated p-4">
+            const typeColor = typeColors[lk.type] || 'bg-slate-100 text-slate-600';
+            const is1Step = ['consultation','referral','service_referral'].includes(lk.type);
+            const stepInfo = is1Step
+                ? '<span class="text-xs text-green-600 font-medium">1단계 · 승인 즉시 실행</span>'
+                : '<span class="text-xs text-blue-600 font-medium">2단계 · 대상부서 수락 필요</span>';
+            const catLabel = lk.category === 'referral' ? '서비스연계' : '부서협업';
+
+            // Direction
+            let dirHtml = '';
+            if (lk.fromDept && lk.toDept) {
+                dirHtml = `<span class="font-semibold text-indigo-700">${getDeptName(lk.fromDept)}</span>
+                    <span class="material-symbols-outlined text-slate-400" style="font-size:14px" aria-hidden="true">arrow_forward</span>
+                    <span class="font-semibold text-green-700">${getDeptName(lk.toDept)}</span>`;
+            } else if (lk.targetService) {
+                dirHtml = `<span class="font-semibold text-blue-700">${escapeHtml(lk.targetService)}</span>`;
+            }
+
+            // Elapsed time
+            const elapsed = safeElapsed(lk.createdAtISO || lk.createdAt);
+            const isOverdue = elapsed.days >= 3;
+            const elapsedHtml = isOverdue
+                ? `<span class="text-xs font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">${elapsed.text}</span>`
+                : `<span class="text-xs text-slate-400">${elapsed.text}</span>`;
+
+            // Approval stepper (mini)
+            const stepIdx = is1Step ? 0 : (lk.approvalStatus === 'dept_approved' ? 1 : 0);
+            const stepLabels = ['제출', '소속부서', '대상부서'];
+            const stepperHtml = '<div class="flex items-center gap-1 mt-3 mb-1">' + stepLabels.map((label, i) => {
+                const done = i <= stepIdx;
+                const dotCls = done ? 'bg-green-500' : 'bg-slate-300';
+                const textCls = done ? 'text-green-700 font-semibold' : 'text-slate-400';
+                const line = i > 0 ? `<div class="flex-1 h-0.5 ${i <= stepIdx ? 'bg-green-400' : 'bg-slate-200'}"></div>` : '';
+                return `${line}<div class="flex flex-col items-center"><div class="w-2.5 h-2.5 rounded-full ${dotCls}"></div><span class="text-[10px] ${textCls} mt-0.5">${label}</span></div>`;
+            }).join('') + '</div>';
+
+            // AI summary
+            const aiSummary = item.conversationSummary;
+            const aiHtml = aiSummary
+                ? `<div class="mt-2 p-2 bg-purple-50 border border-purple-100 rounded text-xs text-slate-600">
+                    <span class="material-symbols-outlined text-purple-500" style="font-size:12px;vertical-align:middle" aria-hidden="true">smart_toy</span>
+                    <span class="ml-1">${escapeHtml(aiSummary.length > 100 ? aiSummary.slice(0, 100) + '...' : aiSummary)}</span>
+                </div>` : '';
+
+            return `<div id="approval-card-${lid}" class="card-elevated p-4">
                 <div class="flex items-center gap-2 mb-2">
                     <span class="badge ${typeColor}">${typeName}</span>
+                    <span class="badge bg-slate-100 text-slate-500" style="font-size:10px">${catLabel}</span>
                     ${stepInfo}
-                    <span class="text-xs text-slate-400 ml-auto">${safeDateStr(item.linkage?.createdAt)}</span>
+                    <span class="ml-auto">${elapsedHtml}</span>
                 </div>
+                ${dirHtml ? `<div class="flex items-center gap-1.5 text-sm mb-1">${dirHtml}</div>` : ''}
                 <p class="text-sm font-semibold text-slate-800">${escapeHtml(item.serviceName || '')}</p>
                 <p class="text-xs text-slate-500 mt-1">${escapeHtml(item.userName || '')} · ${escapeHtml(item.userPhone || '')}</p>
-                ${item.linkage?.reason ? '<p class="text-xs text-slate-600 mt-2 bg-slate-50 p-2 rounded">' + escapeHtml(item.linkage.reason) + '</p>' : ''}
-                <div class="flex gap-2 mt-3">
-                    <button onclick="deptApproveLinkage('${item.linkage?.id}')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">승인</button>
-                    <button onclick="deptRejectLinkage('${item.linkage?.id}')" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600">반려</button>
-                    <button onclick="deptRevisionLinkage('${item.linkage?.id}')" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs rounded-lg hover:bg-slate-300">수정요청</button>
+                ${lk.reason ? '<p class="text-xs text-slate-600 mt-2 bg-slate-50 p-2 rounded">' + escapeHtml(lk.reason) + '</p>' : ''}
+                ${aiHtml}
+                ${stepperHtml}
+                <div id="action-area-${lid}" class="flex gap-2 mt-3">
+                    <button onclick="deptApproveLinkage('${lid}')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 flex items-center gap-1">
+                        <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">check_circle</span>승인
+                    </button>
+                    <button onclick="deptRejectLinkage('${lid}')" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600">반려</button>
+                    <button onclick="deptRevisionLinkage('${lid}')" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs rounded-lg hover:bg-slate-300">수정요청</button>
                 </div>
             </div>`;
         }).join('') + '</div>';
@@ -5030,22 +5137,73 @@
         const data = await api('/api/dept/incoming-requests');
         const el = document.getElementById('panel-incoming');
         if (!data.items || data.items.length === 0) {
-            el.innerHTML = '<div class="p-8 text-center text-slate-400">수신된 요청이 없습니다.</div>';
+            el.innerHTML = `<div class="p-8 text-center text-slate-400">
+                <span class="material-symbols-outlined" style="font-size:2rem">check_circle</span>
+                <p class="mt-2 text-sm">수신된 요청이 없습니다.</p>
+            </div>`;
             return;
         }
         el.innerHTML = '<div class="p-4 space-y-3">' + data.items.map(item => {
-            const typeName = COLLAB_TYPE_MAP[item.linkage?.type] || item.linkage?.type || '-';
-            return `<div class="card-elevated p-4">
+            const lk = item.linkage || {};
+            const lid = lk.id || '';
+            const typeName = COLLAB_TYPE_MAP[lk.type] || lk.type || '-';
+            const typeColors = { consultation: 'bg-orange-100 text-orange-700', joint: 'bg-blue-100 text-blue-700', transfer: 'bg-purple-100 text-purple-700', referral: 'bg-green-100 text-green-700', service_referral: 'bg-green-100 text-green-700' };
+            const typeColor = typeColors[lk.type] || 'bg-slate-100 text-slate-600';
+            const catLabel = lk.category === 'referral' ? '서비스연계' : '부서협업';
+
+            // Direction
+            let dirHtml = '';
+            if (lk.fromDept && lk.toDept) {
+                dirHtml = `<span class="font-semibold text-indigo-700">${getDeptName(lk.fromDept)}</span>
+                    <span class="material-symbols-outlined text-slate-400" style="font-size:14px" aria-hidden="true">arrow_forward</span>
+                    <span class="font-semibold text-green-700">${getDeptName(lk.toDept)}</span>`;
+            } else if (lk.targetService) {
+                dirHtml = `<span class="font-semibold text-blue-700">${escapeHtml(lk.targetService)}</span>`;
+            }
+
+            // Elapsed time
+            const elapsed = safeElapsed(lk.createdAtISO || lk.createdAt);
+            const isOverdue = elapsed.days >= 3;
+            const elapsedHtml = isOverdue
+                ? `<span class="text-xs font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">${elapsed.text}</span>`
+                : `<span class="text-xs text-slate-400">${elapsed.text}</span>`;
+
+            // Approval stepper — incoming은 항상 2단계(소속부서 완료, 대상부서 대기)
+            const stepLabels = ['제출', '소속부서', '대상부서'];
+            const stepperHtml = '<div class="flex items-center gap-1 mt-3 mb-1">' + stepLabels.map((label, i) => {
+                const done = i <= 1; // 0=제출, 1=소속부서 완료, 2=대상부서 미완료
+                const dotCls = done ? 'bg-green-500' : 'bg-slate-300';
+                const textCls = done ? 'text-green-700 font-semibold' : 'text-slate-400';
+                const line = i > 0 ? `<div class="flex-1 h-0.5 ${i <= 1 ? 'bg-green-400' : 'bg-slate-200'}"></div>` : '';
+                return `${line}<div class="flex flex-col items-center"><div class="w-2.5 h-2.5 rounded-full ${dotCls}"></div><span class="text-[10px] ${textCls} mt-0.5">${label}</span></div>`;
+            }).join('') + '</div>';
+
+            // AI summary
+            const aiSummary = item.conversationSummary;
+            const aiHtml = aiSummary
+                ? `<div class="mt-2 p-2 bg-purple-50 border border-purple-100 rounded text-xs text-slate-600">
+                    <span class="material-symbols-outlined text-purple-500" style="font-size:12px;vertical-align:middle" aria-hidden="true">smart_toy</span>
+                    <span class="ml-1">${escapeHtml(aiSummary.length > 100 ? aiSummary.slice(0, 100) + '...' : aiSummary)}</span>
+                </div>` : '';
+
+            return `<div id="incoming-card-${lid}" class="card-elevated p-4">
                 <div class="flex items-center gap-2 mb-2">
-                    <span class="badge bg-blue-100 text-blue-700">${typeName}</span>
-                    <span class="text-xs text-slate-400">from ${getDeptName(item.linkage?.fromDept)}</span>
+                    <span class="badge ${typeColor}">${typeName}</span>
+                    <span class="badge bg-slate-100 text-slate-500" style="font-size:10px">${catLabel}</span>
+                    <span class="text-xs text-blue-600 font-medium">2단계 · 대상부서 수락 필요</span>
+                    <span class="ml-auto">${elapsedHtml}</span>
                 </div>
+                ${dirHtml ? `<div class="flex items-center gap-1.5 text-sm mb-1">${dirHtml}</div>` : ''}
                 <p class="text-sm font-semibold text-slate-800">${escapeHtml(item.serviceName || '')}</p>
                 <p class="text-xs text-slate-500 mt-1">${escapeHtml(item.userName || '')} · ${escapeHtml(item.userPhone || '')}</p>
-                ${item.linkage?.reason ? '<p class="text-xs text-slate-600 mt-2 bg-slate-50 p-2 rounded">' + escapeHtml(item.linkage.reason) + '</p>' : ''}
-                <div class="flex gap-2 mt-3">
-                    <button onclick="targetAcceptLinkage('${item.linkage?.id}')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">수락</button>
-                    <button onclick="targetRejectLinkage('${item.linkage?.id}')" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600">반려</button>
+                ${lk.reason ? '<p class="text-xs text-slate-600 mt-2 bg-slate-50 p-2 rounded">' + escapeHtml(lk.reason) + '</p>' : ''}
+                ${aiHtml}
+                ${stepperHtml}
+                <div id="action-area-${lid}" class="flex gap-2 mt-3">
+                    <button onclick="targetAcceptLinkage('${lid}')" class="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 flex items-center gap-1">
+                        <span class="material-symbols-outlined" style="font-size:14px" aria-hidden="true">check_circle</span>수락
+                    </button>
+                    <button onclick="targetRejectLinkage('${lid}')" class="px-3 py-1.5 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600">반려</button>
                 </div>
             </div>`;
         }).join('') + '</div>';
@@ -5113,64 +5271,100 @@
             '</tbody></table></div>';
     }
 
+    // ── 인라인 액션 UI 헬퍼 ──
+    function showInlineConfirm(linkageId, message, onConfirm, reloadFn) {
+        const area = document.getElementById('action-area-' + linkageId);
+        if (!area) return onConfirm();
+        area.innerHTML = `<div class="w-full p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p class="text-sm text-slate-700 mb-2">${escapeHtml(message)}</p>
+            <div class="flex gap-2">
+                <button id="inline-ok-${linkageId}" class="px-4 py-2 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 font-semibold">확인</button>
+                <button id="inline-cancel-${linkageId}" class="px-4 py-2 bg-white border border-slate-300 text-slate-600 text-xs rounded-lg hover:bg-slate-50">취소</button>
+            </div>
+        </div>`;
+        document.getElementById('inline-ok-' + linkageId).onclick = () => onConfirm();
+        document.getElementById('inline-cancel-' + linkageId).onclick = () => (reloadFn || loadApprovals)();
+    }
+
+    function showInlineTextarea(linkageId, placeholder, onSubmit, submitLabel, reloadFn) {
+        const area = document.getElementById('action-area-' + linkageId);
+        if (!area) return;
+        area.innerHTML = `<div class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <textarea id="inline-text-${linkageId}" rows="2" placeholder="${escapeHtml(placeholder)}" class="w-full rounded-lg border-slate-300 text-sm py-2 px-3 mb-2 focus:ring-primary focus:border-primary resize-none"></textarea>
+            <div class="flex gap-2">
+                <button id="inline-submit-${linkageId}" class="px-4 py-2 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600 font-semibold">${escapeHtml(submitLabel)}</button>
+                <button id="inline-cancel-${linkageId}" class="px-4 py-2 bg-white border border-slate-300 text-slate-600 text-xs rounded-lg hover:bg-slate-50">취소</button>
+            </div>
+        </div>`;
+        document.getElementById('inline-text-' + linkageId).focus();
+        document.getElementById('inline-submit-' + linkageId).onclick = () => {
+            const text = document.getElementById('inline-text-' + linkageId).value.trim();
+            if (!text) { document.getElementById('inline-text-' + linkageId).focus(); return; }
+            onSubmit(text);
+        };
+        document.getElementById('inline-cancel-' + linkageId).onclick = () => (reloadFn || loadApprovals)();
+    }
+
     // ── 부서장 승인/반려/수정요청 액션 ──
-    async function deptApproveLinkage(linkageId) {
-        if (!confirm('이 연계 요청을 승인하시겠습니까?')) return;
-        try {
-            const res = await fetch('/api/dept/linkage/' + linkageId + '/approve', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment:''}) });
-            const data = await res.json();
-            if (data.error) return alert(data.error);
-            alert('승인 완료');
-            loadApprovals();
-        } catch(e) { alert('오류: ' + e.message); }
+    function deptApproveLinkage(linkageId) {
+        showInlineConfirm(linkageId, '이 연계 요청을 승인하시겠습니까?', async () => {
+            try {
+                const res = await fetch('/api/dept/linkage/' + linkageId + '/approve', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment:''}) });
+                const data = await res.json();
+                if (data.error) { showToast(data.error, 'error'); return; }
+                showToast('승인이 완료됐습니다');
+                loadApprovals();
+            } catch(e) { showToast('처리 중 오류가 발생했습니다', 'error'); }
+        });
     }
 
-    async function deptRejectLinkage(linkageId) {
-        const reason = prompt('반려 사유를 입력하세요:');
-        if (!reason) return;
-        try {
-            const res = await fetch('/api/dept/linkage/' + linkageId + '/reject', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment: reason}) });
-            const data = await res.json();
-            if (data.error) return alert(data.error);
-            alert('반려 완료');
-            loadApprovals();
-        } catch(e) { alert('오류: ' + e.message); }
+    function deptRejectLinkage(linkageId) {
+        showInlineTextarea(linkageId, '반려 사유를 입력하세요...', async (reason) => {
+            try {
+                const res = await fetch('/api/dept/linkage/' + linkageId + '/reject', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment: reason}) });
+                const data = await res.json();
+                if (data.error) { showToast(data.error, 'error'); return; }
+                showToast('반려 처리됐습니다');
+                loadApprovals();
+            } catch(e) { showToast('처리 중 오류가 발생했습니다', 'error'); }
+        }, '반려 확정');
     }
 
-    async function deptRevisionLinkage(linkageId) {
-        const reason = prompt('수정 요청 사유를 입력하세요:');
-        if (!reason) return;
-        try {
-            const res = await fetch('/api/dept/linkage/' + linkageId + '/revision', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment: reason}) });
-            const data = await res.json();
-            if (data.error) return alert(data.error);
-            alert('수정 요청 완료');
-            loadApprovals();
-        } catch(e) { alert('오류: ' + e.message); }
+    function deptRevisionLinkage(linkageId) {
+        showInlineTextarea(linkageId, '수정 요청 사유를 입력하세요...', async (reason) => {
+            try {
+                const res = await fetch('/api/dept/linkage/' + linkageId + '/revision', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment: reason}) });
+                const data = await res.json();
+                if (data.error) { showToast(data.error, 'error'); return; }
+                showToast('수정 요청이 완료됐습니다');
+                loadApprovals();
+            } catch(e) { showToast('처리 중 오류가 발생했습니다', 'error'); }
+        }, '수정요청 확정');
     }
 
     // ── 대상부서 수락/반려 액션 ──
-    async function targetAcceptLinkage(linkageId) {
-        if (!confirm('이 요청을 수락하시겠습니까?')) return;
-        try {
-            const res = await fetch('/api/target-dept/linkage/' + linkageId + '/accept', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment:''}) });
-            const data = await res.json();
-            if (data.error) return alert(data.error);
-            alert('수락 완료');
-            loadIncoming();
-        } catch(e) { alert('오류: ' + e.message); }
+    function targetAcceptLinkage(linkageId) {
+        showInlineConfirm(linkageId, '이 요청을 수락하시겠습니까?', async () => {
+            try {
+                const res = await fetch('/api/target-dept/linkage/' + linkageId + '/accept', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment:''}) });
+                const data = await res.json();
+                if (data.error) { showToast(data.error, 'error'); return; }
+                showToast('수락이 완료됐습니다');
+                loadIncoming();
+            } catch(e) { showToast('처리 중 오류가 발생했습니다', 'error'); }
+        }, loadIncoming);
     }
 
-    async function targetRejectLinkage(linkageId) {
-        const reason = prompt('반려 사유를 입력하세요:');
-        if (!reason) return;
-        try {
-            const res = await fetch('/api/target-dept/linkage/' + linkageId + '/reject', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment: reason}) });
-            const data = await res.json();
-            if (data.error) return alert(data.error);
-            alert('반려 완료');
-            loadIncoming();
-        } catch(e) { alert('오류: ' + e.message); }
+    function targetRejectLinkage(linkageId) {
+        showInlineTextarea(linkageId, '반려 사유를 입력하세요...', async (reason) => {
+            try {
+                const res = await fetch('/api/target-dept/linkage/' + linkageId + '/reject', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({comment: reason}) });
+                const data = await res.json();
+                if (data.error) { showToast(data.error, 'error'); return; }
+                showToast('반려 처리됐습니다');
+                loadIncoming();
+            } catch(e) { showToast('처리 중 오류가 발생했습니다', 'error'); }
+        }, '반려 확정', loadIncoming);
     }
 
     // ── Init: 인증 상태 확인 (통합 인증) ──

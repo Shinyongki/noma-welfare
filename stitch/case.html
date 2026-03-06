@@ -885,13 +885,13 @@
                     ? `<div class="flex-1 h-0.5 mx-1 ${i < effectiveIdx ? 'bg-green-500' : 'bg-gray-200'}"></div>`
                     : '';
 
-                const isClickable = i !== effectiveIdx;
-                const clickAttr = isClickable ? `onclick="advanceStatus('${step}')"` : '';
-                const cursorClass = isClickable ? 'cursor-pointer hover:scale-110 hover:ring-2 hover:ring-green-400' : '';
+                const isForward = i > effectiveIdx;
+                const clickAttr = isForward ? `onclick="advanceStatus('${step}')"` : '';
+                const cursorClass = isForward ? 'cursor-pointer hover:scale-110 hover:ring-2 hover:ring-green-400' : '';
 
                 return `
                     <div class="flex flex-col items-center" style="min-width:48px">
-                        <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm ${stateClass} ${cursorClass} transition-all" ${clickAttr} title="${isClickable ? STEP_LABELS[step] + '(으)로 변경' : '현재 단계'}">
+                        <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm ${stateClass} ${cursorClass} transition-all" ${clickAttr} title="${isForward ? STEP_LABELS[step] + '(으)로 변경' : (i < effectiveIdx ? STEP_LABELS[step] + ' (완료)' : '현재 단계')}">
                             <span class="material-symbols-rounded text-lg" aria-hidden="true">${icon}</span>
                         </div>
                         <span class="text-xs mt-1 ${i === effectiveIdx ? 'font-bold text-green-800' : 'text-gray-400'}">${STEP_LABELS[step]}</span>

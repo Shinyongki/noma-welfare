@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(do echo:*)",
+      "Bash(gh api:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:gn.pass.or.kr)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(taskkill:*)",
+      "Bash(echo exit: $?:*)",
+      "Bash(ls:*)",
+      "Bash(npm run:*)",
+      "Bash(lsof:*)",
+      "Bash(netstat:*)"
+    ]
+  }
+}

@@ -1319,6 +1319,11 @@
                         if (!line.startsWith('data: ')) continue;
                         const dataStr = line.slice(6).trim();
                         if (dataStr === '[DONE]') continue;
+                        if (dataStr === '[BLOCKED]') {
+                            fullResponse = '죄송합니다. 응답을 처리하는 중 문제가 발생했습니다. 경상남도사회서비스원 대표전화 055-230-8200으로 문의해 주세요.';
+                            DOM.aiSummaryText.innerHTML = renderMarkdown(fullResponse);
+                            continue;
+                        }
 
                         try {
                             const data = JSON.parse(dataStr);

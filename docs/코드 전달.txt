@@ -1,0 +1,154 @@
+문서 전체를 확인했습니다. 이제 현재 코드와의 충돌 포인트를 분석하겠습니다.
+
+●PExplore(Analyze requestStore.mjs structure))
+●⎿Running 2 Explore ag\nrs… (ctrl+o to expand)uestStore.mjs and summarize:
+● 2 Exploreeagents finishedjs structure · 1 tool use · 41.4k tokens
+   ├─ Analyze requestStore.mjs structure · 4 tool uses · 41.9k tokens
+✻ P│o ⎿  Done
+  └─ Analyze server.js auth and API routes · 9 tool uses · 50.0k tokens
+      ⎿  Done
+✢ Pho                            1.01 tokens)s)
+●P전체 분석이 완료되었습니다. 현재 코드와 지시서의 충돌 포인트를 정리합니다.
+                                            ns)────────────────────────────────────────────────────────────────────────
+  ---                                                                                                                     현재 코드 vs 지시서 충돌 분석
+                                                                                                                          1. 부서 구조 충돌 (HIGH - 전면 재매핑 필요)
+
+  ┌──────────────┬───────────────────────────────────────────────────────────┬──────────────────────────────────────┐
+  │     항목     │                         현재 코드                         │             지시서 요구              │
+  ├──────────────┼───────────────────────────────────────────────────────────┼──────────────────────────────────────┤
+  │ 부서 수      │ 6개 (care, emergency, facility, casemanage, private,      │ 4개 (care, private, facility,        │
+  │              │ research)                                                 │ research)                            │
+  ├──────────────┼───────────────────────────────────────────────────────────┼──────────────────────────────────────┤
+  │ emergency팀  │ 독립 부서                                                 │ care에 흡수                          │
+  ├──────────────┼───────────────────────────────────────────────────────────┼──────────────────────────────────────┤
+  │ casemanage팀 │ 독립 부서                                                 │ 삭제 (care에 통합)                   │
+  └──────────────┴───────────────────────────────────────────────────────────┴──────────────────────────────────────┘
+
+  - deptServiceMap의 경남발달장애인긴급돌봄센터가 현재 deptId: "emergency" → "care"로 변경 필요
+  - 1인가구 라이프링이 현재 "public" → "care"로 변경 필요
+  - 기존 저장된 데이터(requestStore) 중 emergency, casemanage deptId를 가진 레코드 마이그레이션 문제
+
+  2. 역할 체계 충돌 (HIGH - 인증 전면 수정)
+
+  ┌───────────┬────────────────────────┬───────────────────────────────────────────┐
+  │   항목    │       현재 코드        │                지시서 요구                │
+  ├───────────┼────────────────────────┼───────────────────────────────────────────┤
+  │ 역할 수   │ 2개 (admin, dept)      │ 3개 (admin, dept, staff)                  │
+  ├───────────┼────────────────────────┼───────────────────────────────────────────┤
+  │ 세션 필드 │ role, deptId, deptName │ role, deptId, deptName, serviceName       │
+  ├───────────┼────────────────────────┼───────────────────────────────────────────┤
+  │ 로그인 UI │ 카드 2개               │ 카드 3개 + 2단계 부서선택(대분류4개→사업) │
+  └───────────┴────────────────────────┴───────────────────────────────────────────┘
+
+  - unified-auth/login에 role: "staff" 케이스 없음
+  - admin.html의 doLoginAs(), selectLoginRole() 함수 전면 수정 필요
+  - isAdmin(), isSourceDept(), isTargetDept() 외에 isStaff() 헬퍼 추가 필요
+
+  3. 승인 워크플로우 충돌 (HIGH - 상태값 축소 + 로직 변경)
+
+  ┌───────────────────┬──────────────────────────────────────┬──────────────────────────────────────┐
+  │       항목        │              현재 코드               │             지시서 요구              │
+  ├───────────────────┼──────────────────────────────────────┼──────────────────────────────────────┤
+  │ approvalStatus 수 │ 9개                                  │ 5개                                  │
+  ├───────────────────┼──────────────────────────────────────┼──────────────────────────────────────┤
+  │ 관리자 역할       │ 최종 승인자 (dept_approved→approved) │ 모니터링만 (승인 흐름에서 제외)      │
+  ├───────────────────┼──────────────────────────────────────┼──────────────────────────────────────┤
+  │ 자문/서비스연계   │ 2단계 승인                           │ 1단계 (부서장 승인→즉시 실행)        │
+  ├───────────────────┼──────────────────────────────────────┼──────────────────────────────────────┤
+  │ 공동처리/이관     │ 2단계+관리자                         │ 2단계 (부서장→대상부서, 관리자 없음) │
+  └───────────────────┴──────────────────────────────────────┴──────────────────────────────────────┘
+
+  삭제해야 할 상태값: admin_rejected, admin_revision_requested, target_rejected, target_revision_requested
+  삭제해야 할 함수: deptResubmitLinkage, sourceDeptResubmitToTarget, getAdminReturnedItems
+  삭제해야 할 API 라우트: /api/admin/linkage/:lid/approve, /api/admin/linkage/:lid/reject,
+  /api/admin/linkage/:lid/revision, /api/dept/linkage/:lid/resubmit, /api/dept/linkage/:lid/resubmit-to-target
+
+  4. admin.html UI 충돌 (HIGH - 사이드바/탭 전면 재구성)
+
+  ┌───────────────┬───────────────────────────────────────────────────┬────────────────────────────────────────────┐
+  │     항목      │                     현재 코드                     │                지시서 요구                 │
+  ├───────────────┼───────────────────────────────────────────────────┼────────────────────────────────────────────┤
+  │ 사이드바 탭   │ 고정 4개 (현황판/상담요청/분석/연계조정)          │ 역할별 다름 (admin 5개, dept 4개, staff    │
+  │               │                                                   │ 2개)                                       │
+  ├───────────────┼───────────────────────────────────────────────────┼────────────────────────────────────────────┤
+  │ 칸반 보드     │ 4컬럼                                             │ 승인 상태 축소로 컬럼 재정의 필요          │
+  │               │ (dept_review/target_accept/in_progress/done)      │                                            │
+  ├───────────────┼───────────────────────────────────────────────────┼────────────────────────────────────────────┤
+  │ 카드 액션     │ admin/dept 2역할 기준 조건부 표시                 │ 3역할 기준으로 전면 변경                   │
+  │ 버튼          │                                                   │                                            │
+  └───────────────┴───────────────────────────────────────────────────┴────────────────────────────────────────────┘
+
+  - switchTab(), updateSidebarRole(), initApp() 전면 수정
+  - 칸반의 classifyCollabs() 분류 로직 변경 (9상태→5상태)
+  - admin.html 현재 4,893줄 — 수정 범위가 매우 넓음
+
+  5. 신규 API 추가 필요
+
+  ┌──────────────────────────────────┬────────────────────┬──────────────────────┐
+  │               API                │        용도        │    현재 존재 여부    │
+  ├──────────────────────────────────┼────────────────────┼──────────────────────┤
+  │ GET /api/staff/cases             │ 담당자 케이스 목록 │ 없음                 │
+  ├──────────────────────────────────┼────────────────────┼──────────────────────┤
+  │ GET /api/dept/incoming-requests  │ 대상부서 수신 요청 │ 없음                 │
+  ├──────────────────────────────────┼────────────────────┼──────────────────────┤
+  │ GET /api/admin/alert-items       │ 이상 건 알림       │ 없음                 │
+  ├──────────────────────────────────┼────────────────────┼──────────────────────┤
+  │ PATCH /api/case/:id/linkage/:lid │ 통합 재제출        │ 없음 (현재 2개 분리) │
+  └──────────────────────────────────┴────────────────────┴──────────────────────┘
+
+  6. case.html 영향
+
+  - 미로그인 상태 기본 열람 + 액션 잠금 UI 추가 필요
+  - role별 조건부 렌더링 (staff/dept/admin/미로그인 4분기)
+  - 연계 요청 생성 시 유형별 안내 문구 분기 추가
+
+  ---
+  Claude AI에게 전달할 지시 (권장)
+
+  아래 내용을 단계별로 나눠서 전달하는 것을 권장합니다. 한 번에 전체를 하면 4,893줄짜리 admin.html에서 대량 충돌 위험이
+  큽니다.
+
+  ---
+  Phase 1 (백엔드 기반 작업 — 먼저 진행)
+
+  requestStore.mjs와 server.js를 아래 순서로 수정해줘. admin.html은 아직 건드리지 마.
+
+  1. requestStore.mjs의 DEPARTMENTS를 4개(care/private/facility/research)로 재정의하고, emergency와 casemanage를 care로
+  통합해줘.
+  2. server.js의 deptServiceMap에서 emergency→care, casemanage 관련 deptId를 모두 care로 변경해줘. 1인가구 라이프링의
+  deptId도 care로 수정.
+  3. unified-auth/login에 role: "staff" 케이스를 추가하고, 세션에 serviceName 필드를 저장하도록 해줘.
+  4. requestStore.mjs의 deptApproveLinkage 함수에 type 파라미터를 추가해서, consultation/referral이면 approved로 바로
+  전환하도록 수정해줘.
+  5. 삭제할 함수: deptResubmitLinkage, sourceDeptResubmitToTarget, getAdminReturnedItems. 새로 추가할 함수:
+  getStaffCases(serviceName), getDeptIncomingRequests(deptId), getAlertItems().
+  6. 삭제할 API 라우트: /api/admin/linkage/:lid/approve|reject|revision, /api/dept/linkage/:lid/resubmit,
+  /api/dept/linkage/:lid/resubmit-to-target. 통합 재제출은 PATCH /api/case/:id/linkage/:lid로 구현.
+  7. 신규 API 추가: GET /api/staff/cases, GET /api/dept/incoming-requests, GET /api/admin/alert-items.
+
+  Phase 2 (프론트엔드 — Phase 1 완료 확인 후)
+
+  admin.html을 수정해줘. 기존 코드 구조를 최대한 유지하면서 변경해줘.
+
+  1. 로그인 게이트: 역할 선택 카드를 3개(관리자/부서장/담당자)로 변경. 부서장/담당자 선택 시 2단계 네비게이션(대분류
+  4개→하위 사업).
+  2. updateSidebarRole() 수정: role이 admin이면 현황판/전체요청/분석/연계전체현황/이상알림, dept이면
+  소속부서현황/승인대기/수신요청/연계이력, staff이면 담당케이스목록/처리완료이력.
+  3. 칸반 보드의 classifyCollabs(): approvalStatus 5개(pending/dept_approved/approved/rejected/revision_requested)에
+  맞게 재분류.
+  4. 모든 admin 승인 관련 버튼/함수(kanbanApproveFromModal, kanbanRejectFromModal 등) 제거 또는 모니터링 용도로 변경.
+  5. 부서장 전용 "승인 대기" 탭, "수신 요청" 탭 UI 추가.
+
+  Phase 3 (case.html — Phase 2 완료 후)
+
+  case.html의 역할별 조건부 렌더링을 추가해줘.
+  1. 미로그인 상태: 기본 정보만 열람, 액션 잠금 + "로그인 후 이용 가능" 안내.
+  2. staff: 전체 기능 (상태변경, 메모, 연계 요청 생성).
+  3. dept: 열람 + 메모 + 승인 버튼, 연계 요청 생성 불가.
+  4. admin: 전체 열람 + 상태 강제 변경.
+  5. 연계 요청 생성 폼: 유형(자문/공동처리/이관/서비스연계) 선택 시 승인 단계 안내 문구 동적 표시.
+  6. 재제출 버튼 단일화: PATCH /api/case/:id/linkage/:lid { resubmit: true }.
+
+  ---
+  이렇게 3단계로 나누면 각 Phase 완료 후 동작 확인이 가능하고, admin.html 대량 수정 시 백엔드 API가 이미 준비된 상태라
+  충돌 위험이 줄어듭니다.
