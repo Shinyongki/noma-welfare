@@ -130,6 +130,15 @@ function readAll() {
     return {};
 }
 
+// ── read-modify-write 원자화 잠금 ──
+let _rwLock = Promise.resolve();
+function withLock(fn) {
+    _rwLock = _rwLock
+        .then(() => fn())
+        .catch(err => { console.error('[Store] 잠금 오류:', err); throw err; });
+    return _rwLock;
+}
+
 // ── 쓰기 직렬화 큐 (동시 요청 시 데이터 유실 방지) ──
 let _writeQueue = Promise.resolve();
 
@@ -156,10 +165,12 @@ function writeAll(data) {
 
 /** 새 요청 저장 */
 export async function save(request) {
-    const store = readAll();
-    store[request.id] = request;
-    await writeAll(store);
-    return request;
+    return withLock(async () => {
+        const store = readAll();
+        store[request.id] = request;
+        await writeAll(store);
+        return request;
+    });
 }
 
 /** ID로 요청 조회 */
@@ -169,13 +180,15 @@ export function findById(id) {
 
 /** 연계 기록 추가 */
 export async function addReferral(id, referral) {
-    const store = readAll();
-    const req = store[id];
-    if (!req) return null;
-    if (!req.referrals) req.referrals = [];
-    req.referrals.push(referral);
-    await writeAll(store);
-    return req;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[id];
+        if (!req) return null;
+        if (!req.referrals) req.referrals = [];
+        req.referrals.push(referral);
+        await writeAll(store);
+        return req;
+    });
 }
 
 /** 한국어 날짜 "2026. 2. 26. 오후 10:20:05" → timestamp */
@@ -204,24 +217,28 @@ export function listAll() {
 
 /** 상태 변경 */
 export async function updateStatus(id, status) {
-    const store = readAll();
-    const req = store[id];
-    if (!req) return null;
-    req.status = status;
-    req.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return req;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[id];
+        if (!req) return null;
+        req.status = status;
+        req.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return req;
+    });
 }
 
 /** 담당자 메모 추가 */
 export async function addNote(id, note, author = '관리자') {
-    const store = readAll();
-    const req = store[id];
-    if (!req) return null;
-    if (!req.notes) req.notes = [];
-    req.notes.push({ text: note, author, createdAt: new Date().toISOString() });
-    await writeAll(store);
-    return req;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[id];
+        if (!req) return null;
+        if (!req.notes) req.notes = [];
+        req.notes.push({ text: note, author, createdAt: new Date().toISOString() });
+        await writeAll(store);
+        return req;
+    });
 }
 
 // ── 부서 정의 ──
@@ -234,50 +251,56 @@ export const DEPARTMENTS = [
 
 /** 협업 요청 추가 */
 export async function addCollaboration(requestId, { fromDept, toDept, reason, type }) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req) return null;
-    if (!req.collaborations) req.collaborations = [];
-    const collab = {
-        id: crypto.randomUUID(),
-        fromDept,
-        toDept,
-        reason,
-        type: type || 'consultation', // consultation | joint | transfer
-        status: 'requested', // requested → accepted → completed | declined
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        notes: [],
-    };
-    req.collaborations.push(collab);
-    await writeAll(store);
-    return collab;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req) return null;
+        if (!req.collaborations) req.collaborations = [];
+        const collab = {
+            id: crypto.randomUUID(),
+            fromDept,
+            toDept,
+            reason,
+            type: type || 'consultation',
+            status: 'requested',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            notes: [],
+        };
+        req.collaborations.push(collab);
+        await writeAll(store);
+        return collab;
+    });
 }
 
 /** 협업 상태 변경 */
 export async function updateCollaboration(requestId, collabId, { status }) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.collaborations) return null;
-    const collab = req.collaborations.find(c => c.id === collabId);
-    if (!collab) return null;
-    collab.status = status;
-    collab.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return collab;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.collaborations) return null;
+        const collab = req.collaborations.find(c => c.id === collabId);
+        if (!collab) return null;
+        collab.status = status;
+        collab.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return collab;
+    });
 }
 
 /** 협업 메모 추가 */
 export async function addCollaborationNote(requestId, collabId, text, author, dept) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.collaborations) return null;
-    const collab = req.collaborations.find(c => c.id === collabId);
-    if (!collab) return null;
-    collab.notes.push({ text, author, dept, createdAt: new Date().toISOString() });
-    collab.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return collab;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.collaborations) return null;
+        const collab = req.collaborations.find(c => c.id === collabId);
+        if (!collab) return null;
+        collab.notes.push({ text, author, dept, createdAt: new Date().toISOString() });
+        collab.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return collab;
+    });
 }
 
 /** 전체 활성 협업 목록 (관리자 대시보드용) */
@@ -304,192 +327,211 @@ export function getActiveCollaborations() {
 
 /** 통합 연계 요청 생성 (승인 대기 상태) */
 export async function addLinkage(requestId, data) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req) return null;
-    if (!req.linkages) req.linkages = [];
-    const linkage = {
-        id: crypto.randomUUID(),
-        category: data.category || 'collaboration', // 'referral' | 'collaboration'
-        type: data.type || 'consultation', // consultation | joint | transfer | service_referral
-        fromDept: data.fromDept || null,
-        toDept: data.toDept || null,
-        targetService: data.targetService || null,
-        reason: data.reason || '',
-        approvalStatus: 'pending', // pending | approved | rejected | revision_requested
-        approvalHistory: [
-            { action: 'submitted', by: data.submittedBy || '담당자', comment: '', at: new Date().toISOString() },
-        ],
-        executionStatus: null, // null | email_sent | in_progress | completed | declined
-        newRequestId: null,
-        sequenceOrder: data.sequenceOrder || null,
-        sequenceGroupId: data.sequenceGroupId || null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        notes: [],
-    };
-    req.linkages.push(linkage);
-    await writeAll(store);
-    return linkage;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req) return null;
+        if (!req.linkages) req.linkages = [];
+        const linkage = {
+            id: crypto.randomUUID(),
+            category: data.category || 'collaboration',
+            type: data.type || 'consultation',
+            fromDept: data.fromDept || null,
+            toDept: data.toDept || null,
+            targetService: data.targetService || null,
+            reason: data.reason || '',
+            approvalStatus: 'pending',
+            approvalHistory: [
+                { action: 'submitted', by: data.submittedBy || '담당자', comment: '', at: new Date().toISOString() },
+            ],
+            executionStatus: null,
+            newRequestId: null,
+            sequenceOrder: data.sequenceOrder || null,
+            sequenceGroupId: data.sequenceGroupId || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            notes: [],
+        };
+        req.linkages.push(linkage);
+        await writeAll(store);
+        return linkage;
+    });
 }
 
 // ── 1단계: 부서 조정자 승인/반려/수정요청 (pending → dept_approved / rejected / revision_requested) ──
 
 /** 부서 조정자 승인 (pending → dept_approved, consultation/referral은 바로 approved) */
 export async function deptApproveLinkage(requestId, linkageId, comment) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return null;
-    const linkage = req.linkages.find(l => l.id === linkageId);
-    if (!linkage || linkage.approvalStatus !== 'pending') return null;
-    // consultation/referral 타입은 1단계 승인으로 바로 approved
-    const linkageType = linkage.type;
-    if (linkageType === 'consultation' || linkageType === 'referral' || linkageType === 'service_referral') {
-        linkage.approvalStatus = 'approved';
-        linkage.approvalHistory.push({
-            action: 'approved', by: '부서 조정자', comment: comment || '', at: new Date().toISOString(),
-        });
-    } else {
-        linkage.approvalStatus = 'dept_approved';
-        linkage.approvalHistory.push({
-            action: 'dept_approved', by: '부서 조정자', comment: comment || '', at: new Date().toISOString(),
-        });
-    }
-    linkage.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return linkage;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage || linkage.approvalStatus !== 'pending') return null;
+        const linkageType = linkage.type;
+        if (linkageType === 'consultation' || linkageType === 'referral' || linkageType === 'service_referral') {
+            linkage.approvalStatus = 'approved';
+            linkage.approvalHistory.push({
+                action: 'approved', by: '부서 조정자', comment: comment || '', at: new Date().toISOString(),
+            });
+        } else {
+            linkage.approvalStatus = 'dept_approved';
+            linkage.approvalHistory.push({
+                action: 'dept_approved', by: '부서 조정자', comment: comment || '', at: new Date().toISOString(),
+            });
+        }
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
+    });
 }
 
 /** 부서 조정자 반려 (pending → rejected) */
 export async function deptRejectLinkage(requestId, linkageId, comment) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return null;
-    const linkage = req.linkages.find(l => l.id === linkageId);
-    if (!linkage || linkage.approvalStatus !== 'pending') return null;
-    linkage.approvalStatus = 'rejected';
-    linkage.approvalHistory.push({
-        action: 'rejected', by: '부서 조정자', comment: comment || '', at: new Date().toISOString(),
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage || linkage.approvalStatus !== 'pending') return null;
+        linkage.approvalStatus = 'rejected';
+        linkage.approvalHistory.push({
+            action: 'rejected', by: '부서 조정자', comment: comment || '', at: new Date().toISOString(),
+        });
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
     });
-    linkage.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return linkage;
 }
 
 /** 부서 조정자 수정 요청 (pending → revision_requested) */
 export async function deptRequestRevision(requestId, linkageId, comment) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return null;
-    const linkage = req.linkages.find(l => l.id === linkageId);
-    if (!linkage || linkage.approvalStatus !== 'pending') return null;
-    linkage.approvalStatus = 'revision_requested';
-    linkage.approvalHistory.push({
-        action: 'revision_requested', by: '부서 조정자', comment: comment || '', at: new Date().toISOString(),
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage || linkage.approvalStatus !== 'pending') return null;
+        linkage.approvalStatus = 'revision_requested';
+        linkage.approvalHistory.push({
+            action: 'revision_requested', by: '부서 조정자', comment: comment || '', at: new Date().toISOString(),
+        });
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
     });
-    linkage.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return linkage;
 }
 
 // ── 2단계: 관리자 조정자 최종 승인/반려/수정요청 (dept_approved → approved / rejected / revision_requested) ──
 
 /** 관리자 최종 승인 (dept_approved → approved) */
 export async function approveLinkage(requestId, linkageId, comment) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return null;
-    const linkage = req.linkages.find(l => l.id === linkageId);
-    if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
-    linkage.approvalStatus = 'approved';
-    linkage.approvalHistory.push({
-        action: 'approved', by: '관리자', comment: comment || '', at: new Date().toISOString(),
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
+        linkage.approvalStatus = 'approved';
+        linkage.approvalHistory.push({
+            action: 'approved', by: '관리자', comment: comment || '', at: new Date().toISOString(),
+        });
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
     });
-    linkage.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return linkage;
 }
 
 /** 관리자 반려 (dept_approved → rejected) */
 export async function rejectLinkage(requestId, linkageId, comment) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return null;
-    const linkage = req.linkages.find(l => l.id === linkageId);
-    if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
-    linkage.approvalStatus = 'rejected';
-    linkage.approvalHistory.push({
-        action: 'rejected', by: '관리자', comment: comment || '', at: new Date().toISOString(),
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
+        linkage.approvalStatus = 'rejected';
+        linkage.approvalHistory.push({
+            action: 'rejected', by: '관리자', comment: comment || '', at: new Date().toISOString(),
+        });
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
     });
-    linkage.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return linkage;
 }
 
 /** 관리자 수정 요청 (dept_approved → revision_requested) */
 export async function requestRevision(requestId, linkageId, comment) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return null;
-    const linkage = req.linkages.find(l => l.id === linkageId);
-    if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
-    linkage.approvalStatus = 'revision_requested';
-    linkage.approvalHistory.push({
-        action: 'revision_requested', by: '관리자', comment: comment || '', at: new Date().toISOString(),
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
+        linkage.approvalStatus = 'revision_requested';
+        linkage.approvalHistory.push({
+            action: 'revision_requested', by: '관리자', comment: comment || '', at: new Date().toISOString(),
+        });
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
     });
-    linkage.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return linkage;
 }
 
 // ── 대상부서 수락/반려/수정요청 ──
 
 /** 대상부서 수락 (dept_approved → approved) */
 export async function targetDeptAcceptLinkage(requestId, linkageId, comment, deptName) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return null;
-    const linkage = req.linkages.find(l => l.id === linkageId);
-    if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
-    linkage.approvalStatus = 'approved';
-    linkage.approvalHistory.push({
-        action: 'approved', by: deptName || '대상부서', comment: comment || '', at: new Date().toISOString(),
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
+        linkage.approvalStatus = 'approved';
+        linkage.approvalHistory.push({
+            action: 'approved', by: deptName || '대상부서', comment: comment || '', at: new Date().toISOString(),
+        });
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
     });
-    linkage.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return linkage;
 }
 
 /** 대상부서 반려 (dept_approved → rejected) */
 export async function targetDeptRejectLinkage(requestId, linkageId, comment, deptName) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return null;
-    const linkage = req.linkages.find(l => l.id === linkageId);
-    if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
-    linkage.approvalStatus = 'rejected';
-    linkage.approvalHistory.push({
-        action: 'rejected', by: deptName || '대상부서', comment: comment || '', at: new Date().toISOString(),
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
+        linkage.approvalStatus = 'rejected';
+        linkage.approvalHistory.push({
+            action: 'rejected', by: deptName || '대상부서', comment: comment || '', at: new Date().toISOString(),
+        });
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
     });
-    linkage.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return linkage;
 }
 
 /** 대상부서 수정요청 (dept_approved → revision_requested) */
 export async function targetDeptRequestRevision(requestId, linkageId, comment, deptName) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return null;
-    const linkage = req.linkages.find(l => l.id === linkageId);
-    if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
-    linkage.approvalStatus = 'revision_requested';
-    linkage.approvalHistory.push({
-        action: 'revision_requested', by: deptName || '대상부서', comment: comment || '', at: new Date().toISOString(),
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage || linkage.approvalStatus !== 'dept_approved') return null;
+        linkage.approvalStatus = 'revision_requested';
+        linkage.approvalHistory.push({
+            action: 'revision_requested', by: deptName || '대상부서', comment: comment || '', at: new Date().toISOString(),
+        });
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
     });
-    linkage.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return linkage;
 }
 
 /** 레거시 상태값 폴백 정규화 */
@@ -510,45 +552,48 @@ const APPROVAL_TRANSITIONS = {
 
 /** 연계 상태 변경 (실행 상태 등) */
 export async function updateLinkage(requestId, linkageId, updates) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return null;
-    const linkage = req.linkages.find(l => l.id === linkageId);
-    if (!linkage) return null;
-    // 레거시 상태값 폴백 처리
-    linkage.approvalStatus = normalizeApprovalStatus(linkage.approvalStatus);
-    if (updates.approvalStatus !== undefined) {
-        updates.approvalStatus = normalizeApprovalStatus(updates.approvalStatus);
-    }
-    if (updates.approvalStatus !== undefined && updates.approvalStatus !== linkage.approvalStatus) {
-        const allowed = APPROVAL_TRANSITIONS[linkage.approvalStatus] || [];
-        if (!allowed.includes(updates.approvalStatus)) return null;
-    }
-    if (updates.executionStatus !== undefined) linkage.executionStatus = updates.executionStatus;
-    if (updates.newRequestId !== undefined) linkage.newRequestId = updates.newRequestId;
-    if (updates.approvalStatus !== undefined) linkage.approvalStatus = updates.approvalStatus;
-    if (updates.reason !== undefined) linkage.reason = updates.reason;
-    if (updates.fromDept !== undefined) linkage.fromDept = updates.fromDept;
-    if (updates.toDept !== undefined) linkage.toDept = updates.toDept;
-    if (updates.targetService !== undefined) linkage.targetService = updates.targetService;
-    if (updates.type !== undefined) linkage.type = updates.type;
-    if (updates.followupLinkageId !== undefined) linkage.followupLinkageId = updates.followupLinkageId;
-    linkage.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return linkage;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage) return null;
+        linkage.approvalStatus = normalizeApprovalStatus(linkage.approvalStatus);
+        if (updates.approvalStatus !== undefined) {
+            updates.approvalStatus = normalizeApprovalStatus(updates.approvalStatus);
+        }
+        if (updates.approvalStatus !== undefined && updates.approvalStatus !== linkage.approvalStatus) {
+            const allowed = APPROVAL_TRANSITIONS[linkage.approvalStatus] || [];
+            if (!allowed.includes(updates.approvalStatus)) return null;
+        }
+        if (updates.executionStatus !== undefined) linkage.executionStatus = updates.executionStatus;
+        if (updates.newRequestId !== undefined) linkage.newRequestId = updates.newRequestId;
+        if (updates.approvalStatus !== undefined) linkage.approvalStatus = updates.approvalStatus;
+        if (updates.reason !== undefined) linkage.reason = updates.reason;
+        if (updates.fromDept !== undefined) linkage.fromDept = updates.fromDept;
+        if (updates.toDept !== undefined) linkage.toDept = updates.toDept;
+        if (updates.targetService !== undefined) linkage.targetService = updates.targetService;
+        if (updates.type !== undefined) linkage.type = updates.type;
+        if (updates.followupLinkageId !== undefined) linkage.followupLinkageId = updates.followupLinkageId;
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
+    });
 }
 
 /** 연계 메모 추가 */
 export async function addLinkageNote(requestId, linkageId, text, author, dept) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return null;
-    const linkage = req.linkages.find(l => l.id === linkageId);
-    if (!linkage) return null;
-    linkage.notes.push({ text, author, dept, createdAt: new Date().toISOString() });
-    linkage.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return linkage;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage) return null;
+        linkage.notes.push({ text, author, dept, createdAt: new Date().toISOString() });
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
+    });
 }
 
 /** 전체 활성 연계 목록 (관리자용) */
@@ -612,53 +657,60 @@ export function getPendingApprovals() {
 
 /** 케이스 완료(closed) → 승인된 연계의 executionStatus를 completed로 일괄 변경 */
 export async function completeApprovedLinkages(requestId) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req || !req.linkages) return 0;
-    let changed = 0;
-    for (const l of req.linkages) {
-        if (l.approvalStatus === 'approved' && l.executionStatus !== 'completed' && l.executionStatus !== 'declined' && l.executionStatus !== 'cancelled') {
-            l.executionStatus = 'completed';
-            l.updatedAt = new Date().toISOString();
-            changed++;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return 0;
+        let changed = 0;
+        for (const l of req.linkages) {
+            if (l.approvalStatus === 'approved' && l.executionStatus !== 'completed' && l.executionStatus !== 'declined' && l.executionStatus !== 'cancelled') {
+                l.executionStatus = 'completed';
+                l.updatedAt = new Date().toISOString();
+                changed++;
+            }
         }
-    }
-    if (changed > 0) {
-        req.updatedAt = new Date().toISOString();
-        await writeAll(store);
-    }
-    return changed;
+        if (changed > 0) {
+            req.updatedAt = new Date().toISOString();
+            await writeAll(store);
+        }
+        return changed;
+    });
 }
 
 /** 연계 최종 승인 → 케이스 상태를 connected로 자동 변경 (이미 connected/closed/referred면 무시) */
 export async function autoConnectOnApproval(requestId) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req) return false;
-    const skip = ['connected', 'closed', 'referred'];
-    if (skip.includes(req.status)) return false;
-    req.status = 'connected';
-    req.updatedAt = new Date().toISOString();
-    await writeAll(store);
-    return true;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req) return false;
+        const skip = ['connected', 'closed', 'referred'];
+        if (skip.includes(req.status)) return false;
+        req.status = 'connected';
+        req.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return true;
+    });
 }
 
 /** 서비스 계획 저장 */
 export async function setServicePlan(requestId, plan) {
-    const store = readAll();
-    const req = store[requestId];
-    if (!req) return null;
-    req.servicePlan = {
-        id: plan.id || crypto.randomUUID(),
-        steps: plan.steps || [],
-        createdAt: plan.createdAt || new Date().toISOString(),
-    };
-    await writeAll(store);
-    return req.servicePlan;
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req) return null;
+        req.servicePlan = {
+            id: plan.id || crypto.randomUUID(),
+            steps: plan.steps || [],
+            createdAt: plan.createdAt || new Date().toISOString(),
+        };
+        await writeAll(store);
+        return req.servicePlan;
+    });
 }
 
 /** 기존 데이터 마이그레이션 (collaborations + referrals → linkages) */
 export async function migrateToLinkages() {
+    return withLock(async () => {
     const store = readAll();
     let migrated = 0;
 
@@ -732,6 +784,7 @@ export async function migrateToLinkages() {
         await writeAll(store);
     }
     return migrated;
+    });
 }
 
 /** 서비스명 기준 케이스 조회 (없으면 전체) */

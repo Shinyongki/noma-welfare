@@ -3938,8 +3938,6 @@
         if (bulkSelected.size === 0) return;
 
         const ids = [...bulkSelected];
-        const confirmMsg = `${ids.length}건의 항목을 일괄 변경하시겠습니까?`;
-        if (!confirm(confirmMsg)) return;
 
         const endpointForStatus = (status) => {
             if (status === 'approved') return 'approve';
@@ -3960,6 +3958,7 @@
             } catch { failCount++; }
         }
         if (failCount > 0) showToast(`${failCount}건 처리 실패`, 'error');
+        else showToast(`${ids.length}건 상태가 변경되었습니다.`);
         bulkSelected.clear();
         updateBulkBar();
         document.getElementById('bulk-status-select').value = '';

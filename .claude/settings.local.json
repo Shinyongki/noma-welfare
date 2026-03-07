@@ -15,7 +15,8 @@
       "Bash(ls:*)",
       "Bash(npm run:*)",
       "Bash(lsof:*)",
-      "Bash(netstat:*)"
+      "Bash(netstat:*)",
+      "Bash(cp:*)"
     ]
   }
 }

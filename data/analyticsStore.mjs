@@ -30,6 +30,15 @@ function readAll() {
     return {};
 }
 
+// ── read-modify-write 원자화 잠금 ──
+let _rwLock = Promise.resolve();
+function withLock(fn) {
+    _rwLock = _rwLock
+        .then(() => fn())
+        .catch(err => { console.error('[Analytics] 잠금 오류:', err); throw err; });
+    return _rwLock;
+}
+
 function writeAll(data) {
     const json = JSON.stringify(data, null, 2);
     if (fs.existsSync(DATA_FILE)) {
@@ -46,11 +55,13 @@ function todayKey() {
 
 /** 이벤트 1건 기록 */
 export function track(event) {
-    const store = readAll();
-    const day = todayKey();
-    if (!store[day]) store[day] = {};
-    store[day][event] = (store[day][event] || 0) + 1;
-    writeAll(store);
+    withLock(async () => {
+        const store = readAll();
+        const day = todayKey();
+        if (!store[day]) store[day] = {};
+        store[day][event] = (store[day][event] || 0) + 1;
+        writeAll(store);
+    });
 }
 
 /** 최근 N일 이벤트 데이터 반환 */

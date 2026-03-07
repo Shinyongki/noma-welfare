@@ -989,6 +989,41 @@
             return typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(html) : html;
         }
 
+        // ── 소관 외 서비스 안내 카드 ──
+        function showOutOfScopeCard(nearMissService) {
+            // 중복 방지
+            const existing = document.getElementById('out-of-scope-card');
+            if (existing) existing.remove();
+
+            const container = document.getElementById('results-section');
+            if (!container) return;
+
+            const card = document.createElement('div');
+            card.id = 'out-of-scope-card';
+            card.className = 'flex items-start gap-3 p-4 mb-4 rounded-xl bg-amber-50 border border-amber-200 max-w-5xl mx-auto';
+            card.innerHTML = `
+                <span class="text-2xl flex-shrink-0 mt-0.5">🏘️</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-amber-800 font-semibold text-base">이 서비스는 읍면동 주민센터에서 안내받으실 수 있어요</p>
+                    <p class="text-amber-700 text-sm mt-1">
+                        문의하신 내용은 경남사회서비스원 소관이 아닌
+                        지자체 또는 중앙부처 담당 서비스로 보입니다.<br>
+                        가까운 <strong>읍면동 주민센터(행정복지센터)</strong>에 방문하시거나
+                        전화로 문의하시면 정확한 안내를 받으실 수 있습니다.
+                    </p>
+                    <a href="tel:0552308200"
+                       class="mt-3 inline-flex items-center gap-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg transition-colors">
+                        <span class="material-symbols-outlined text-base">call</span>
+                        경남사회서비스원 대표전화 055-230-8200
+                    </a>
+                </div>
+            `;
+            // results-section 내부 최상단에 삽입
+            const inner = container.querySelector('.max-w-5xl');
+            if (inner) inner.prepend(card);
+            else container.prepend(card);
+        }
+
         // ── Card Colors Pool ──
         const cardThemes = [
             { bg: 'bg-primary/10', text: 'text-primary', icon: 'emergency', border: 'border-primary/20', reasonBg: 'bg-amber-50', reasonBorder: 'border-amber-100', reasonTitle: 'text-amber-800', reasonText: 'text-amber-900/80' },
@@ -1262,6 +1297,8 @@
             // Reveal below-fold sections
             revealBelowFoldSections();
             DOM.aiSummaryArea.classList.add('hidden');
+            const oosCard = document.getElementById('out-of-scope-card');
+            if (oosCard) oosCard.remove();
             DOM.discoverMore.classList.add('hidden');
             DOM.btnNewSearch.classList.remove('hidden');
             DOM.cardsGrid.innerHTML = '';
@@ -1306,6 +1343,7 @@
                 let fillerShown = false;
                 let streamStarted = false;
                 let sseBuffer = '';
+                let isOutOfScope = false;
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -1361,6 +1399,12 @@
                             // 하위 호환: type 없는 기존 형식 처리
                             if (!data.type && data.text) {
                                 fullResponse += data.text;
+                            }
+
+                            // 소관 외 서비스 안내
+                            if (data.event === 'outOfScope' && data.outOfScope === true) {
+                                isOutOfScope = true;
+                                showOutOfScopeCard(data.nearMissService);
                             }
 
                             if (data.error) apiError = data.error;
@@ -1445,7 +1489,11 @@
                 }
 
                 // Render cards or handle no-card cases
-                if (cards.length > 0) {
+                if (isOutOfScope) {
+                    // 소관 외: Stepper 카드 렌더링 억제
+                    DOM.cardsTitle.classList.add('hidden');
+                    DOM.cardsGrid.classList.add('hidden');
+                } else if (cards.length > 0) {
                     DOM.cardsTitle.classList.remove('hidden');
                     DOM.cardsGrid.classList.remove('hidden');
                     cards.forEach((card, i) => {

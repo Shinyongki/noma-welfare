@@ -1,16 +1,20 @@
-# 노마(Noma) AI 맞춤형 복지 내비게이터
+# 노마(Noma) 프로젝트 지침
+# CLAUDE.md — Claude Code 작업 기준서
+
+---
 
 ## 1. 프로젝트 개요
 
 | 항목 | 내용 |
 |------|------|
-| 프로젝트명 | 노마(Noma) AI 맞춤형 복지 내비게이터 |
-| 소속 | 경상남도사회서비스원 |
-| 목적 | 도민 일상 언어(음성 포함) 복지 검색·신청 + 내부 담당자 상담 처리·연계·협업 |
-| 기술 스택 | Node.js/Express (ESM) + Gemini 2.0 Flash RAG + TailwindCSS (로컬 빌드) |
-| 배포 | Railway (Hobby 플랜), GitHub master 자동 배포 |
-| 배포 URL | https://noma-welfare-production.up.railway.app/ |
-| 리포 | Shinyongki/noma-welfare |
+| **프로젝트명** | 노마(Noma) AI 맞춤형 복지 내비게이터 |
+| **소속** | 경상남도사회서비스원 |
+| **목적** | 도민 일상 언어(음성 포함) 복지 검색·신청 + 내부 담당자 상담 처리·연계·협업 |
+| **기술 스택** | Node.js/Express (ESM) + Gemini 2.0 Flash RAG + TailwindCSS (로컬 빌드) |
+| **이메일** | Resend HTTP API (SMTP 아님 — Railway 포트 차단) |
+| **배포** | Railway (Hobby 플랜), GitHub master 자동 배포 |
+| **배포 URL** | https://noma-welfare-production.up.railway.app/ |
+| **리포** | Shinyongki/noma-welfare |
 
 ---
 
@@ -20,20 +24,21 @@
 사서원/
 ├── CLAUDE.md                                 # Claude Code용 프로젝트 지침
 ├── .env                                      # 환경변수
-├── server.js                                 # Express 서버 (라우트 포함 단일 파일, ~2,880줄)
+├── server.js                                 # Express 서버 (라우트 포함 단일 파일, ~3000줄)
 ├── package.json                              # type: "module" (ESM)
 ├── tailwind.config.cjs                       # TailwindCSS 설정
 ├── 경상남도사회서비스원_지식베이스_v2.csv     # RAG 지식베이스 CSV (21건)
 ├── welfare_kb_detail_v3.json                 # RAG 상세 지식베이스 JSON (21건)
 ├── data/
-│   ├── requestStore.mjs                      # 상담 신청 저장/관리 모듈
-│   ├── analyticsStore.mjs                    # 일별 이벤트 분석 모듈
+│   ├── requestStore.mjs                      # 상담 신청 저장/관리 (withLock 원자화 완료)
+│   ├── analyticsStore.mjs                    # 일별 이벤트 분석 (withLock 원자화 완료)
 │   ├── requests.json                         # 상담 신청 데이터
 │   └── analytics.json                        # 분석 데이터
 ├── stitch/                                   # 프론트엔드 (정적 파일)
 │   ├── code.html                             # 도민용 메인 검색·상담 화면
-│   ├── admin.html                            # 관리자/담당자/부서장 통합 대시보드
+│   ├── admin.html                            # 관리자 대시보드
 │   ├── case.html                             # 담당자 상담 처리 화면
+│   ├── dept.html                             # 부서 조정자 화면
 │   ├── referral.html                         # 서비스 연계 요청 페이지
 │   └── css/tailwind.css                      # 빌드된 TailwindCSS
 ├── src/
@@ -41,43 +46,57 @@
 └── docs/                                     # 기획·분석·작업지시서 문서
 ```
 
-참고: 라우트가 별도 파일로 분리되지 않고 server.js 단일 파일에 모두 포함되어 있습니다.
-dept.html은 삭제됨 (007 작업 — admin.html로 통합됨).
+**참고:** 라우트가 별도 파일로 분리되지 않고 server.js 단일 파일에 모두 포함되어 있습니다.
 
 ---
 
 ## 3. 핵심 용어 사전
 
 ### RAG 및 AI 관련
-- **RAG**: 지식베이스(CSV 21건 + JSON 상세)를 어미 제거 + 유의어 확장 + 스코어링으로 검색 후, Gemini AI에 컨텍스트로 주입해 답변 생성
-- **SSE**: Gemini 응답을 스트리밍 전달. 체감 응답 지연 최소화
-- **STT**: Web Speech API 기반 음성→텍스트 (ko-KR)
-- **TTS**: Edge TTS (ko-KR-SunHiNeural). 실패 시 브라우저 SpeechSynthesis 폴백
-- **staffSystemPrompt**: 담당자 AI 상담용 시스템 프롬프트
+
+| 용어 | 설명 |
+|------|------|
+| **RAG** | 지식베이스(CSV 21건 + JSON 상세)를 어미 제거 + 유의어 확장 + 스코어링으로 검색 후 Gemini AI에 컨텍스트로 주입해 답변 생성 |
+| **buildCumulativeQuery()** | 멀티턴 대화의 누적 컨텍스트로 RAG 쿼리 빌드 (v013 추가). 후속 질문에서도 초기 맥락 유지 |
+| **SSE** | Server-Sent Events — Gemini 응답을 스트리밍 전달. 체감 응답 지연 최소화 |
+| **STT** | Web Speech API 기반 음성→텍스트 (ko-KR). 음성 종료 시 자동 검색 |
+| **TTS** | Edge TTS (ko-KR-SunHiNeural) 텍스트→음성. 실패 시 브라우저 SpeechSynthesis 폴백 |
+| **staffSystemPrompt** | 담당자 AI 상담용 시스템 프롬프트. 사건 컨텍스트 + KB 요약 포함 |
 
 ### 커스텀 태그
-- **`<noma-card>`**: Gemini 응답 스트림 내 서비스 카드 JSON 태그 → Stepper 카드 UI 렌더링
-- **`<noma-apply>`**: 이름·전화번호·서비스명 수집 완료 시 자동 상담 신청 POST
-- **Stepper 카드**: ① 대상 확인 → ② 신청 방법 → ③ 받는 혜택 → ④ 연락처
+
+| 태그 | 설명 |
+|------|------|
+| **`<noma-card>`** | Gemini 응답 스트림 내 서비스 카드 JSON 태그 → Stepper 카드 UI 렌더링 |
+| **`<noma-apply>`** | 이름·전화번호·서비스명 3필드 수집 완료 시 Gemini가 삽입 → 자동 상담 신청 POST |
+| **Stepper 카드** | ① 대상 확인 → ② 신청 방법 → ③ 받는 혜택 → ④ 연락처 4단계 펼침/접힘 UI |
 
 ### 데이터 저장
-- **requestStore**: 상담 신청 JSON 파일 기반 저장소. 원자적 쓰기(tmp→rename) + 자동 백업(.bak) + 손상 복구
-- **analyticsStore**: 일별 검색·신청·TTS 수 기록 JSON 저장소
-- **deptServiceMap**: 서비스별 담당 부서·법적 근거·대상·자격·연계 가능 서비스 매핑 (server.js 내부)
+
+| 모듈 | 설명 |
+|------|------|
+| **requestStore** | 상담 신청 JSON 파일 기반 저장소. **withLock() 래핑으로 21개 함수 read-modify-write 직렬화 (v014 완료)**. 원자적 쓰기(tmp→rename) + 자동 백업(.bak) + 손상 복구 |
+| **analyticsStore** | 일별 검색·신청·TTS 수 기록 JSON 저장소. **withLock() 래핑 완료 (v014)** |
+| **deptServiceMap** | 서비스별 담당 부서·법적 근거·대상·자격·연계 가능 서비스 매핑 (server.js 내부) |
 
 ### 업무 워크플로우
-- **상태 전환**: open → confirmed → contacted → connected → closed (전진만 허용)
-- **2단계 승인**: pending → dept_approved(부서 조정자) → approved(관리자). 최종 승인 시 이메일 자동 발송
-- **연계(referral)**: 신청자를 다른 서비스로 보내는 것. 연쇄 연계(체인) 지원
-- **협업(collaboration)**: 자문(consultation) / 공동처리(joint) / 이관(transfer) 3유형
+
+| 개념 | 설명 |
+|------|------|
+| **상태 전환** | open → confirmed → contacted → connected → closed (전진만 허용) |
+| **2단계 승인** | pending → dept_approved(부서 조정자) → approved(관리자). 최종 승인 시 Resend API 이메일 자동 발송 |
+| **연계(referral)** | 신청자를 다른 서비스로 보내는 것. 연쇄 연계(체인) 지원 |
+| **협업(collaboration)** | 자문(consultation) / 공동처리(joint) / 이관(transfer) 3유형 |
+| **연계 체인** | A서비스 → B서비스 → C서비스 연쇄 이력 시각화 |
 
 ### 화면별 역할
 
 | 화면 | 파일 | 사용자 | 주요 기능 |
 |------|------|--------|----------|
 | 도민 검색 | stitch/code.html | 도민 | 자연어/음성 검색, Stepper 카드, 상담 신청 |
-| 관리자/담당자/부서장 | stitch/admin.html | 관리자·담당자·부서장 통합 | KPI 현황판, 칸반, 상담 관리, 분석, 연계 조정, 수신 요청 |
+| 관리자 | stitch/admin.html | 관리자 | KPI 현황판, 칸반, 상담 관리, 분석, 연계 조정 |
 | 상담 처리 | stitch/case.html | 담당자 | 상태 스테퍼, 메모, 연계 요청, AI 상담 |
+| 부서 조정 | stitch/dept.html | 부서 조정자 | 부서별 연계/협업 승인, 배정 관리 |
 | 연계 요청 | stitch/referral.html | 담당자 | 서비스 연계 요청 폼 |
 
 ---
@@ -85,19 +104,23 @@ dept.html은 삭제됨 (007 작업 — admin.html로 통합됨).
 ## 4. 기술 환경
 
 ### 의존성
-- 런타임: Node.js 18+, ESM ("type": "module")
-- 서버: express, express-session, cors, helmet, express-rate-limit, dotenv
-- AI: @google/genai (Gemini 2.0 Flash)
-- 음성: @andresaya/edge-tts
-- 이메일: Resend HTTP API (SMTP 아님 — Railway 포트 차단)
-- 프론트: TailwindCSS 로컬 빌드, Chart.js CDN
 
-### 환경변수 (.env / Railway)
+| 분류 | 패키지 |
+|------|--------|
+| **런타임** | Node.js 18+, ESM ("type": "module") |
+| **서버** | express, express-session, cors, helmet, express-rate-limit, dotenv |
+| **AI** | @google/genai (Gemini 2.0 Flash) — text-embedding-004 (v015 추가 예정) |
+| **음성** | @andresaya/edge-tts |
+| **이메일** | Resend HTTP API (https://api.resend.com/emails) |
+| **프론트** | TailwindCSS 로컬 빌드, Chart.js CDN |
+| **DB (예정)** | @supabase/supabase-js + pgvector — v015 작업지시서 완료 |
+
+### 환경변수 (.env)
 
 | 변수명 | 용도 |
 |--------|------|
 | `GOOGLE_GEMINI_API_KEY` | Gemini API 키 |
-| `ADMIN_PASSWORD` | 관리자/담당자 로그인 |
+| `ADMIN_PASSWORD` | 관리자 로그인 |
 | `DEPT_PASSWORD` | 부서 조정자 로그인 |
 | `SESSION_SECRET` | express-session 서명 키 |
 | `RESEND_API_KEY` | Resend 이메일 API 키 |
@@ -105,81 +128,109 @@ dept.html은 삭제됨 (007 작업 — admin.html로 통합됨).
 | `ALLOWED_ORIGINS` | CORS 허용 도메인 (콤마 구분) |
 | `NODE_ENV` | production 시 secure 쿠키 |
 | `PORT` | 서버 포트 (기본 5000) |
+| `SUPABASE_URL` | Supabase 프로젝트 URL **(v015 추가 예정)** |
+| `SUPABASE_KEY` | Supabase anon key **(v015 추가 예정)** |
 
-### 보안 현황
-- helmet + CSP 헤더 ✅
-- express-rate-limit 3종 (api/chat/tts) ✅
-- sanitizeUserInput() 프롬프트 인젝션 방어 ✅
-- escapeHtml() 프론트엔드 XSS 방어 (admin.html 90곳 적용) ✅
-- 세션 쿠키 httpOnly + sameSite(lax) + secure(production) ✅
-- CORS ALLOWED_ORIGINS 환경변수 제한 ✅
-- requireAuth 미들웨어 (보호 API 전체) ✅
+### 이메일 발송
 
----
-
-## 5. 주요 기술 제약 및 주의사항
-
-- **단일 파일 구조**: server.js ~2,880줄에 모든 라우트·로직 포함. 수정 시 영향 범위 주의
-- **원자적 쓰기**: requestStore/analyticsStore는 반드시 tmp→rename 방식 유지
-- **Gemini 429**: 무료 티어 분당 제한. 3초 백오프 재시도 로직 유지
-- **TTS 폴백**: Edge TTS 실패 → 브라우저 SpeechSynthesis
-- **인증**: 보호 API에 requireAuth 미들웨어 필수 적용
-- **커스텀 태그 파싱**: SSE 스트림 청크 경계에서도 안전하게 동작해야 함
-- **Railway 제약**: SMTP 포트 차단 → HTTPS API만 사용 가능
-- **CSS 빌드**: stitch/*.html 수정 후 반드시 `npm run build:css` 실행
+- **Resend HTTP API** (https://api.resend.com/emails) — Railway SMTP 포트 차단 대응
+- 발신: `onboarding@resend.dev` (추후 커스텀 도메인 예정)
+- 수신 기본: DEFAULT_RECIPIENTS 배열 (server.js 내 정의)
+- 부서별 라우팅: deptServiceMap의 email 필드로 자동 확장
 
 ---
 
-## 6. 협업 방식
+## 5. 완료 작업 이력
+
+| 번호 | 작업명 | 핵심 변경 |
+|------|--------|----------|
+| 001 | 초기 설정 | Railway 배포, 환경변수, ESM 구조 |
+| 002~011 | 기능 개발 | RAG, 인증, 연계, 협업, 분석, 보안 패치, Resend API 전환 |
+| **012** | **confirm() 제거** | admin.html bulkChangeStatus → **토스트 UI로 교체** |
+| **013** | **RAG 멀티턴** | **buildCumulativeQuery() 추가** — 멀티턴 누적 컨텍스트 RAG 쿼리 |
+| **014** | **원자화** | requestStore 21개 함수 + analyticsStore **withLock() 래핑** — 동시성 안전 |
+
+---
+
+## 6. 진행 중 / 백로그
+
+| 번호 | 작업명 | 상태 | 핵심 내용 |
+|------|--------|------|----------|
+| **015** | Vector DB 전환 | 작업지시서 완료 — 실행 대기 | Supabase pgvector + Gemini text-embedding-004 |
+| **016** | 지식베이스 확장 | 작업지시서 완료 — 실행 대기 | 통합돌봄법 + 읍면동 전화번호 데이터 탑재 |
+| 017 | 소관 외 라우팅 | 미착수 | 읍면동·시군 안내 Gemini 프롬프트 보완 |
+| 018 | FAQ 구조화 | 미착수 | 이용자 질문 유형별 FAQ 임베딩 |
+
+---
+
+## 7. 데이터 소스 현황
+
+| 소스 | 데이터 | 상태 |
+|------|--------|------|
+| 경상남도사회서비스원_지식베이스_v2.csv | 21건 서비스 정보 | 운영 중 |
+| welfare_kb_detail_v3.json | 21건 상세 정보 | 운영 중 |
+| 행정안전부 공공데이터 [15061082](https://www.data.go.kr/data/15061082/fileData.do) | 읍면동사무소·보건소 전화번호 (전국 1만여 건) | CSV 다운로드 후 경남 필터링 필요 (로그인 불필요) |
+| 돌봄통합지원법 | 2026.3.27 전면 시행. 핵심 서비스 13종 | v016 지식베이스 탑재 예정 |
+| Supabase welfare_kb | pgvector 임베딩 저장소 | v015 세팅 예정 |
+
+---
+
+## 8. 주요 기술 제약 및 주의사항
+
+1. **단일 파일 구조**: server.js ~3000줄에 모든 라우트·로직 포함. 수정 시 영향 범위 주의
+2. **withLock 직렬화 필수**: read-modify-write 패턴은 반드시 `withLock()` 내부에서 수행. withLock 없는 패턴 절대 금지
+3. **원자적 쓰기 유지**: requestStore/analyticsStore는 반드시 tmp→rename 방식 유지
+4. **Gemini 429**: 무료 티어 분당 제한. 3초 백오프 재시도 로직 유지
+5. **TTS 폴백**: Edge TTS 실패 → 브라우저 SpeechSynthesis
+6. **인증 필수**: 보호 API에 requireAuth 미들웨어 적용 확인
+7. **커스텀 태그 파싱**: SSE 스트림 청크 경계에서도 안전하게 동작해야 함
+8. **세션**: httpOnly + sameSite(lax) + secure(production only), 8시간 유효
+9. **Railway 제약**: SMTP 포트 차단 → HTTPS API(Resend)만 사용 가능
+10. **CSV/JSON 파일 삭제 금지**: v015 이후에도 폴백용으로 유지
+
+---
+
+## 9. 협업 방식
 
 ### 역할 분담
 
 | | Claude AI (채팅) | Claude Code (로컬) |
-|--|-----------------|-------------------|
-| 역할 | 전략·방향·판단·분석 | 코딩·파일 작업·실행 |
-| 강점 | 이미지 분석, 복잡한 판단, 문서 작성 | 직접 코드 수정, 빌드, 테스트 |
-| 산출물 | 작업지시서 (.md) | 코드 커밋, 실행 결과 |
+|-|-----------------|-------------------|
+| **역할** | 전략·방향·판단·분석·문서 작성 | 코딩·파일 작업·실행·빌드 |
+| **강점** | 이미지 분석, 복잡한 판단, 작업지시서 작성 | 직접 코드 수정, 빌드, 테스트 |
+| **산출물** | 작업지시서 (.md / .docx) | 코드 커밋, 실행 결과 |
+
+### 정보 전달
+
+- **Claude AI → Claude Code**: 작업지시서 파일로 전달
+- **Claude Code → Claude AI**: 텍스트는 복사, 이미지는 캡처 후 첨부
 
 ### 작업지시서 규칙
-파일명: `작업지시서_NNN_작업명.md`
 
-작업지시서에 포함할 내용:
-1. 목표 — 무엇을 달성하는가
-2. 배경 — 왜 필요한가, 현재 상태
-3. 작업 항목 — 구체적 변경 사항 (파일명, 함수명 포함)
-4. 검증 방법 — 완료 확인 기준
-5. 주의사항 — 건드리면 안 되는 부분, 의존성
+```
+파일명: 작업지시서_NNN_작업명.md
+예시: 작업지시서_015_VectorDB전환.md
+      작업지시서_016_지식베이스확장.md
+```
 
-### 완료된 작업 이력
-
-| 번호 | 작업명 | 변경 파일 |
-|------|--------|----------|
-| 001~004 | 초기 설정, 품질 점검, 버그 수정 | server.js, admin.html 등 |
-| 005 | 연계조정 칸반 UI 개선 | stitch/admin.html |
-| 006 | 승인대기 카드 + 인라인 UI + 토스트 | stitch/admin.html |
-| 007 | dept.html 레거시 정리 | stitch/dept.html(삭제), server.js(-114줄) |
-| 008 | 수신요청 카드 개선 + 버그수정 | stitch/admin.html |
-| 009 | alert 34개 → 토스트 교체 | stitch/admin.html |
-| 010A | Railway 환경변수 설정 | Railway 대시보드 |
-| 010B | XSS 취약점 8곳 패치 | stitch/admin.html |
+포함 내용:
+1. **목표** — 무엇을 달성하는가
+2. **배경** — 왜 필요한가, 현재 상태
+3. **작업 항목** — 구체적 변경 사항 (파일명, 함수명 포함)
+4. **검증 방법** — 완료 확인 기준
+5. **주의사항** — 건드리면 안 되는 부분, 의존성
 
 ---
 
-## 7. Claude Code 행동 규칙
+## 10. Claude Code 행동 규칙
 
-1. **작업 전 확인**: grep으로 실제 줄 번호 재확인 후 수정 (줄 번호는 작업 중 밀림)
-2. **백업**: 대형 수정 전 `cp 파일명 파일명.bak`
-3. **CSS 빌드**: stitch/*.html 수정 후 반드시 `npm run build:css`
-4. **원자적 쓰기 유지**: requestStore/analyticsStore 수정 시 tmp→rename 패턴 유지
-5. **서버 재시작 확인**: server.js 수정 후 동작 확인
-6. **보고 형식 준수**: 완료 항목, 변경 파일(줄 수 변동), 우려사항 포함
-7. **CLAUDE.md 동기화**: 구조·기능·규칙 변경 시 이 파일 업데이트
-
----
-
-## 8. 백로그 (미처리)
-
-- `bulkChangeStatus()` confirm() 1개 → 토스트 교체 (009 범위 외 잔여)
-- Slack 연동 (011 예정) — Incoming Webhook 방식
-- RAG 멀티턴 컨텍스트 개선
-- read-modify-write 원자화
+1. **세션 시작**: CLAUDE.md를 읽고 프로젝트 맥락을 파악할 것
+2. **withLock 필수**: read-modify-write 패턴은 반드시 withLock() 내부에서 수행. 미적용 패턴 작성 금지
+3. **새 API 엔드포인트**: requireAuth 미들웨어 적용 확인
+4. **requestStore/analyticsStore**: 직접 수정 금지 — 반드시 공개 메서드 사용
+5. **CSS**: TailwindCSS 유틸리티 클래스 사용. 인라인 style 최소화
+6. **환경변수**: 하드코딩 금지 — process.env 사용
+7. **server.js 수정**: 영향 범위 파악 후 작업
+8. **CLAUDE.md 동기화**: 구조·기능·규칙 변경 시 CLAUDE.md 업데이트 지시 포함
+9. **판단 필요 시**: Claude AI에 보고하고 방향 확인 후 진행
+10. **결과 검증**: 작업 완료 후 검증 방법 기준으로 확인하고 결과 보고
