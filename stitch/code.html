@@ -1328,7 +1328,7 @@
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: prepareMessagesForAPI(), quickQuery }),
+                    body: JSON.stringify({ messages: prepareMessagesForAPI(), quickQuery, pageContext: { voice: lastInputWasVoice } }),
                     signal: controller.signal,
                 });
                 clearTimeout(timeout);
@@ -1978,7 +1978,17 @@
                 isSpeaking = true;
                 updateFloatingMicState();
 
-                const ttsText = text.length > 500 ? text.slice(0, 500) + '...' : text;
+                // 문장 단위로 자르기 (500자 하드 컷 대신)
+                let ttsText = text;
+                if (text.length > 500) {
+                    const sentences = text.match(/[^.!?。]+[.!?。]?\s*/g) || [text];
+                    ttsText = '';
+                    for (const s of sentences) {
+                        if ((ttsText + s).length > 480) break;
+                        ttsText += s;
+                    }
+                    if (!ttsText) ttsText = text.slice(0, 500);
+                }
 
                 // Try Edge TTS (server-side)
                 try {

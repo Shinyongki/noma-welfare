@@ -1087,6 +1087,9 @@
             <!-- Tab 3: Analytics -->
             <section id="panel-analytics" class="hidden">
 
+                <!-- 용량 경고 배너 (동적 표시, Phase F) -->
+                <div id="storage-warning-banner" class="hidden mb-4"></div>
+
                 <!-- KPI 카드 -->
                 <div class="grid grid-cols-5 gap-2 mb-5" id="analytics-kpi"></div>
 
@@ -1174,6 +1177,96 @@
                             <div class="flex-1 min-h-0"><canvas id="chart-dept-linkage"></canvas></div>
                         </div>
                     </div>
+                </div>
+
+                <!-- ═══ 그룹 4: 질의 분석 (신규) ═══ -->
+                <div class="analytics-section" style="margin-top:24px">
+                    <div class="analytics-section-header">
+                        <div class="analytics-section-icon" style="background:linear-gradient(135deg,#7C3AED,#A855F7)">
+                            <span class="material-symbols-outlined text-white" style="font-size:16px">query_stats</span>
+                        </div>
+                        <div>
+                            <div class="analytics-section-label">질의 분석<span class="analytics-section-sub">도민 검색 패턴, 매칭 품질, 전환율</span></div>
+                        </div>
+                        <div class="ml-auto flex gap-1">
+                            <button onclick="loadQueryAnalytics(7)" class="qa-period-btn px-3 py-1 text-xs rounded-full border border-slate-300 hover:bg-slate-100" data-period="7">7일</button>
+                            <button onclick="loadQueryAnalytics(14)" class="qa-period-btn px-3 py-1 text-xs rounded-full border border-purple-400 bg-purple-50 text-purple-700 font-semibold" data-period="14">14일</button>
+                            <button onclick="loadQueryAnalytics(30)" class="qa-period-btn px-3 py-1 text-xs rounded-full border border-slate-300 hover:bg-slate-100" data-period="30">30일</button>
+                        </div>
+                    </div>
+
+                    <!-- KPI 카드 4종 -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4" id="qa-kpi-cards">
+                        <div class="card-elevated !p-4 text-center">
+                            <div class="text-xs text-slate-500 mb-1">총 질의</div>
+                            <div class="text-2xl font-bold text-purple-700" id="qa-total">-</div>
+                        </div>
+                        <div class="card-elevated !p-4 text-center">
+                            <div class="text-xs text-slate-500 mb-1">음성 비율</div>
+                            <div class="text-2xl font-bold text-blue-600" id="qa-voice-rate">-</div>
+                        </div>
+                        <div class="card-elevated !p-4 text-center">
+                            <div class="text-xs text-slate-500 mb-1">소관 외 비율</div>
+                            <div class="text-2xl font-bold text-amber-600" id="qa-oos-rate">-</div>
+                        </div>
+                        <div class="card-elevated !p-4 text-center">
+                            <div class="text-xs text-slate-500 mb-1">전환율</div>
+                            <div class="text-2xl font-bold text-emerald-600" id="qa-conv-rate">-</div>
+                        </div>
+                    </div>
+
+                    <!-- 차트 그리드 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <!-- ① 일별 질의 추이 -->
+                        <div class="card-elevated !p-4">
+                            <h3 class="text-sm font-semibold text-slate-700 mb-2">일별 질의 추이</h3>
+                            <div style="height:220px"><canvas id="qa-chart-daily"></canvas></div>
+                        </div>
+                        <!-- ② 인기 서비스 TOP 10 -->
+                        <div class="card-elevated !p-4">
+                            <h3 class="text-sm font-semibold text-slate-700 mb-2">인기 검색 서비스 TOP 10</h3>
+                            <div style="height:220px"><canvas id="qa-chart-services"></canvas></div>
+                        </div>
+                        <!-- ③ 페르소나별 분포 -->
+                        <div class="card-elevated !p-4">
+                            <h3 class="text-sm font-semibold text-slate-700 mb-2">페르소나별 분포</h3>
+                            <div style="height:220px;display:flex;align-items:center;justify-content:center"><canvas id="qa-chart-persona"></canvas></div>
+                        </div>
+                        <!-- ④ FAQ 유형별 분포 -->
+                        <div class="card-elevated !p-4">
+                            <h3 class="text-sm font-semibold text-slate-700 mb-2">FAQ 유형별 분포</h3>
+                            <div style="height:220px;display:flex;align-items:center;justify-content:center"><canvas id="qa-chart-faqtype"></canvas></div>
+                        </div>
+                        <!-- ⑤ 시간대별 이용 패턴 -->
+                        <div class="card-elevated !p-4">
+                            <h3 class="text-sm font-semibold text-slate-700 mb-2">시간대별 이용 패턴</h3>
+                            <div style="height:220px"><canvas id="qa-chart-hourly"></canvas></div>
+                        </div>
+                        <!-- ⑥ 매칭 품질 추이 -->
+                        <div class="card-elevated !p-4">
+                            <h3 class="text-sm font-semibold text-slate-700 mb-2">매칭 품질 추이</h3>
+                            <div style="height:220px"><canvas id="qa-chart-quality"></canvas></div>
+                        </div>
+                    </div>
+
+                    <!-- 테이블: 소관 외 + 매칭 실패 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                        <div class="card-elevated !p-4">
+                            <h3 class="text-sm font-semibold text-slate-700 mb-2">소관 외 쿼리 (최근 20건)</h3>
+                            <div class="overflow-auto max-h-64" id="qa-table-oos">
+                                <p class="text-xs text-slate-400">로딩 중...</p>
+                            </div>
+                        </div>
+                        <div class="card-elevated !p-4">
+                            <h3 class="text-sm font-semibold text-slate-700 mb-2">매칭 실패 쿼리 (최근 20건)</h3>
+                            <div class="overflow-auto max-h-64" id="qa-table-failures">
+                                <p class="text-xs text-slate-400">로딩 중...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 용량 인디케이터 -->
+                    <div id="qa-storage-indicator" class="p-3 bg-gray-50 rounded-lg text-sm text-gray-500"></div>
                 </div>
 
             </section>
@@ -1586,7 +1679,7 @@
         // Load data
         if (tab === 'dashboard') loadDashboard();
         else if (tab === 'requests') loadRequests();
-        else if (tab === 'analytics') loadAnalytics();
+        else if (tab === 'analytics') { loadAnalytics(); loadQueryAnalytics(); }
         else if (tab === 'collab') loadCollabPanel();
         else if (tab === 'approvals') loadApprovals();
         else if (tab === 'incoming') loadIncoming();
@@ -4434,6 +4527,218 @@
         } catch (e) {
             console.error('Analytics load error:', e);
         }
+    }
+
+    // ══════════════════════════════════════════
+    // ── 질의 분석 차트 (Phase E) ──
+    // ══════════════════════════════════════════
+    const qaCharts = {};
+    function destroyQAChart(id) { if (qaCharts[id]) { qaCharts[id].destroy(); delete qaCharts[id]; } }
+
+    const PERSONA_LABELS = {
+        elderly: '고령 어르신', proxy_child: '중장년 자녀', young_parent: '젊은 부모',
+        welfare_worker: '복지 실무자', newcomer: '전입 주민', caregiver: '종사자', general: '일반', unknown: '미분류',
+    };
+    const FAQ_TYPE_LABELS = {
+        cost: '비용', eligibility: '자격', howto: '신청방법', duration: '기간',
+        content: '서비스내용', proxy: '대리신청', general: '일반', unknown: '미분류', null: '미분류',
+    };
+
+    async function loadQueryAnalytics(period = 14) {
+        // 기간 버튼 활성화
+        document.querySelectorAll('.qa-period-btn').forEach(btn => {
+            const p = btn.getAttribute('data-period');
+            if (p == period) {
+                btn.className = 'qa-period-btn px-3 py-1 text-xs rounded-full border border-purple-400 bg-purple-50 text-purple-700 font-semibold';
+            } else {
+                btn.className = 'qa-period-btn px-3 py-1 text-xs rounded-full border border-slate-300 hover:bg-slate-100';
+            }
+        });
+
+        try {
+            const [data, failures, oosData, storageData] = await Promise.all([
+                api(`/api/admin/query-analytics?period=${period}`),
+                api('/api/admin/query-failures?limit=20'),
+                api('/api/admin/query-out-of-scope?limit=20'),
+                api('/api/admin/storage-status'),
+            ]);
+
+            const s = data.summary || {};
+
+            // KPI 카드
+            document.getElementById('qa-total').textContent = (s.totalQueries || 0).toLocaleString() + '건';
+            document.getElementById('qa-voice-rate').textContent = (s.voiceRate || 0) + '%';
+            document.getElementById('qa-oos-rate').textContent = (s.outOfScopeRate || 0) + '%';
+            document.getElementById('qa-conv-rate').textContent = (s.conversionRate || 0) + '%';
+
+            // ① 일별 질의 추이
+            const daily = data.daily || [];
+            destroyQAChart('qa-chart-daily');
+            qaCharts['qa-chart-daily'] = new Chart(document.getElementById('qa-chart-daily'), {
+                type: 'line',
+                data: {
+                    labels: daily.map(d => d.stat_date?.slice(5) || ''),
+                    datasets: [
+                        { label: '전체', data: daily.map(d => d.total_queries), borderColor: '#7C3AED', backgroundColor: 'rgba(124,58,237,0.1)', fill: true, tension: 0.3 },
+                        { label: '음성', data: daily.map(d => d.voice_queries), borderColor: '#3B82F6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.3 },
+                    ],
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } }, scales: { y: { beginAtZero: true } } },
+            });
+
+            // ② 인기 서비스 TOP 10
+            const topSvc = data.topServices || [];
+            destroyQAChart('qa-chart-services');
+            qaCharts['qa-chart-services'] = new Chart(document.getElementById('qa-chart-services'), {
+                type: 'bar',
+                data: {
+                    labels: topSvc.map(s => s.name.length > 10 ? s.name.slice(0, 10) + '..' : s.name),
+                    datasets: [{ label: '검색 수', data: topSvc.map(s => s.count), backgroundColor: '#A855F7' }],
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+            });
+
+            // ③ 페르소나별 분포
+            const pc = data.personaCounts || {};
+            const pcLabels = Object.keys(pc).map(k => PERSONA_LABELS[k] || k);
+            const pcColors = ['#7C3AED', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#94A3B8'];
+            destroyQAChart('qa-chart-persona');
+            qaCharts['qa-chart-persona'] = new Chart(document.getElementById('qa-chart-persona'), {
+                type: 'doughnut',
+                data: { labels: pcLabels, datasets: [{ data: Object.values(pc), backgroundColor: pcColors }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 } } } } },
+            });
+
+            // ④ FAQ 유형별 분포
+            const fc = data.faqTypeCounts || {};
+            const fcLabels = Object.keys(fc).map(k => FAQ_TYPE_LABELS[k] || k);
+            const fcColors = ['#EC4899', '#8B5CF6', '#14B8A6', '#F97316', '#06B6D4', '#84CC16', '#94A3B8'];
+            destroyQAChart('qa-chart-faqtype');
+            qaCharts['qa-chart-faqtype'] = new Chart(document.getElementById('qa-chart-faqtype'), {
+                type: 'doughnut',
+                data: { labels: fcLabels, datasets: [{ data: Object.values(fc), backgroundColor: fcColors }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 10 } } } } },
+            });
+
+            // ⑤ 시간대별 이용 패턴
+            const hd = data.hourlyDistribution || {};
+            const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+            destroyQAChart('qa-chart-hourly');
+            qaCharts['qa-chart-hourly'] = new Chart(document.getElementById('qa-chart-hourly'), {
+                type: 'bar',
+                data: {
+                    labels: hours.map(h => h + '시'),
+                    datasets: [{ label: '질의 수', data: hours.map(h => hd[h] || 0), backgroundColor: '#7C3AED' }],
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
+            });
+
+            // ⑥ 매칭 품질 추이
+            destroyQAChart('qa-chart-quality');
+            qaCharts['qa-chart-quality'] = new Chart(document.getElementById('qa-chart-quality'), {
+                type: 'line',
+                data: {
+                    labels: daily.map(d => d.stat_date?.slice(5) || ''),
+                    datasets: [
+                        { label: '평균 유사도', data: daily.map(d => d.avg_top_score ? +(d.avg_top_score).toFixed(3) : 0), borderColor: '#10B981', yAxisID: 'y', tension: 0.3 },
+                        { label: '실패 건수', data: daily.map(d => d.match_failures), borderColor: '#EF4444', yAxisID: 'y1', tension: 0.3 },
+                    ],
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+                    scales: {
+                        y: { position: 'left', beginAtZero: true, max: 1, title: { display: true, text: '유사도' } },
+                        y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: '실패 건수' } },
+                    },
+                },
+            });
+
+            // ⑦ 소관 외 쿼리 테이블
+            const oosEl = document.getElementById('qa-table-oos');
+            if (oosData && oosData.length > 0) {
+                oosEl.innerHTML = `<table class="w-full text-xs"><thead><tr class="border-b"><th class="text-left py-1 px-2">쿼리</th><th class="py-1 px-2">점수</th><th class="py-1 px-2">페르소나</th><th class="py-1 px-2">일시</th></tr></thead><tbody>`
+                    + oosData.map(r => `<tr class="border-b border-slate-100"><td class="py-1 px-2 max-w-[200px] truncate">${escapeHtml(r.query_text || '')}</td><td class="py-1 px-2 text-center">${(r.top_score || 0).toFixed(3)}</td><td class="py-1 px-2 text-center">${PERSONA_LABELS[r.detected_persona] || r.detected_persona || '-'}</td><td class="py-1 px-2 text-center text-slate-400">${r.created_at ? new Date(r.created_at).toLocaleDateString('ko-KR') : '-'}</td></tr>`).join('')
+                    + '</tbody></table>';
+            } else {
+                oosEl.innerHTML = '<p class="text-xs text-slate-400">데이터 없음</p>';
+            }
+
+            // ⑧ 매칭 실패 쿼리 테이블
+            const failEl = document.getElementById('qa-table-failures');
+            if (failures && failures.length > 0) {
+                failEl.innerHTML = `<table class="w-full text-xs"><thead><tr class="border-b"><th class="text-left py-1 px-2">쿼리</th><th class="py-1 px-2">점수</th><th class="py-1 px-2">페르소나</th><th class="py-1 px-2">일시</th></tr></thead><tbody>`
+                    + failures.map(r => `<tr class="border-b border-slate-100"><td class="py-1 px-2 max-w-[200px] truncate">${escapeHtml(r.query_text || '')}</td><td class="py-1 px-2 text-center">${(r.top_score || 0).toFixed(3)}</td><td class="py-1 px-2 text-center">${PERSONA_LABELS[r.detected_persona] || r.detected_persona || '-'}</td><td class="py-1 px-2 text-center text-slate-400">${r.created_at ? new Date(r.created_at).toLocaleDateString('ko-KR') : '-'}</td></tr>`).join('')
+                    + '</tbody></table>';
+            } else {
+                failEl.innerHTML = '<p class="text-xs text-slate-400">데이터 없음</p>';
+            }
+
+            // 용량 인디케이터
+            const storageEl = document.getElementById('qa-storage-indicator');
+            if (storageData) {
+                const statusText = storageData.loggingEnabled ? '활성' : '중단';
+                const statusColor = storageData.loggingEnabled ? 'text-emerald-600' : 'text-red-600';
+                storageEl.innerHTML = `DB 사용량: ${storageData.usedMB || '?'}MB / 500MB (${storageData.usagePercent || '?'}%) | 쿼리 로그: ${(storageData.logCount || 0).toLocaleString()}건 | 로깅: <span class="${statusColor} font-semibold">${statusText}</span>`;
+            }
+
+            // 용량 경고 배너 (Phase F)
+            renderStorageBanner(storageData);
+        } catch (e) {
+            console.error('Query analytics load error:', e);
+        }
+    }
+
+    // Phase F: 용량 경고 배너
+    function renderStorageBanner(status) {
+        const banner = document.getElementById('storage-warning-banner');
+        if (!status || status.level === 'normal') {
+            banner.classList.add('hidden');
+            return;
+        }
+        banner.classList.remove('hidden');
+
+        if (status.level === 'caution') {
+            banner.className = 'bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4 rounded';
+            banner.innerHTML = `<div class="flex items-center"><span class="material-symbols-outlined text-yellow-600 mr-2">warning</span><div><p class="text-yellow-800 font-medium text-sm">저장 용량 주의</p><p class="text-yellow-700 text-xs">현재 ${status.usagePercent}% 사용 중 (${status.usedMB}MB / 500MB). 쿼리 로그 ${(status.logCount || 0).toLocaleString()}건.</p></div></div>`;
+        }
+
+        if (status.level === 'warning' || status.level === 'critical') {
+            const isCritical = status.level === 'critical';
+            banner.className = 'bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded';
+            banner.innerHTML = `<div class="flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center"><span class="material-symbols-outlined text-red-600 mr-2">${isCritical ? 'error' : 'warning'}</span><div>
+                    <p class="text-red-800 font-medium text-sm">${isCritical ? '긴급: 저장 용량 부족' : '저장 용량 경고'} — 쿼리 로깅 중단됨</p>
+                    <p class="text-red-700 text-xs">현재 ${status.usagePercent}% (${status.usedMB}MB / 500MB). 로그 ${(status.logCount || 0).toLocaleString()}건. ${status.pendingDeletion ? '집계 완료 — 삭제 승인 필요.' : '강제 집계 진행 중...'}</p>
+                </div></div>
+                ${status.pendingDeletion ? `<div class="flex gap-2 items-center">
+                    <select id="retention-days" class="border rounded px-2 py-1 text-sm"><option value="7">7일</option><option value="14">14일</option><option value="30" selected>30일</option><option value="60">60일</option></select>
+                    <button onclick="approveLogCleanup()" class="bg-red-600 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700 font-medium">삭제 승인</button>
+                    <button onclick="rejectLogCleanup()" class="bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-300">반려</button>
+                </div>` : ''}
+            </div>`;
+        }
+    }
+
+    async function approveLogCleanup() {
+        const days = document.getElementById('retention-days')?.value || 30;
+        if (!confirm(`${days}일 이전 쿼리 로그를 삭제합니다. 집계 데이터는 유지됩니다. 진행하시겠습니까?`)) return;
+        try {
+            const r = await fetch('/api/admin/approve-log-cleanup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ retentionDays: parseInt(days) }) });
+            const res = await r.json();
+            if (res.success) {
+                showToast(`${(res.deletedCount || 0).toLocaleString()}건 삭제 완료. 로깅이 재개됩니다.`, 'success');
+                loadQueryAnalytics();
+            } else { showToast('삭제 처리 실패', 'error'); }
+        } catch (e) { showToast('삭제 요청 실패', 'error'); }
+    }
+
+    async function rejectLogCleanup() {
+        try {
+            await fetch('/api/admin/reject-log-cleanup', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            showToast('삭제 반려. 로깅은 중단 상태를 유지합니다.', 'warning');
+            loadQueryAnalytics();
+        } catch (e) { showToast('반려 요청 실패', 'error'); }
     }
 
     function renderCompletionChart(id, data) {

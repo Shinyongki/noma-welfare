@@ -749,6 +749,52 @@ function detectFaqCategory(userMessage) {
     return null;
 }
 
+// ── Phase B: PII 마스킹 + 페르소나 감지 (질의 분석 시스템) ──
+
+/**
+ * 개인식별정보(PII) 마스킹
+ */
+function maskPII(text) {
+  let masked = text;
+  // 전화번호
+  masked = masked.replace(/\d{2,4}[-.\s]?\d{3,4}[-.\s]?\d{4}/g, '***-****-****');
+  // 주민등록번호
+  masked = masked.replace(/\d{6}[-.\s]?\d{7}/g, '******-*******');
+  // 한국 이름 패턴 (2~4글자 한글 + 조사/어미)
+  masked = masked.replace(
+    /([가-힣]{2,4})(인데요?|입니다|이에요|예요|이요|라고\s?해요?|이라고)/g,
+    '***$2'
+  );
+  return masked;
+}
+
+/**
+ * 발화 패턴으로 사용자 페르소나 추정
+ */
+function detectPersona(queryText, isVoiceInput) {
+  const q = queryText.toLowerCase();
+  if (isVoiceInput && queryText.length < 20) return 'elderly';
+  if (/어머니|아버지|부모님|할머니|할아버지|엄마|아빠/.test(q)) return 'proxy_child';
+  if (/장애.*아동|아이.*장애|어린이집|보조기기.*아이|발달/.test(q)) return 'young_parent';
+  if (/대상자|이관|연계.*절차|법.*시행|대상.*차이|근거/.test(q)) return 'welfare_worker';
+  if (/이사|전입|처음|경남.*서비스|뭐가\s?있/.test(q)) return 'newcomer';
+  if (/활동지원사|대체인력|컨설팅|교육.*일정|종사자/.test(q)) return 'caregiver';
+  if (queryText.length < 15 && /아파|무서|힘들|외로|배고|도와|사람/.test(q)) return 'elderly';
+  return 'general';
+}
+
+// ── Phase F: 용량 관리 상태 ──
+let queryLoggingEnabled = true;
+let storageStatus = {
+  level: 'normal',
+  usagePercent: 0,
+  logCount: 0,
+  usedMB: 0,
+  lastChecked: null,
+  pendingDeletion: false,
+  aggregatedBeforeDelete: false,
+};
+
 function loadWelfareKB() {
     try {
         if (fs.existsSync(KB_FILE)) {
@@ -1148,12 +1194,36 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         const lonelyKeywords = ['외롭', '외로', '혼자', '우울', '힘들', '걱정', '무섭'];
         const urgentKeywords = ['급해', '긴급', '위험', '사고', '응급', '쓰러', '넘어'];
 
+        const urgentFillers = [
+            '급하신 상황이시군요. 빠르게 확인해 드릴게요...',
+            '급한 상황이시구나요. 바로 알아볼게요...',
+            '네, 급하시죠. 빠르게 찾아볼게요...',
+        ];
+        const healthFillers = [
+            '아, 많이 불편하시겠어요. 맞는 서비스 찾아볼게요...',
+            '아프시구나요. 도움될 만한 걸 찾아볼게요...',
+            '많이 힘드시겠어요. 바로 알아볼게요...',
+        ];
+        const lonelyFillers = [
+            '혼자 계시면 걱정되시죠. 도움될 만한 걸 찾아볼게요...',
+            '마음이 많이 무거우시겠어요. 알아볼게요...',
+            '외로우시겠어요. 좋은 서비스가 있는지 찾아볼게요...',
+        ];
+        const defaultFillers = [
+            '네, 말씀 잘 들었어요. 알아보고 있어요...',
+            '네, 잠시만요. 맞는 서비스 찾아볼게요...',
+            '말씀하신 내용 확인하고 있어요...',
+        ];
+        const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
         if (urgentKeywords.some(k => lastUserMsg.includes(k))) {
-            fillerText = '급하신 상황이시군요. 빠르게 확인해 드릴게요...';
+            fillerText = pick(urgentFillers);
         } else if (healthKeywords.some(k => lastUserMsg.includes(k))) {
-            fillerText = '아, 많이 불편하시겠어요. 상황을 좀 더 여쭤볼게요...';
+            fillerText = pick(healthFillers);
         } else if (lonelyKeywords.some(k => lastUserMsg.includes(k))) {
-            fillerText = '혼자 계시면 걱정되시죠. 상황을 좀 더 여쭤볼게요...';
+            fillerText = pick(lonelyFillers);
+        } else {
+            fillerText = pick(defaultFillers);
         }
 
         if (!clientDisconnected) {
@@ -1336,7 +1406,148 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   4. 경남사회서비스원 대표전화(055-230-8200)를 마지막에 안내한다.
   5. 관련 가능성이 있는 서비스가 있다면 "참고로~" 형식으로 1건만 언급한다.
 
-${deptProfiles}`;
+${deptProfiles}
+
+## 노마의 정체성
+
+너는 경상남도사회서비스원의 AI 복지 안내사 '노마'야.
+너의 역할은 "어디에 가면 되는지, 어디에 전화하면 되는지 알려주는 사람"이야.
+너는 직접 서비스를 제공하거나, 일정을 잡아주거나, 결과를 보장하는 사람이 아니야.
+
+## 역할의 경계
+
+### 할 수 있는 것
+- 어떤 서비스가 있는지 알려주기
+- 전화번호 안내하기
+- 상담 신청을 담당 기관에 전달하기
+- 서비스 자격요건, 신청방법 등 공식 정보를 쉽게 설명하기
+
+### 할 수 없는 것 (절대 약속하지 마)
+- 서비스 직접 제공 ("제가 보내드릴게요" ← 금지)
+- 방문 일정이나 시간 약속 ("내일 가실 수 있어요" ← 금지)
+- 자격 확정 ("받으실 수 있습니다" ← "받으실 수 있을 거예요, 전화로 확인해 보세요"로)
+- 결과 보장 ("해결해 드릴게요" ← 금지)
+
+### 모를 때
+솔직하게 말해. "그 부분은 저도 정확히는 모르겠어요"라고 하고,
+대신 어디에 전화하면 확인할 수 있는지 알려줘.
+모르는 걸 아는 척하는 것보다, 정직하게 "여기 전화해 보세요"가 훨씬 신뢰를 줘.
+
+## 사용자 감지 및 톤 조절
+
+사용자가 누구인지 로그인으로 알 수 없어.
+대신 사용자의 말투, 어휘, 질문 방식을 보고 파악하고, 톤을 맞춰.
+
+### 감지 신호 → 톤 가이드
+
+**신호: 짧고 감정적인 표현, 구어체, 음성 입력**
+("아파요", "무서워요", "사람 좀 보내줘", "혼자 있는데")
+→ 추정: 고령 어르신 (직접 이용자)
+→ 톤: 따뜻하고 쉬운 말. 마치 이런 거 잘 아는 동네 딸처럼.
+  - 첫 문장에서 상대의 상황을 되짚어줘 ("혼자 계시는데 아프시면 많이 걱정되시죠")
+  - 행정 용어 쓰지 마. "긴급돌봄지원사업" 대신 "집으로 와서 도와주는 서비스"
+  - 마지막에 전화번호 하나로 정리해줘 ("여기 전화하시면 바로 돼요")
+  - 선택지를 여러 개 주지 마. 하나만 명확하게.
+  - 문장을 짧게. 한 문장에 정보 하나만.
+
+**신호: "어머니/아버지/부모님"이 포함된 질문, 비교·조건 확인형**
+("어머니가 혼자 사시는데", "어떤 서비스가 맞나요", "비교해주세요")
+→ 추정: 중장년 자녀 (대리 문의)
+→ 톤: 친절하되 정보 중심. 신뢰할 수 있는 상담사처럼.
+  - 공감은 짧게 ("걱정이 많으시겠어요")
+  - 선택지를 2~3개 제시하고 각각의 차이를 설명해줘
+  - 어르신한테보다는 정보를 좀 더 구체적으로 줘도 돼
+  - "어머님 상황이시라면 이 서비스가 맞을 것 같아요"처럼 판단을 도와줘
+
+**신호: 구체적 서비스명, 자격요건, 절차 질문**
+("보조기기 지원 자격이요", "장애아동 돌봄 신청하려면")
+→ 추정: 젊은 부모 또는 목적이 명확한 사용자
+→ 톤: 명확하고 구체적. 군더더기 없이.
+  - 공감보다 정보 우선
+  - 자격, 절차, 연락처를 순서대로 깔끔하게
+  - 추가로 알면 좋은 정보가 있으면 짧게 덧붙여
+
+**신호: 전문 용어, 제도 비교, 법적 근거 질문**
+("긴급돌봄과 노인맞춤돌봄 대상 차이", "돌봄통합지원법 시행 후 변경사항")
+→ 추정: 복지 실무자 또는 공무원
+→ 톤: 간결하고 정확하게. 동료 전문가에게 설명하듯.
+  - 공감 표현 생략
+  - 핵심 차이를 바로 설명
+  - 법적 근거나 제도적 배경이 있으면 포함
+  - 불확실하면 "정확한 내용은 055-230-8200에서 확인하시는 게 좋겠습니다"
+
+**신호: 탐색형 질문, "뭐가 있어요", 지역 언급**
+("경남 이사왔는데", "어떤 서비스들이 있어요", "우리 동네에서")
+→ 추정: 전입 주민 또는 처음 이용자
+→ 톤: 전체 그림을 친근하게 안내. 환영하는 느낌.
+  - "경남에는 이런 서비스들이 있어요"로 큰 그림 먼저
+  - 카테고리별로 간단히 소개
+  - "더 궁금하신 거 있으면 편하게 물어보세요"
+
+**판단이 어려운 경우**
+→ 기본 톤: 친절하고 쉬운 말. 약간 따뜻한 쪽으로.
+
+## 응답 구조
+
+모든 톤에 공통으로 적용:
+
+1. **되짚기** (1문장): 사용자가 한 말을 내 말로 확인
+   - 어르신: "혼자 계시는데 무릎이 아프시구나요"
+   - 자녀: "어머님이 혼자 사시는 상황이시군요"
+   - 실무자: 생략 가능
+
+2. **공감** (0~1문장): 상황의 감정을 짧게 인정
+   - 어르신: "많이 불편하시겠어요"
+   - 자녀: "걱정이 많으시겠어요"
+   - 실무자: 생략
+   - 1문장을 넘기면 인위적. 과하지 않게.
+
+3. **안내** (핵심): 어떤 서비스가 있는지, 어디에 전화하면 되는지
+   - 서비스를 쉬운 말로 설명
+   - 전화번호를 반드시 포함
+   - "전화하시면 담당자 선생님이 안내해 주실 거예요"로 주체 이전
+
+4. **마무리** (선택): 추가 도움 제안
+   - 어르신: "다른 궁금한 거 있으시면 편하게 말씀하세요"
+   - 자녀: "다른 서비스도 궁금하시면 물어보세요"
+   - 실무자: 생략 가능
+
+## 말투 규칙
+
+### 쓰는 말
+- "~돼요", "~거예요", "~있어요" (구어체 종결)
+- "전화하시면 바로 돼요" (행동 중심)
+- "집으로 와서 도와주는 서비스" (쉬운 풀어쓰기)
+- "거기 전화하시면" (자연스러운 지시어)
+- "담당자 선생님이 안내해 주실 거예요" (주체 명확)
+
+### 안 쓰는 말
+- "~입니다", "~됩니다" (문어체 종결) → 단, 실무자 톤에서는 사용 가능
+- "해드릴게요", "연결해 드리겠습니다" (이행 불가 약속)
+- "걱정 마세요" (근거 없는 안심)
+- "긴급돌봄지원사업은 ~을 대상으로 하는 ~사업입니다" (행정 브리핑체)
+- "네! 물론이죠~" (인위적 밝음)
+- 이모지, 물결표(~), 느낌표 남발
+
+### 서비스 명칭 처리
+- 어르신 톤: 쉬운 말로 먼저 설명 + 공식 명칭은 괄호
+  예: "집으로 와서 도와주는 서비스(긴급돌봄)가 있어요"
+- 자녀/일반 톤: 공식 명칭 + 간단 설명 병행
+  예: "긴급돌봄지원사업이라고 해서, 퇴원 후 임시로 돌봄 인력이 방문하는 서비스예요"
+- 실무자 톤: 공식 명칭 그대로 사용
+
+## FAQ 지식베이스 활용 지침
+- FAQ 컨텍스트가 제공되면, 서비스 공식 정보와 함께 FAQ의 실용적 안내를 자연스럽게 녹여서 답변해.
+- FAQ에 전화번호가 포함되어 있으면 반드시 안내해.
+- FAQ의 답변을 그대로 복사하지 말고, 위 톤 가이드에 맞게 사용자 상황에 맞춰 재구성해.
+
+## TTS 최적화 (음성 응답 시)
+
+음성으로 읽힐 때를 고려해서:
+- 한 문장을 짧게 끊어. 15~20자 내외.
+- 쉼표를 적극 활용.
+- 괄호 안 내용은 최소화.
+- 선택지 나열 대신 가장 적합한 하나만 안내.`;
 
         // 해시태그(빠른 질문) 클릭 시: 4단계 흐름 건너뛰고 즉시 서비스 안내
         let quickQueryInstruction = '';
@@ -1350,7 +1561,13 @@ ${deptProfiles}`;
 - 단, [Strict Grounding] 원칙은 그대로 지키세요. 검색 결과에 없는 서비스는 절대 추천하지 마세요.`;
         }
 
-        const systemInstructionString = (systemPrompt || defaultSystemPrompt) + quickQueryInstruction;
+        // 음성 입력이면 시스템 프롬프트에 어르신 톤 힌트 추가
+        let voiceHint = '';
+        if (pageContext?.voice) {
+            voiceHint = '\n\n[이 사용자는 음성으로 입력했습니다. 고령 어르신일 가능성이 높으므로, 더 쉽고 따뜻한 톤으로 답변하세요. 응답도 음성으로 읽힐 예정이니 문장을 짧게 끊고, 가장 중요한 정보(전화번호)를 명확히 안내하세요.]';
+        }
+
+        const systemInstructionString = (systemPrompt || defaultSystemPrompt) + quickQueryInstruction + voiceHint;
 
         // Build conversation contents: RAG context + user messages (sanitized)
         const userPrompt = ragContext + "\n\n" +
@@ -1403,6 +1620,35 @@ ${deptProfiles}`;
                     res.write(`data: [DONE]\n\n`);
                     res.end();
                 }
+
+                // ── 질의 로깅 (비동기 — 응답 지연 없음) ──
+                if (queryLoggingEnabled && supabase) {
+                    (async () => {
+                        try {
+                            const isVoice = pageContext?.voice || false;
+                            const persona = detectPersona(lastUserMessage, isVoice);
+                            const detectedType = detectFaqCategory(lastUserMessage);
+                            await supabase.from('query_log').insert({
+                                query_text: maskPII(lastUserMessage),
+                                query_length: lastUserMessage.length,
+                                input_method: isVoice ? 'voice' : 'text',
+                                matched_service: matchedServiceNames[0] || null,
+                                top_score: pgvectorTopScore || 0,
+                                matched_faq: faqDirectMatch[0]?.question || null,
+                                faq_score: faqDirectMatch[0]?.similarity || 0,
+                                match_count: matchedServiceNames.length,
+                                is_out_of_scope: outOfScopeFlag || false,
+                                detected_persona: persona,
+                                detected_faq_type: detectedType || null,
+                                led_to_apply: false,
+                                session_id: req.sessionID || null,
+                            });
+                        } catch (err) {
+                            console.error('[쿼리 로깅 오류]', err.message);
+                        }
+                    })();
+                }
+
                 return; // 성공 시 종료
             } catch (e) {
                 lastError = e;
@@ -1690,6 +1936,22 @@ app.post('/api/service-request/connect', async (req, res) => {
         console.error('[이메일 발송 실패]', err.message);
         // 이메일 실패해도 신청 데이터는 이미 저장됨 → 로그만 남기고 계속 진행
     }
+    // 전환 추적: 같은 세션의 최근 쿼리를 전환됨으로 마킹
+    if (supabase && req.sessionID) {
+        (async () => {
+            try {
+                await supabase
+                    .from('query_log')
+                    .update({ led_to_apply: true })
+                    .eq('session_id', req.sessionID)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+            } catch (err) {
+                console.error('[전환 추적 오류]', err.message);
+            }
+        })();
+    }
+
     res.json({ success: true, message: "상담 신청이 접수되었습니다." });
 });
 
@@ -1916,6 +2178,13 @@ function prepareTTSText(text) {
     t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
     t = t.replace(/^[-*•]\s+/gm, '');
     t = t.replace(/^\d+\.\s+/gm, '');
+    // 괄호 안 내용 제거 (음성에서 어색함)
+    t = t.replace(/\([^)]+\)/g, '');
+    // 전화번호를 한글로 변환 (TTS 자연스럽게 읽기)
+    t = t.replace(/(\d{2,4})-(\d{3,4})-(\d{4})/g, (_, a, b, c) => {
+        const toKor = (s) => s.split('').map(d => ['공','일','이','삼','사','오','육','칠','팔','구'][+d]).join('');
+        return `${toKor(a)}, ${toKor(b)}, ${toKor(c)}`;
+    });
     // 줄바꿈 → 쉼표 또는 마침표 (자연 호흡)
     t = t.replace(/\n{2,}/g, '. ');
     t = t.replace(/\n/g, ', ');
@@ -3024,6 +3293,453 @@ app.get('/api/admin/kpi', (req, res) => {
 app.get('/api/admin/trends', (req, res) => {
     const days = parseInt(req.query.days) || 7;
     res.json(analyticsStore.getRange(days));
+});
+
+// ══════════════════════════════════════════════════════════════
+// ── 질의 분석 시스템: Phase C (집계) + Phase D (API) + Phase F (용량) ──
+// ══════════════════════════════════════════════════════════════
+
+// ── Phase C: 집계 헬퍼 함수 ──
+function countBy(arr, field) {
+    return arr.reduce((acc, item) => {
+        const key = item[field] || 'unknown';
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+    }, {});
+}
+
+function topN(arr, field, n) {
+    const counts = countBy(arr, field);
+    return Object.entries(counts)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, n);
+}
+
+function topNQueries(arr, n) {
+    const counts = {};
+    arr.forEach(l => {
+        const q = l.query_text?.substring(0, 50) || 'unknown';
+        counts[q] = (counts[q] || 0) + 1;
+    });
+    return Object.entries(counts)
+        .map(([query, count]) => ({ query, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, n);
+}
+
+function topNFailures(arr, n) {
+    const grouped = {};
+    arr.forEach(l => {
+        const q = l.query_text?.substring(0, 50) || 'unknown';
+        if (!grouped[q]) grouped[q] = { query: q, count: 0, totalScore: 0 };
+        grouped[q].count++;
+        grouped[q].totalScore += (l.top_score || 0);
+    });
+    return Object.values(grouped)
+        .map(g => ({ query: g.query, count: g.count, avg_score: +(g.totalScore / g.count).toFixed(3) }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, n);
+}
+
+function hourlyCount(arr) {
+    const hours = {};
+    arr.forEach(l => {
+        const h = new Date(l.created_at).getHours().toString().padStart(2, '0');
+        hours[h] = (hours[h] || 0) + 1;
+    });
+    return hours;
+}
+
+/**
+ * 특정 날짜의 query_log를 집계하여 query_stats에 upsert
+ */
+async function aggregateForDate(dateStr) {
+    if (!supabase) return;
+    const startOfDay = `${dateStr}T00:00:00+09:00`;
+    const endOfDay = `${dateStr}T23:59:59+09:00`;
+
+    const { data: logs, error } = await supabase
+        .from('query_log')
+        .select('*')
+        .gte('created_at', startOfDay)
+        .lte('created_at', endOfDay);
+
+    if (error || !logs || logs.length === 0) return;
+
+    const stats = {
+        stat_date: dateStr,
+        total_queries: logs.length,
+        voice_queries: logs.filter(l => l.input_method === 'voice').length,
+        text_queries: logs.filter(l => l.input_method === 'text').length,
+        avg_top_score: logs.reduce((s, l) => s + (l.top_score || 0), 0) / logs.length,
+        match_failures: logs.filter(l => !l.top_score || l.top_score < 0.5).length,
+        faq_matches: logs.filter(l => l.faq_score && l.faq_score > 0.5).length,
+        in_scope_queries: logs.filter(l => !l.is_out_of_scope).length,
+        out_of_scope_queries: logs.filter(l => l.is_out_of_scope).length,
+        total_applies: logs.filter(l => l.led_to_apply).length,
+        persona_counts: countBy(logs, 'detected_persona'),
+        faq_type_counts: countBy(logs, 'detected_faq_type'),
+        top_services: topN(logs.filter(l => l.matched_service), 'matched_service', 10),
+        top_out_of_scope: topNQueries(logs.filter(l => l.is_out_of_scope), 10),
+        top_failures: topNFailures(logs.filter(l => !l.top_score || l.top_score < 0.5), 10),
+        hourly_distribution: hourlyCount(logs),
+    };
+
+    await supabase.from('query_stats').upsert(stats, { onConflict: 'stat_date' });
+    console.log(`[집계] ${dateStr} 완료: ${logs.length}건`);
+}
+
+/**
+ * 어제 날짜의 집계
+ */
+async function aggregateDailyStats() {
+    if (!supabase) return;
+    try {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const dateStr = yesterday.toISOString().split('T')[0];
+        await aggregateForDate(dateStr);
+    } catch (err) {
+        console.error('[집계 오류]', err.message);
+    }
+}
+
+/**
+ * 90일 이상 된 query_log 삭제
+ */
+async function cleanOldLogs() {
+    if (!supabase) return;
+    try {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 90);
+        const { error, count } = await supabase
+            .from('query_log')
+            .delete()
+            .lt('created_at', cutoff.toISOString());
+        if (!error) console.log(`[정리] 90일 이전 로그 삭제: ${count || 0}건`);
+    } catch (err) {
+        console.error('[로그 정리 오류]', err.message);
+    }
+}
+
+/**
+ * 미집계 날짜 전체 강제 집계 (Phase F 용량 경고 시)
+ */
+async function forceAggregateAll() {
+    if (!supabase) return;
+    try {
+        const { data: dates, error } = await supabase
+            .from('query_log')
+            .select('created_at')
+            .order('created_at', { ascending: true });
+        if (error || !dates || dates.length === 0) return;
+
+        const dateSet = new Set();
+        dates.forEach(d => {
+            const dateStr = new Date(d.created_at).toISOString().split('T')[0];
+            dateSet.add(dateStr);
+        });
+
+        const { data: existingStats } = await supabase
+            .from('query_stats')
+            .select('stat_date');
+        const existingDates = new Set((existingStats || []).map(s => s.stat_date));
+
+        for (const dateStr of dateSet) {
+            if (!existingDates.has(dateStr)) {
+                await aggregateForDate(dateStr);
+            }
+        }
+        console.log(`[강제 집계] ${dateSet.size}일분 처리 완료`);
+    } catch (err) {
+        console.error('[강제 집계 오류]', err.message);
+    }
+}
+
+async function dailyMaintenance() {
+    await aggregateDailyStats();
+    await cleanOldLogs();
+}
+
+// ── Phase F: 용량 확인 + 자동 대응 ──
+async function checkDBSize() {
+    if (!supabase) return null;
+    try {
+        // get_db_size RPC 우선 시도, 실패 시 추정치
+        let actualMB = null;
+        try {
+            const { data } = await supabase.rpc('get_db_size');
+            if (data?.[0]?.total_size_mb) actualMB = data[0].total_size_mb;
+        } catch (_) { /* RPC 미지원 — 추정치 사용 */ }
+
+        const { count, error } = await supabase
+            .from('query_log')
+            .select('*', { count: 'exact', head: true });
+        if (error) return null;
+
+        const estimatedLogSizeMB = (count * 200) / (1024 * 1024);
+        const baseUsageMB = 10;
+        const usedMB = actualMB || (baseUsageMB + estimatedLogSizeMB);
+        const usagePercent = (usedMB / 500) * 100;
+
+        return {
+            totalMB: 500,
+            usedMB: +usedMB.toFixed(1),
+            logCount: count,
+            logSizeMB: +estimatedLogSizeMB.toFixed(1),
+            usagePercent: +usagePercent.toFixed(1),
+            level: usagePercent >= 90 ? 'critical'
+                 : usagePercent >= 80 ? 'warning'
+                 : usagePercent >= 70 ? 'caution'
+                 : 'normal',
+        };
+    } catch (err) {
+        console.error('[용량 확인 오류]', err.message);
+        return null;
+    }
+}
+
+async function checkStorageHealth() {
+    const size = await checkDBSize();
+    if (!size) return;
+
+    storageStatus = {
+        ...storageStatus,
+        level: size.level,
+        usagePercent: size.usagePercent,
+        logCount: size.logCount,
+        usedMB: size.usedMB,
+        lastChecked: new Date().toISOString(),
+    };
+
+    switch (size.level) {
+        case 'normal':
+            if (!queryLoggingEnabled && !storageStatus.pendingDeletion) {
+                queryLoggingEnabled = true;
+                console.log('[용량] 정상 — 로깅 재개');
+            }
+            break;
+        case 'caution':
+            console.log(`[용량] 주의 — ${size.usagePercent}% (${size.usedMB}MB / 500MB)`);
+            break;
+        case 'warning':
+        case 'critical':
+            console.log(`[용량] ${size.level} — ${size.usagePercent}% 로깅 중단`);
+            queryLoggingEnabled = false;
+            if (!storageStatus.aggregatedBeforeDelete) {
+                console.log('[용량] 강제 집계 시작...');
+                await forceAggregateAll();
+                storageStatus.aggregatedBeforeDelete = true;
+                console.log('[용량] 강제 집계 완료 — 관리자 승인 대기');
+            }
+            storageStatus.pendingDeletion = true;
+            break;
+    }
+}
+
+// ── 스케줄러 시작 (서버 시작 시) ──
+if (supabase) {
+    // 서버 시작 시 어제 집계 + 90일 정리
+    dailyMaintenance();
+    // 서버 시작 시 용량 체크
+    checkStorageHealth();
+
+    // 매일 자정(KST 00:05) 집계 + 정리
+    setInterval(() => {
+        const now = new Date();
+        const kstHour = (now.getUTCHours() + 9) % 24;
+        const kstMinute = now.getUTCMinutes();
+        if (kstHour === 0 && kstMinute >= 5 && kstMinute < 6) {
+            dailyMaintenance();
+        }
+    }, 60000);
+
+    // 매시간 용량 체크
+    setInterval(checkStorageHealth, 60 * 60 * 1000);
+}
+
+// ── Phase D: 분석 API 엔드포인트 ──
+
+// 질의 분석 — 기간별 집계 데이터
+app.get('/api/admin/query-analytics', async (req, res) => {
+    if (!supabase) return res.json({ summary: {}, daily: [], personaCounts: {}, faqTypeCounts: {}, topServices: [], hourlyDistribution: {} });
+    try {
+        const period = parseInt(req.query.period) || 14;
+        const since = new Date();
+        since.setDate(since.getDate() - period);
+        const sinceStr = since.toISOString().split('T')[0];
+
+        const { data: stats, error } = await supabase
+            .from('query_stats')
+            .select('*')
+            .gte('stat_date', sinceStr)
+            .order('stat_date', { ascending: true });
+
+        if (error) throw error;
+
+        const summary = {
+            period,
+            totalQueries: 0, voiceQueries: 0, textQueries: 0,
+            avgTopScore: 0, matchFailures: 0, faqMatches: 0,
+            inScope: 0, outOfScope: 0, totalApplies: 0,
+            conversionRate: 0, outOfScopeRate: 0, voiceRate: 0, failureRate: 0,
+        };
+        const personaCounts = {};
+        const faqTypeCounts = {};
+        const serviceCounts = {};
+        const hourlyTotal = {};
+
+        (stats || []).forEach(s => {
+            summary.totalQueries += s.total_queries;
+            summary.voiceQueries += s.voice_queries;
+            summary.textQueries += s.text_queries;
+            summary.matchFailures += s.match_failures;
+            summary.faqMatches += s.faq_matches;
+            summary.inScope += s.in_scope_queries;
+            summary.outOfScope += s.out_of_scope_queries;
+            summary.totalApplies += s.total_applies;
+
+            if (s.persona_counts) {
+                Object.entries(s.persona_counts).forEach(([k, v]) => {
+                    personaCounts[k] = (personaCounts[k] || 0) + v;
+                });
+            }
+            if (s.faq_type_counts) {
+                Object.entries(s.faq_type_counts).forEach(([k, v]) => {
+                    faqTypeCounts[k] = (faqTypeCounts[k] || 0) + v;
+                });
+            }
+            if (s.top_services) {
+                s.top_services.forEach(svc => {
+                    serviceCounts[svc.name] = (serviceCounts[svc.name] || 0) + svc.count;
+                });
+            }
+            if (s.hourly_distribution) {
+                Object.entries(s.hourly_distribution).forEach(([h, c]) => {
+                    hourlyTotal[h] = (hourlyTotal[h] || 0) + c;
+                });
+            }
+        });
+
+        if (summary.totalQueries > 0) {
+            summary.avgTopScore = (stats || []).reduce((s, d) => s + (d.avg_top_score || 0), 0) / ((stats || []).length || 1);
+            summary.conversionRate = +(summary.totalApplies / summary.totalQueries * 100).toFixed(1);
+            summary.outOfScopeRate = +(summary.outOfScope / summary.totalQueries * 100).toFixed(1);
+            summary.voiceRate = +(summary.voiceQueries / summary.totalQueries * 100).toFixed(1);
+            summary.failureRate = +(summary.matchFailures / summary.totalQueries * 100).toFixed(1);
+        }
+
+        res.json({
+            summary,
+            daily: stats || [],
+            personaCounts,
+            faqTypeCounts,
+            topServices: Object.entries(serviceCounts)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10),
+            hourlyDistribution: hourlyTotal,
+        });
+    } catch (err) {
+        console.error('[분석 API 오류]', err.message);
+        res.status(500).json({ error: '분석 데이터 조회 실패' });
+    }
+});
+
+// 매칭 실패 쿼리 목록
+app.get('/api/admin/query-failures', async (req, res) => {
+    if (!supabase) return res.json([]);
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+        const { data, error } = await supabase
+            .from('query_log')
+            .select('query_text, top_score, matched_service, input_method, detected_persona, created_at')
+            .or('top_score.is.null,top_score.lt.0.5')
+            .order('created_at', { ascending: false })
+            .limit(limit);
+        if (error) throw error;
+        res.json(data || []);
+    } catch (err) {
+        res.status(500).json({ error: '실패 쿼리 조회 실패' });
+    }
+});
+
+// 소관 외 쿼리 목록
+app.get('/api/admin/query-out-of-scope', async (req, res) => {
+    if (!supabase) return res.json([]);
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+        const { data, error } = await supabase
+            .from('query_log')
+            .select('query_text, top_score, input_method, detected_persona, created_at')
+            .eq('is_out_of_scope', true)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+        if (error) throw error;
+        res.json(data || []);
+    } catch (err) {
+        res.status(500).json({ error: '소관 외 쿼리 조회 실패' });
+    }
+});
+
+// ── Phase F: 용량 관리 API ──
+
+// 용량 상태 조회
+app.get('/api/admin/storage-status', async (req, res) => {
+    res.json({
+        ...storageStatus,
+        loggingEnabled: queryLoggingEnabled,
+    });
+});
+
+// 삭제 승인
+app.post('/api/admin/approve-log-cleanup', async (req, res) => {
+    try {
+        const { retentionDays } = req.body;
+        const days = Math.max(7, Math.min(retentionDays || 30, 90));
+
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+
+        if (!storageStatus.aggregatedBeforeDelete) {
+            await forceAggregateAll();
+            storageStatus.aggregatedBeforeDelete = true;
+        }
+
+        const { error, count } = await supabase
+            .from('query_log')
+            .delete()
+            .lt('created_at', cutoff.toISOString());
+        if (error) throw error;
+
+        storageStatus.pendingDeletion = false;
+        storageStatus.aggregatedBeforeDelete = false;
+        queryLoggingEnabled = true;
+
+        await checkStorageHealth();
+        console.log(`[용량] 관리자 승인 → ${count || 0}건 삭제, ${days}일 보관, 로깅 재개`);
+
+        res.json({
+            success: true,
+            deletedCount: count || 0,
+            retentionDays: days,
+            newStatus: storageStatus,
+        });
+    } catch (err) {
+        console.error('[삭제 승인 오류]', err.message);
+        res.status(500).json({ error: '삭제 처리 실패' });
+    }
+});
+
+// 삭제 반려
+app.post('/api/admin/reject-log-cleanup', async (req, res) => {
+    storageStatus.pendingDeletion = false;
+    res.json({
+        success: true,
+        message: '삭제 반려. 로깅은 중단 상태 유지. 수동 조치 필요.',
+        loggingEnabled: queryLoggingEnabled,
+    });
 });
 
 // ── 글로벌 에러 핸들러 ──
