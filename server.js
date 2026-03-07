@@ -721,6 +721,34 @@ async function pgvectorSearch(query, topK = 5) {
     return data; // [{ id, category, service_name, keyword_tags, target_group, service_content, application_method, contact, similarity }]
 }
 
+// pgvector FAQ 직접 매칭 (Supabase 연동 시)
+async function pgvectorFaqSearch(query, topK = 3) {
+    const { embeddings } = await ai.models.embedContent({
+        model: 'gemini-embedding-001',
+        contents: query,
+        config: { taskType: 'RETRIEVAL_QUERY' },
+    });
+    const embedding = embeddings[0].values;
+    const { data, error } = await supabase.rpc('match_welfare_faq', {
+        query_embedding: embedding,
+        match_count: topK,
+        match_threshold: 0.65,
+    });
+    if (error) throw error;
+    return data; // [{ id, service_name, category, question, answer, similarity }]
+}
+
+// FAQ 질문 유형 감지 (키워드 기반)
+function detectFaqCategory(userMessage) {
+    if (/비용|돈|얼마|무료|요금|가격|본인부담/.test(userMessage)) return 'cost';
+    if (/자격|대상|해당|조건|등급|나이|받을\s*수/.test(userMessage)) return 'eligibility';
+    if (/신청|방법|어디서|어떻게|서류|절차/.test(userMessage)) return 'howto';
+    if (/기간|얼마나.*오래|몇\s*번|횟수|언제까지|며칠/.test(userMessage)) return 'duration';
+    if (/무엇|어떤|내용|뭐|해주|해줘/.test(userMessage)) return 'content';
+    if (/대신|대리|가족|위임/.test(userMessage)) return 'proxy';
+    return null;
+}
+
 function loadWelfareKB() {
     try {
         if (fs.existsSync(KB_FILE)) {
@@ -905,10 +933,26 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     let pgvectorTopScore = 0;
     let pgvectorNearMiss = null;
 
+    // FAQ 직접 매칭 결과
+    let faqDirectMatch = [];
+
     if (supabase) {
         try {
             console.log(`[DEBUG] pgvectorSearch 입력 쿼리: "${cumulativeQuery}"`);
-            const pgResults = await pgvectorSearch(cumulativeQuery, 5);
+            // 서비스 검색 + FAQ 검색 병렬 실행
+            const [pgResults, faqResults] = await Promise.all([
+                pgvectorSearch(cumulativeQuery, 5),
+                pgvectorFaqSearch(lastUserMessage, 3).catch(err => {
+                    console.error('[FAQ/pgvector] 검색 실패:', err.message);
+                    return [];
+                }),
+            ]);
+
+            faqDirectMatch = faqResults || [];
+            if (faqDirectMatch.length > 0) {
+                console.log(`[RAG/FAQ] FAQ 직접 매칭: ${faqDirectMatch.map(f => `"${f.question.slice(0, 30)}"(${f.similarity.toFixed(3)})`).join(', ')}`);
+            }
+
             usedPgvector = true;
             pgvectorTopScore = pgResults.length > 0 ? pgResults[0].similarity : 0;
             pgvectorNearMiss = pgResults.length > 0 ? pgResults[0].service_name : null;
@@ -916,7 +960,16 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                 matchedServiceNames = pgResults.map(r => r.service_name);
                 console.log(`[RAG/pgvector] 쿼리: "${cumulativeQuery.slice(0, 60)}" → ${pgResults.length}건 매칭: ${pgResults.map(r => `${r.service_name}(${r.similarity.toFixed(3)})`).join(', ')}`);
 
-                ragContext = "\n\n[지식베이스 검색 결과 - 관련도 순으로 정렬됨. 관련도가 높은 서비스를 우선 추천하세요.]\n";
+                // FAQ 직접 매칭 결과 우선 주입
+                if (faqDirectMatch.length > 0) {
+                    ragContext = "\n\n[FAQ 직접 매칭 - 아래 답변을 우선 참고하세요]\n";
+                    faqDirectMatch.forEach(f => {
+                        ragContext += `- [${f.service_name}] Q. ${f.question}\n  A. ${f.answer}\n`;
+                    });
+                }
+
+                ragContext += "\n\n[지식베이스 검색 결과 - 관련도 순으로 정렬됨. 관련도가 높은 서비스를 우선 추천하세요.]\n";
+                const detectedCategory = detectFaqCategory(lastUserMessage);
                 pgResults.forEach((r, i) => {
                     const stars = r.similarity >= 0.7 ? '★★★' : r.similarity >= 0.5 ? '★★' : '★';
                     const deptInfo = deptServiceMap[r.service_name];
@@ -938,8 +991,14 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                         ragContext += `   - 제외대상: ${detail.notEligible.map(n => `${n.case}(대안:${n.alternative})`).join(' / ')}\n`;
                       if (detail.differentFrom?.length)
                         ragContext += `   - 유사서비스구분: ${detail.differentFrom.map(d => `vs ${d.compareWith}: ${d.difference}`).join(' / ')}\n`;
-                      if (detail.faq?.length)
-                        ragContext += `   - FAQ: ${detail.faq.map(f => `Q.${f.q}→A.${f.a}`).join(' | ')}\n`;
+                      // FAQ 선별 주입: 감지된 유형과 일치하는 FAQ만 포함
+                      if (detail.faq?.length) {
+                        const relevantFaqs = detectedCategory
+                            ? detail.faq.filter(f => f.category === detectedCategory || f.category === 'general')
+                            : detail.faq.slice(0, 3);
+                        if (relevantFaqs.length > 0)
+                            ragContext += `   - FAQ: ${relevantFaqs.map(f => `Q.${f.q}→A.${f.a}`).join(' | ')}\n`;
+                      }
                       if (detail.urgencyLevel)
                         ragContext += `   - 긴급도: ${detail.urgencyLevel}\n`;
                       if (detail.processDays)
@@ -1006,6 +1065,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 
         if (filteredServices.length > 0) {
             ragContext = "\n\n[지식베이스 검색 결과 - 관련도 순으로 정렬됨. 관련도가 높은 서비스를 우선 추천하세요.]\n";
+            const detectedCategory = detectFaqCategory(lastUserMessage);
             filteredServices.forEach((s, i) => {
                 const svc = s.service;
                 const stars = s.score >= topScore * 0.8 ? '★★★' : s.score >= topScore * 0.5 ? '★★' : '★';
@@ -1028,8 +1088,14 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                     ragContext += `   - 제외대상: ${detail.notEligible.map(n => `${n.case}(대안:${n.alternative})`).join(' / ')}\n`;
                   if (detail.differentFrom?.length)
                     ragContext += `   - 유사서비스구분: ${detail.differentFrom.map(d => `vs ${d.compareWith}: ${d.difference}`).join(' / ')}\n`;
-                  if (detail.faq?.length)
-                    ragContext += `   - FAQ: ${detail.faq.map(f => `Q.${f.q}→A.${f.a}`).join(' | ')}\n`;
+                  // FAQ 선별 주입: 감지된 유형과 일치하는 FAQ만 포함
+                  if (detail.faq?.length) {
+                    const relevantFaqs = detectedCategory
+                        ? detail.faq.filter(f => f.category === detectedCategory || f.category === 'general')
+                        : detail.faq.slice(0, 3);
+                    if (relevantFaqs.length > 0)
+                        ragContext += `   - FAQ: ${relevantFaqs.map(f => `Q.${f.q}→A.${f.a}`).join(' | ')}\n`;
+                  }
                   if (detail.urgencyLevel)
                     ragContext += `   - 긴급도: ${detail.urgencyLevel}\n`;
                   if (detail.processDays)
