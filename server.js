@@ -772,6 +772,33 @@ async function pgvectorFaqSearch(query, topK = 3) {
     return data; // [{ id, service_name, category, question, answer, similarity }]
 }
 
+// pgvector 문서 청크 검색 (welfare_docs)
+async function pgvectorDocSearch(query, threshold = 0.65, count = 3, audience = null) {
+    if (!supabase) return [];
+    try {
+        const { embeddings } = await ai.models.embedContent({
+            model: 'gemini-embedding-001',
+            contents: query,
+            config: { taskType: 'RETRIEVAL_QUERY' },
+        });
+        const embedding = embeddings[0].values;
+        const { data, error } = await supabase.rpc('match_welfare_docs', {
+            query_embedding: embedding,
+            match_threshold: threshold,
+            match_count: count,
+            audience_filter: audience,
+        });
+        if (error) {
+            console.error('[DocSearch] 오류:', error.message);
+            return [];
+        }
+        return data || [];
+    } catch (err) {
+        console.error('[DocSearch] 예외:', err.message);
+        return [];
+    }
+}
+
 // FAQ 질문 유형 감지 (키워드 기반)
 function detectFaqCategory(userMessage) {
     if (/비용|돈|얼마|무료|요금|가격|본인부담/.test(userMessage)) return 'cost';
@@ -855,7 +882,7 @@ function getSessionRAGCache(sessionId, query) {
   return cached;
 }
 
-function setSessionRAGCache(sessionId, query, ragResults, faqResults) {
+function setSessionRAGCache(sessionId, query, ragResults, faqResults, docResults) {
   const key = normalizeQueryForCache(query);
   if (!sessionRAGCache.has(sessionId)) sessionRAGCache.set(sessionId, new Map());
   const cache = sessionRAGCache.get(sessionId);
@@ -863,7 +890,7 @@ function setSessionRAGCache(sessionId, query, ragResults, faqResults) {
     const oldestKey = cache.keys().next().value;
     cache.delete(oldestKey);
   }
-  cache.set(key, { ragResults, faqResults, timestamp: Date.now() });
+  cache.set(key, { ragResults, faqResults, docResults, timestamp: Date.now() });
 }
 
 function cleanExpiredRAGCache() {
@@ -1234,22 +1261,27 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 
             // 세션 RAG 캐시 확인
             const cachedRAG = getSessionRAGCache(ragCacheSessionId, cumulativeQuery);
-            let pgResults, faqResults;
+            let pgResults, faqResults, docResults;
 
             if (cachedRAG) {
                 pgResults = cachedRAG.ragResults;
                 faqResults = cachedRAG.faqResults;
+                docResults = cachedRAG.docResults || [];
                 console.log(`[RAG Cache] HIT — "${cumulativeQuery.slice(0, 40)}"`);
             } else {
-                // 서비스 검색 + FAQ 검색 병렬 실행
-                [pgResults, faqResults] = await Promise.all([
+                // 서비스 검색 + FAQ 검색 + 문서 검색 3테이블 병렬 실행
+                [pgResults, faqResults, docResults] = await Promise.all([
                     pgvectorSearch(cumulativeQuery, 5),
                     pgvectorFaqSearch(lastUserMessage, 3).catch(err => {
                         console.error('[FAQ/pgvector] 검색 실패:', err.message);
                         return [];
                     }),
+                    pgvectorDocSearch(cumulativeQuery, 0.65, 3, 'both').catch(err => {
+                        console.error('[DocSearch] 검색 실패:', err.message);
+                        return [];
+                    }),
                 ]);
-                setSessionRAGCache(ragCacheSessionId, cumulativeQuery, pgResults, faqResults);
+                setSessionRAGCache(ragCacheSessionId, cumulativeQuery, pgResults, faqResults, docResults);
                 console.log(`[RAG Cache] MISS — "${cumulativeQuery.slice(0, 40)}"`);
             }
 
@@ -1310,6 +1342,15 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                         ragContext += `   - 처리소요: ${detail.processDays}\n`;
                     }
                     ragContext += '\n';
+                });
+            }
+
+            // 문서 청크 검색 결과 주입
+            if (docResults && docResults.length > 0) {
+                console.log(`[RAG/DocSearch] ${docResults.length}건 문서 매칭: ${docResults.map(d => `${d.section}(${d.similarity.toFixed(3)})`).join(', ')}`);
+                ragContext += '\n\n[참고 정책 문서 - 상세 정보가 필요할 때 참고하세요]\n';
+                docResults.forEach(d => {
+                    ragContext += `[${d.section}] ${d.content}\n---\n`;
                 });
             }
         } catch (err) {
@@ -2023,7 +2064,33 @@ ${deptProfiles}
   → "Hello! I can help you find welfare services in Gyeongnam. Please call 055-230-8200 for assistance."
 ● 다문화가정: "다문화가족지원센터(1577-5432)에서 다국어 상담을 받으실 수 있어요."
 ● 외국인 노동자: 서비스별 외국인 수혜 가능 여부는 KB 기반으로만 안내. 모르면 담당 기관 확인 안내. "외국인력지원센터 1350에서도 상담받으실 수 있어요."
-● 통역 필요 시: "다누리콜센터 1577-1366에서 13개 국어 통역 상담을 받으실 수 있어요."`;
+● 통역 필요 시: "다누리콜센터 1577-1366에서 13개 국어 통역 상담을 받으실 수 있어요."
+
+═══ 통합돌봄(돌봄통합지원법) 질의 대응 가이드 ═══
+
+[2026년 3월 27일 전국 시행]
+
+통합돌봄(정식명: 의료·요양 등 지역 돌봄의 통합지원에 관한 법률)은 2026년 3월 27일부터 전국 모든 시군구에서 시행된다.
+
+[핵심 구분: 통합돌봄 vs 사회서비스원]
+- 통합돌봄: 의료·요양·돌봄·주거를 통합 연계하는 '전체 체계'. 신청 창구는 읍면동 행정복지센터(주민센터) 또는 건보공단 지사.
+- 경상남도사회서비스원: 통합돌봄 체계 안에서 '긴급돌봄'을 제공하는 기관. 통합돌봄 전체 신청 창구가 아님.
+- 이 구분을 반드시 지켜서 안내한다. "통합돌봄 신청하고 싶어요"에 사회서비스원 상담 신청을 안내하면 안 된다.
+
+[통합돌봄 관련 질의 시 안내 원칙]
+1. 신청 창구: "읍면동 행정복지센터(주민센터) 또는 건보공단 지사에서 신청하실 수 있어요."
+2. 긴급돌봄만 필요한 경우: "긴급돌봄은 경상남도사회서비스원(055-230-8200)에서도 바로 연락하실 수 있어요."
+3. 어디로 가야 할지 모르는 경우: "대표전화 055-230-8200으로 전화 주시면 안내해 드릴게요."
+
+[통합돌봄 상담 신청 처리]
+- 사용자가 통합돌봄 상담을 신청하려는 경우, 노마의 상담 신청 기능(noma-apply)을 통해 접수할 수 있다.
+- 다만, 실제 통합돌봄 공식 신청은 읍면동 행정복지센터에서 해야 함을 반드시 안내한다.
+- "저희 사회서비스원을 통해 상담 접수를 도와드릴 수 있어요. 다만, 통합돌봄 공식 신청은 거주지 읍면동 행정복지센터에서 하셔야 해요."
+
+[사회서비스원 기존 서비스와의 관계]
+- 긴급돌봄지원사업: 통합돌봄 체계의 '일상돌봄' 영역에서 긴급·일시적 돌봄 사각지대 대응. 사회서비스원이 제공 주체.
+- 종합재가센터, 노인맞춤돌봄 등 기존 서비스: 통합돌봄 체계에서 '연계 서비스'로 활용됨. 대체가 아니라 통합.
+- 기존 서비스가 없어지는 것이 아니라, 더 체계적으로 연결되는 구조임을 안내한다.`;
 
         // 해시태그(빠른 질문) 클릭 시: 4단계 흐름 건너뛰고 즉시 서비스 안내
         let quickQueryInstruction = '';
@@ -2972,13 +3039,32 @@ ${caseContext}`;
 
         const userPrompt = sanitizedMessages.map(m => `${m.role === 'user' ? '질의자' : 'AI'}: ${m.content}`).join('\n');
 
+        // 담당자용 문서 검색 (staff 포함 전체)
+        let staffDocContext = '';
+        if (supabase) {
+            try {
+                const lastStaffMsg = sanitizedMessages.filter(m => m.role === 'user').pop()?.content || '';
+                const staffDocResults = await pgvectorDocSearch(lastStaffMsg, 0.60, 5, null);
+                if (staffDocResults.length > 0) {
+                    console.log(`[Staff DocSearch] ${staffDocResults.length}건 매칭: ${staffDocResults.map(d => `${d.section}(${d.similarity.toFixed(3)})`).join(', ')}`);
+                    staffDocContext = '\n\n[참고 정책 문서]\n' + staffDocResults.map(d =>
+                        `[${d.section}] ${d.content}`
+                    ).join('\n---\n');
+                }
+            } catch (err) {
+                console.error('[Staff DocSearch] 실패:', err.message);
+            }
+        }
+
+        const finalStaffPrompt = staffSystemPrompt + staffDocContext;
+
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
                 const responseStream = await ai.models.generateContentStream({
                     model: "gemini-2.5-flash",
                     contents: userPrompt,
                     config: {
-                        systemInstruction: staffSystemPrompt,
+                        systemInstruction: finalStaffPrompt,
                         temperature: 0.5,
                     }
                 });

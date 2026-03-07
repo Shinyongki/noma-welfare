@@ -1,6 +1,6 @@
 # IA (Information Architecture)
 # 노마(Noma) 정보 아키텍처
-# v2.0 — 2026년 3월 업데이트 (v012~v016 반영)
+# v2.1 — 2026년 3월 업데이트 (v012~v026 반영)
 
 ---
 
@@ -56,7 +56,7 @@
 │   │   │   ├── 공공돌봄 (n건)
 │   │   │   ├── 민간지원 (n건)
 │   │   │   └── 국공립시설 (n건)
-│   │   │   └── (지자체/통합돌봄 탭 — v016 추가 예정)
+│   │   │   └── (통합돌봄 탭 추가 가능)
 │   │   └── 서비스 리스트
 │   │       └── 서비스 항목 (클릭 → 상세 펼침)
 │   │           ├── 서비스명 + 요약
@@ -460,11 +460,11 @@
 
 ## 4. 데이터 구조
 
-### 4.1 지식베이스 (CSV/JSON → 메모리, v015에서 pgvector로 전환 예정)
+### 4.1 지식베이스 (Supabase pgvector 3테이블 + CSV/JSON 폴백)
 
 ```
-welfareKB[]
-├── 대분류:    공공돌봄 | 민간지원 | 국공립시설 | (지자체/통합돌봄 — v016 예정)
+welfareKB[] → Supabase welfare_kb (47건, gemini-embedding-001, 3072차원)
+├── 대분류:    공공돌봄 | 민간지원 | 국공립시설 | 통합돌봄
 ├── 중분류:    서비스 하위 분류
 ├── 소분류:    세부 분류 (대부분 "분류없음")
 ├── 사업명:    서비스 공식 명칭        ← RAG 가중치 3
@@ -475,8 +475,24 @@ welfareKB[]
 ├── 문의처:    전화번호 + 부서명
 └── 출처 URL:  공식 문서 링크
 
-[v015 이후: Supabase welfare_kb 테이블]
-└── embedding: vector(768)  ← Gemini text-embedding-004
+[Supabase welfare_kb 테이블]
+└── embedding: vector(3072)  ← Gemini gemini-embedding-001
+
+welfareFAQ → Supabase welfare_faq (서비스별 FAQ + 통합돌봄 FAQ 25건)
+├── service_name, category, question, answer, persona
+└── embedding: vector(3072)
+
+welfareDocs → Supabase welfare_docs (28청크, 통합돌봄 표준교안)
+├── doc_source, doc_title, doc_type, section, page_numbers
+├── chunk_index, content, summary, target_audience
+└── embedding: vector(3072)
+
+[3테이블 병렬 검색 (v026)]
+Promise.all([
+  pgvectorSearch(query, 5),         // welfare_kb
+  pgvectorFaqSearch(query, 3),      // welfare_faq
+  pgvectorDocSearch(query, 0.65, 3, audience),  // welfare_docs
+])
 ```
 
 ### 4.2 부서별 사업 프로파일 (deptServiceMap)

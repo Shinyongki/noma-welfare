@@ -60,19 +60,25 @@ async function main() {
     }
   }
 
-  // 2. 보충분 FAQ 로드 (data/faq_kb.json)
-  const faqKbPath = path.join(__dirname, '..', 'data', 'faq_kb.json');
-  if (fs.existsSync(faqKbPath)) {
-    const supplementFaqs = JSON.parse(fs.readFileSync(faqKbPath, 'utf-8'));
-    for (const f of supplementFaqs) {
-      allFaqs.push({
-        service_name: f.related_service || f.category || '공통',
-        category: f.faq_type || 'general',
-        question: f.question,
-        answer: f.answer,
-        persona: f.persona || null,
-        keywords: f.keywords || null,
-      });
+  // 2. 보충분 FAQ 로드 (data/faq_kb.json + data/faq_kb_026_tonghap.json)
+  const faqKbFiles = [
+    path.join(__dirname, '..', 'data', 'faq_kb.json'),
+    path.join(__dirname, '..', 'data', 'faq_kb_026_tonghap.json'),
+  ];
+  for (const faqKbPath of faqKbFiles) {
+    if (fs.existsSync(faqKbPath)) {
+      const supplementFaqs = JSON.parse(fs.readFileSync(faqKbPath, 'utf-8'));
+      console.log(`[Load] FAQ 보충분: ${path.basename(faqKbPath)} (${supplementFaqs.length}건)`);
+      for (const f of supplementFaqs) {
+        allFaqs.push({
+          service_name: f.related_service || f.category || '공통',
+          category: f.faq_type || 'general',
+          question: f.question,
+          answer: f.answer,
+          persona: f.persona || null,
+          keywords: f.keywords || null,
+        });
+      }
     }
   }
 
