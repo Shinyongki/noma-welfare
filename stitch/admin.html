@@ -868,6 +868,11 @@
                 연계 전체현황
                 <span id="sidebar-collab-badge" class="nav-badge" style="display:none">0</span>
             </div>
+            <div onclick="switchTab('edgeAlerts')" id="nav-edgeAlerts" class="nav-item">
+                <span class="material-symbols-outlined text-lg" aria-hidden="true">shield</span>
+                엣지 알림
+                <span id="edge-alert-badge" class="nav-badge" style="display:none">0</span>
+            </div>
             <div onclick="switchTab('approvals')" id="nav-approvals" class="nav-item" style="display:none">
                 <span class="material-symbols-outlined text-lg" aria-hidden="true">approval</span>
                 승인 대기
@@ -1455,6 +1460,25 @@
                 <div class="p-8 text-center text-slate-400">로딩 중...</div>
             </section>
 
+            <!-- Tab: 엣지 케이스 알림 -->
+            <section id="panel-edgeAlerts" class="hidden">
+                <div class="p-4 sm:p-6 space-y-4">
+                    <!-- 필터 -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="loadEdgeAlerts('all')" class="edge-filter-btn active text-xs px-3 py-1.5 rounded-full bg-slate-800 text-white" data-filter="all">전체</button>
+                        <button onclick="loadEdgeAlerts('unread')" class="edge-filter-btn text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200" data-filter="unread">미읽음</button>
+                        <button onclick="loadEdgeAlerts('crisis')" class="edge-filter-btn text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200" data-filter="crisis">위기</button>
+                        <button onclick="loadEdgeAlerts('anger')" class="edge-filter-btn text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200" data-filter="anger">분노</button>
+                        <button onclick="loadEdgeAlerts('pii')" class="edge-filter-btn text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200" data-filter="pii">개인정보</button>
+                        <button onclick="loadEdgeAlerts('abuse')" class="edge-filter-btn text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200" data-filter="abuse">악용</button>
+                    </div>
+                    <!-- 알림 목록 -->
+                    <div id="edge-alerts-list" class="space-y-3">
+                        <div class="p-8 text-center text-slate-400">로딩 중...</div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Tab: 담당 케이스 (staff) -->
             <section id="panel-cases" class="hidden">
                 <div class="p-8 text-center text-slate-400">로딩 중...</div>
@@ -1632,7 +1656,7 @@
         if (tab === 'cases' && sessionRole === 'staff' && sessionServiceName) {
             return sessionServiceName + ' 케이스';
         }
-        const titles = { dashboard: '현황판', requests: '상담 요청', analytics: '분석', collab: '연계 전체현황', approvals: '승인 대기', incoming: '수신 요청', alerts: '이상알림', cases: '담당 케이스', completed: '처리 완료' };
+        const titles = { dashboard: '현황판', requests: '상담 요청', analytics: '분석', collab: '연계 전체현황', edgeAlerts: '엣지 알림', approvals: '승인 대기', incoming: '수신 요청', alerts: '이상알림', cases: '담당 케이스', completed: '처리 완료' };
         return titles[tab] || tab;
     }
 
@@ -1642,6 +1666,7 @@
         if (tab === 'analytics' && sessionRole !== 'admin') tab = 'dashboard';
         if (tab === 'approvals' && sessionRole !== 'dept') tab = 'dashboard';
         if (tab === 'incoming' && sessionRole !== 'dept') tab = 'dashboard';
+        if (tab === 'edgeAlerts' && sessionRole !== 'admin') tab = 'dashboard';
         if (tab === 'alerts' && sessionRole !== 'admin') tab = 'dashboard';
         if ((tab === 'cases' || tab === 'completed') && sessionRole !== 'staff') tab = 'dashboard';
 
@@ -1660,7 +1685,7 @@
         document.getElementById('topbar-title').textContent = getTabTitle(tab);
 
         // Toggle panels
-        ['dashboard', 'requests', 'analytics', 'collab', 'approvals', 'incoming', 'alerts', 'cases', 'completed'].forEach(p => {
+        ['dashboard', 'requests', 'analytics', 'collab', 'edgeAlerts', 'approvals', 'incoming', 'alerts', 'cases', 'completed'].forEach(p => {
             const panel = document.getElementById('panel-' + p);
             if (!panel) return;
             if (p === tab) {
@@ -1683,6 +1708,7 @@
         else if (tab === 'collab') loadCollabPanel();
         else if (tab === 'approvals') loadApprovals();
         else if (tab === 'incoming') loadIncoming();
+        else if (tab === 'edgeAlerts') loadEdgeAlerts();
         else if (tab === 'alerts') loadAlerts();
         else if (tab === 'cases') loadStaffCases();
         else if (tab === 'completed') loadCompletedCases();
@@ -5533,6 +5559,115 @@
                 <a href="/case/${item.id}" target="_blank" class="inline-block mt-2 text-xs text-blue-600 hover:underline">케이스 열기 &rarr;</a>
             </div>`;
         }).join('') + '</div>';
+    }
+
+    // ── 엣지 케이스 알림 ──
+    let edgeAlertFilter = 'all';
+
+    async function loadEdgeAlerts(filter) {
+        if (filter) edgeAlertFilter = filter;
+        // 필터 버튼 스타일
+        document.querySelectorAll('.edge-filter-btn').forEach(btn => {
+            if (btn.dataset.filter === edgeAlertFilter) {
+                btn.className = 'edge-filter-btn text-xs px-3 py-1.5 rounded-full bg-slate-800 text-white';
+            } else {
+                btn.className = 'edge-filter-btn text-xs px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200';
+            }
+        });
+
+        let url = '/api/admin/edge-alerts?limit=50';
+        if (edgeAlertFilter === 'unread') url += '&status=unread';
+        const data = await api(url);
+        let alerts = data.alerts || [];
+
+        // 클라이언트 필터 (유형별)
+        if (edgeAlertFilter === 'crisis') alerts = alerts.filter(a => a.edge_type === 'crisis');
+        else if (edgeAlertFilter === 'anger') alerts = alerts.filter(a => a.edge_type === 'anger');
+        else if (edgeAlertFilter === 'pii') alerts = alerts.filter(a => a.edge_type === 'pii_exposure');
+        else if (edgeAlertFilter === 'abuse') alerts = alerts.filter(a => a.edge_type === 'system_abuse');
+
+        const el = document.getElementById('edge-alerts-list');
+        if (alerts.length === 0) {
+            el.innerHTML = '<div class="p-8 text-center text-slate-400">알림이 없습니다.</div>';
+            return;
+        }
+
+        const severityConfig = {
+            critical: { color: 'border-red-500', bg: 'bg-red-50', icon: 'error', iconColor: 'text-red-600', label: '위기' },
+            high: { color: 'border-orange-500', bg: 'bg-orange-50', icon: 'warning', iconColor: 'text-orange-600', label: '분노/위협' },
+            medium: { color: 'border-yellow-500', bg: 'bg-yellow-50', icon: 'privacy_tip', iconColor: 'text-yellow-600', label: '개인정보' },
+            low: { color: 'border-slate-400', bg: 'bg-slate-50', icon: 'shield', iconColor: 'text-slate-500', label: '시스템 악용' },
+        };
+
+        el.innerHTML = alerts.map(alert => {
+            const cfg = severityConfig[alert.severity] || severityConfig.low;
+            const isRead = alert.status !== 'unread';
+            const elapsed = safeElapsed(alert.created_at);
+            const opacity = isRead ? 'opacity-60' : '';
+
+            return `<div class="card-elevated p-4 border-l-4 ${cfg.color} ${cfg.bg} ${opacity}" id="edge-alert-${alert.id}">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined ${cfg.iconColor}" style="font-size:18px">${cfg.icon}</span>
+                        <span class="text-xs font-bold ${cfg.iconColor}">${cfg.label}</span>
+                        <span class="text-xs text-slate-400">${elapsed.text}</span>
+                    </div>
+                    <span class="text-xs px-2 py-0.5 rounded-full ${isRead ? 'bg-slate-200 text-slate-500' : 'bg-blue-100 text-blue-700'}">${alert.status === 'unread' ? '미읽음' : alert.status === 'read' ? '읽음' : alert.status === 'resolved' ? '처리완료' : '에스컬레이션'}</span>
+                </div>
+                <p class="text-sm text-slate-800 mb-2">"${escapeHtml(alert.masked_query || '')}"</p>
+                ${alert.notes ? `<p class="text-xs text-slate-500 mb-2">메모: ${escapeHtml(alert.notes)}</p>` : ''}
+                <div class="flex flex-wrap gap-2">
+                    ${alert.status === 'unread' ? `<button onclick="updateEdgeAlert(${alert.id}, 'read')" class="text-xs px-2 py-1 bg-slate-200 hover:bg-slate-300 rounded">읽음</button>` : ''}
+                    ${alert.status !== 'resolved' ? `<button onclick="resolveEdgeAlert(${alert.id})" class="text-xs px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded">처리완료</button>` : ''}
+                    ${alert.severity === 'critical' && alert.status !== 'escalated' ? `<button onclick="updateEdgeAlert(${alert.id}, 'escalated')" class="text-xs px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded">에스컬레이션</button>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    async function updateEdgeAlert(id, status, notes) {
+        try {
+            const res = await fetch(`/api/admin/edge-alerts/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status, notes }),
+            });
+            if (res.ok) {
+                loadEdgeAlerts();
+                updateEdgeAlertBadge();
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    async function resolveEdgeAlert(id) {
+        const notes = prompt('처리 내용을 입력하세요 (선택):');
+        if (notes === null) return; // 취소
+        await updateEdgeAlert(id, 'resolved', notes || undefined);
+    }
+
+    // 뱃지 갱신
+    async function updateEdgeAlertBadge() {
+        try {
+            const res = await fetch('/api/admin/edge-alerts/count');
+            const { unread, critical } = await res.json();
+            const badge = document.getElementById('edge-alert-badge');
+            if (!badge) return;
+            if (unread > 0) {
+                badge.textContent = unread;
+                badge.style.display = 'inline-flex';
+                badge.style.background = critical > 0 ? '#DC2626' : '#EA580C';
+                if (critical > 0) badge.style.animation = 'pulse 2s infinite';
+                else badge.style.animation = '';
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch (e) { /* 조용히 실패 */ }
+    }
+
+    // 60초 폴링
+    if (sessionRole === 'admin') {
+        updateEdgeAlertBadge();
+        setInterval(updateEdgeAlertBadge, 60000);
     }
 
     // ── 담당자: 케이스 목록 ──

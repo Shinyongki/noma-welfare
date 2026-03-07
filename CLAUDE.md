@@ -149,6 +149,12 @@
 | **012** | **confirm() 제거** | admin.html bulkChangeStatus → **토스트 UI로 교체** |
 | **013** | **RAG 멀티턴** | **buildCumulativeQuery() 추가** — 멀티턴 누적 컨텍스트 RAG 쿼리 |
 | **014** | **원자화** | requestStore 21개 함수 + analyticsStore **withLock() 래핑** — 동시성 안전 |
+| **020** | **응답톤·TTS 개선** | defaultSystemPrompt 톤 가이드 + TTS 전처리(괄호 제거, 전화번호 한글화) + 필러 메시지 12종 |
+| **021** | **질의 분석 시스템** | query_log/query_stats 테이블 + 일별 집계 + 용량 관리 4단계 + admin.html 분석 위젯 |
+| **022** | **비복지 질의 가드레일** | NON_WELFARE_THRESHOLD=0.45 + 3단계 분류(비복지/소관외/소관내) + 시스템 프롬프트 가이드 |
+| **023** | **엣지케이스 응대** | detectEdgeCase() 4유형(crisis/anger/pii/abuse) + 시스템 프롬프트 7유형 가이드 + 위기 즉시 이메일 + edge_alerts 테이블 + admin.html 엣지 알림 탭 |
+| **024** | **응답 일관성 보장** | temperature 조정(도민 0.3/담당자 0.5) + 세션 RAG 캐시(10분 TTL) + 안정 정렬 + 일관성 프롬프트 + 이전 추천 서비스 추적 |
+| **025** | **프롬프트 사각지대 보강** | 7가지 가이드(할루시네이션/의료법률/신청후문의/정보정정/복수수혜/지역관할/외국인다문화) + REFERRAL_CONTACTS + 전화번호·서비스명 할루시네이션 로깅 |
 
 ---
 
@@ -158,8 +164,8 @@
 |------|--------|------|----------|
 | **015** | Vector DB 전환 | 작업지시서 완료 — 실행 대기 | Supabase pgvector + Gemini text-embedding-004 |
 | **016** | 지식베이스 확장 | 작업지시서 완료 — 실행 대기 | 통합돌봄법 + 읍면동 전화번호 데이터 탑재 |
-| 017 | 소관 외 라우팅 | 미착수 | 읍면동·시군 안내 Gemini 프롬프트 보완 |
-| 018 | FAQ 구조화 | 미착수 | 이용자 질문 유형별 FAQ 임베딩 |
+| 017 | 소관 외 라우팅 | 완료 (v015에서 통합) | 읍면동·시군 안내 Gemini 프롬프트 보완 |
+| 018 | FAQ 구조화 | 완료 (v015에서 통합) | 이용자 질문 유형별 FAQ 임베딩 |
 
 ---
 
@@ -171,13 +177,17 @@
 | welfare_kb_detail_v3.json | 21건 상세 정보 | 운영 중 |
 | 행정안전부 공공데이터 [15061082](https://www.data.go.kr/data/15061082/fileData.do) | 읍면동사무소·보건소 전화번호 (전국 1만여 건) | CSV 다운로드 후 경남 필터링 필요 (로그인 불필요) |
 | 돌봄통합지원법 | 2026.3.27 전면 시행. 핵심 서비스 13종 | v016 지식베이스 탑재 예정 |
-| Supabase welfare_kb | pgvector 임베딩 저장소 | v015 세팅 예정 |
+| Supabase welfare_kb | pgvector 임베딩 저장소 | 운영 중 |
+| Supabase welfare_faq | FAQ 임베딩 저장소 | 운영 중 |
+| Supabase query_log | 질의 로그 (90일 보관) | 운영 중 |
+| Supabase query_stats | 일별 집계 통계 | 운영 중 |
+| Supabase edge_alerts | 엣지 케이스 알림 (90일 보관) | 운영 중 |
 
 ---
 
 ## 8. 주요 기술 제약 및 주의사항
 
-1. **단일 파일 구조**: server.js ~3000줄에 모든 라우트·로직 포함. 수정 시 영향 범위 주의
+1. **단일 파일 구조**: server.js ~4400줄에 모든 라우트·로직 포함. 수정 시 영향 범위 주의
 2. **withLock 직렬화 필수**: read-modify-write 패턴은 반드시 `withLock()` 내부에서 수행. withLock 없는 패턴 절대 금지
 3. **원자적 쓰기 유지**: requestStore/analyticsStore는 반드시 tmp→rename 방식 유지
 4. **Gemini 429**: 무료 티어 분당 제한. 3초 백오프 재시도 로직 유지
