@@ -165,7 +165,7 @@
 | **023** | **엣지케이스 응대** | detectEdgeCase() 4유형(crisis/anger/pii/abuse) + 시스템 프롬프트 7유형 가이드 + 위기 즉시 이메일 + edge_alerts 테이블 + admin.html 엣지 알림 탭 |
 | **024** | **응답 일관성 보장** | temperature 조정(도민 0.3/담당자 0.5) + 세션 RAG 캐시(10분 TTL) + 안정 정렬 + 일관성 프롬프트 + 이전 추천 서비스 추적 |
 | **025** | **프롬프트 사각지대 보강** | 7가지 가이드(할루시네이션/의료법률/신청후문의/정보정정/복수수혜/지역관할/외국인다문화) + REFERRAL_CONTACTS + 전화번호·서비스명 할루시네이션 로깅 |
-| **026** | **통합돌봄 KB 보강 + 문서DB** | welfare_kb 통합돌봄 18건 추가(총 47건) + welfare_faq 통합돌봄 FAQ 25건 + welfare_docs 정책문서 28청크 + pgvectorDocSearch + 3테이블 병렬 검색 + 통합돌봄 시스템 프롬프트 가이드 + 담당자 AI 문서 검색 |
+| **026** | **통합돌봄 KB 보강 + 문서DB** | welfare_kb 통합돌봄 18건 추가(총 39건, 기존 29건 + 통합돌봄 18건 upsert, 중복 사업명 8건 제외) + welfare_faq 통합돌봄 FAQ 25건 + welfare_docs 정책문서 28청크 + pgvectorDocSearch + 3테이블 병렬 검색 + 통합돌봄 시스템 프롬프트 가이드 + 담당자 AI 문서 검색 |
 
 ---
 
@@ -186,7 +186,7 @@
 | welfare_kb_tonghapdolbom.json | 18건 통합돌봄 KB 보강 | 운영 중 |
 | data/faq_kb_026_tonghap.json | 25건 통합돌봄 FAQ | 운영 중 |
 | data/welfare_docs_chunks.json | 28건 정책 문서 청크 (통합돌봄 표준교안) | 운영 중 |
-| Supabase welfare_kb | pgvector 임베딩 (47건, 3072차원) | 운영 중 |
+| Supabase welfare_kb | pgvector 임베딩 (39건, 기존 29건 + 통합돌봄 18건 upsert, 중복 8건 제외, 3072차원) | 운영 중 |
 | Supabase welfare_faq | FAQ 임베딩 | 운영 중 |
 | Supabase welfare_docs | 정책 문서 임베딩 (28건, 3072차원) | 운영 중 |
 | Supabase query_log | 질의 로그 (90일 보관) | 운영 중 |
