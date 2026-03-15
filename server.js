@@ -2816,6 +2816,43 @@ async function synthesizeTTS(text, retries = 2) {
     return null;
 }
 
+// ── TTS 사전 캐시 (키워드 부분 매칭) ──────────────────────
+const TTS_CACHE_ENTRIES = [
+    { keywords: ['성함', '알려'], phrase: '상담 신청을 위해 성함을 알려주시겠어요?' },
+    { keywords: ['전화번호', '알려'], phrase: '연락받으실 전화번호도 알려주시겠어요?' },
+    { keywords: ['잠시만', '기다려'], phrase: '네, 알겠습니다. 잠시만 기다려 주세요.' },
+    { keywords: ['상담', '요청', '보내'], phrase: '감사합니다. 담당 기관에 상담 요청을 보내드렸습니다.' },
+    { keywords: ['다시', '말씀해'], phrase: '죄송합니다. 다시 한번 말씀해 주시겠어요?' },
+];
+
+async function warmupTTSCache() {
+    console.log('[TTS] 사전 캐시 생성 시작...');
+    for (const entry of TTS_CACHE_ENTRIES) {
+        try {
+            const audio = await synthesizeTTS(entry.phrase);
+            if (audio) {
+                entry.audio = audio;
+                console.log(`[TTS] 캐시 완료: "${entry.phrase.slice(0, 20)}..."`);
+            }
+        } catch (e) {
+            console.warn(`[TTS] 캐시 실패: ${e.message}`);
+        }
+    }
+    const cached = TTS_CACHE_ENTRIES.filter(e => e.audio).length;
+    console.log(`[TTS] 사전 캐시 완료 (${cached}건)`);
+}
+
+function findTTSCache(text) {
+    for (const entry of TTS_CACHE_ENTRIES) {
+        if (!entry.audio) continue;
+        if (entry.keywords.every(kw => text.includes(kw))) return entry.audio;
+    }
+    return null;
+}
+
+// 서버 시작 후 비동기로 워밍업 (서버 시작을 블로킹하지 않음)
+setTimeout(warmupTTSCache, 3000);
+
 app.post('/api/tts', ttsLimiter, async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'text required' });
@@ -2825,6 +2862,13 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
     }
     const ttsText = String(text).slice(0, MAX_TTS_LENGTH);
     analyticsStore.track('tts_request');
+
+    // 캐시 히트 시 즉시 반환 (키워드 부분 매칭)
+    const cachedAudio = findTTSCache(ttsText);
+    if (cachedAudio) {
+        console.log('[TTS] 캐시 히트:', ttsText.slice(0, 30));
+        return res.json({ audioContent: cachedAudio, cached: true });
+    }
 
     try {
         const audioBase64 = await synthesizeTTS(ttsText);

@@ -1344,6 +1344,9 @@
                 let streamStarted = false;
                 let sseBuffer = '';
                 let isOutOfScope = false;
+                let firstTTSSent = false;         // 첫 문장 TTS 전송 여부
+                let streamAccumulated = '';       // 스트리밍 누적 텍스트 (첫 문장 감지용)
+                let firstTTSPromise = null;       // 첫 문장 TTS Promise
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -1393,6 +1396,22 @@
                                 if (streamEl) {
                                     const displaySoFar = fullResponse.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim();
                                     streamEl.innerHTML = md(displaySoFar);
+                                }
+
+                                // ── 첫 문장 조기 TTS ──
+                                if (ttsEnabled && !firstTTSSent) {
+                                    streamAccumulated += data.text;
+                                    // 문장 종결 감지: 마침표/물음표/느낌표 + 공백 또는 줄바꿈
+                                    const sentenceEndMatch = streamAccumulated.match(/^(.{20,}[.?!])\s/);
+                                    if (sentenceEndMatch) {
+                                        firstTTSSent = true;
+                                        const firstSentence = sentenceEndMatch[1];
+                                        // noma-card, noma-apply 태그 포함 시 조기 TTS 스킵
+                                        if (!firstSentence.includes('<noma-card>') && !firstSentence.includes('<noma-apply>')) {
+                                            console.log('[TTS] 첫 문장 조기 호출:', firstSentence.slice(0, 30));
+                                            firstTTSPromise = speakText(firstSentence);
+                                        }
+                                    }
                                 }
                             }
 
@@ -1471,10 +1490,26 @@
                 chatHistory.push({ role: 'model', content: fullResponse });
                 saveHistory();
 
-                // TTS: 스트리밍 완료 즉시 병렬로 시작 (렌더링/신청 대기하지 않음)
-                const ttsPromise = (fullResponse && ttsEnabled)
-                    ? speakText(extractSpeakableText(fullResponse))
-                    : Promise.resolve();
+                // TTS: 첫 문장 조기 TTS가 이미 시작됐으면 나머지만 이어서 재생
+                let ttsPromise = Promise.resolve();
+                if (fullResponse && ttsEnabled) {
+                    if (firstTTSSent && firstTTSPromise) {
+                        // 첫 문장은 이미 재생 중 — 나머지 텍스트 추출 후 이어서 재생
+                        const speakable = extractSpeakableText(fullResponse);
+                        const firstSentenceEnd = speakable.match(/^(.{20,}[.?!])\s/);
+                        if (firstSentenceEnd) {
+                            const remainder = speakable.slice(firstSentenceEnd[1].length).trim();
+                            ttsPromise = firstTTSPromise.then(() => {
+                                if (remainder.length > 10) return speakText(remainder);
+                            });
+                        } else {
+                            ttsPromise = firstTTSPromise;
+                        }
+                    } else {
+                        // 첫 문장 감지 실패 시 기존 방식 유지
+                        ttsPromise = speakText(extractSpeakableText(fullResponse));
+                    }
+                }
 
                 // Parse cards and summary (최종 전체 응답에서)
                 const { cards, summaryText } = parseNomaCards(fullResponse);
