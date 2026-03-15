@@ -1242,12 +1242,22 @@
         function prepareMessagesForAPI() {
             const MAX_HISTORY = 8;
             const ANCHOR_COUNT = 2;
-            const clean = m => ({
-                role: m.role,
-                content: m.role === 'model'
-                    ? m.content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '').replace(/<noma-apply>[\s\S]*?<\/noma-apply>/g, '').trim()
-                    : m.content
-            });
+            const clean = m => {
+                if (m.role !== 'model') return { role: m.role, content: m.content };
+                let content = m.content;
+                // noma-card JSON은 제거 (길이가 길어 컨텍스트 낭비)
+                content = content.replace(/<noma-card>[\s\S]*?<\/noma-card>/g, '');
+                // noma-apply는 수집된 정보 요약으로 대체 (이름/전화번호 수집 완료 신호 보존)
+                content = content.replace(/<noma-apply>([\s\S]*?)<\/noma-apply>/g, (_, json) => {
+                    try {
+                        const data = JSON.parse(json);
+                        return `[상담 신청 완료: 서비스="${data.serviceName}", 성함="${data.userName}", 전화="${data.userPhone}"]`;
+                    } catch {
+                        return '[상담 신청 완료]';
+                    }
+                });
+                return { role: m.role, content: content.trim() };
+            };
             if (chatHistory.length <= MAX_HISTORY) {
                 return chatHistory.map(clean);
             }

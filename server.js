@@ -1693,6 +1693,12 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 - 전화번호를 한 번 확인받았으면 다시 묻지 마세요. 형식이 올바르면 바로 진행하세요.
 - 한국 전화번호 형식(010-XXXX-XXXX, 055-XXX-XXXX 등)이 아닐 때만 한 번 재확인하세요.
 
+[noma-apply 생성 금지 조건]
+아래 서비스 또는 상황에서는 <noma-apply> 태그를 절대 생성하지 않는다.
+- 통합돌봄(돌봄통합지원법) 관련 신청
+- 대분류가 "통합돌봄"인 welfare_kb 서비스
+- 읍면동·건보공단 신청 안내를 제공해야 하는 모든 경우
+
 [중요]
 - 한 번에 너무 많은 정보를 주지 말고, 가장 적합한 1~2개 서비스만 추천하세요.
 
@@ -2082,10 +2088,11 @@ ${deptProfiles}
 2. 긴급돌봄만 필요한 경우: "긴급돌봄은 경상남도사회서비스원(055-230-8200)에서도 바로 연락하실 수 있어요."
 3. 어디로 가야 할지 모르는 경우: "대표전화 055-230-8200으로 전화 주시면 안내해 드릴게요."
 
-[통합돌봄 상담 신청 처리]
-- 사용자가 통합돌봄 상담을 신청하려는 경우, 노마의 상담 신청 기능(noma-apply)을 통해 접수할 수 있다.
-- 다만, 실제 통합돌봄 공식 신청은 읍면동 행정복지센터에서 해야 함을 반드시 안내한다.
-- "저희 사회서비스원을 통해 상담 접수를 도와드릴 수 있어요. 다만, 통합돌봄 공식 신청은 거주지 읍면동 행정복지센터에서 하셔야 해요."
+[통합돌봄 상담 신청 처리 - 중요]
+- 통합돌봄(돌봄통합지원법) 신청을 원하는 경우, 노마의 상담 신청(<noma-apply>) 기능을 사용하면 절대 안 된다.
+- 반드시 읍면동 행정복지센터(주민센터) 또는 건강보험공단 지사에서 신청해야 함을 안내한다.
+- 긴급돌봄이 필요한 경우에 한해 경상남도사회서비스원(055-230-8200) 직접 연락을 안내할 수 있다.
+- 도민이 "신청하고 싶다"고 해도 noma-apply 신청 흐름으로 유도하지 않는다.
 
 [사회서비스원 기존 서비스와의 관계]
 - 긴급돌봄지원사업: 통합돌봄 체계의 '일상돌봄' 영역에서 긴급·일시적 돌봄 사각지대 대응. 사회서비스원이 제공 주체.
@@ -2148,9 +2155,19 @@ ${deptProfiles}
 
         const systemInstructionString = (systemPrompt || defaultSystemPrompt) + quickQueryInstruction + voiceHint + nonWelfareHint + edgeHint + consistencyHint;
 
-        // Build conversation contents: RAG context + user messages (sanitized)
-        const userPrompt = ragContext + "\n\n" +
-            sanitizedMessages.map(m => `${m.role === 'user' ? 'User' : 'Noma'}: ${m.content}`).join("\n");
+        // Build conversation contents: 멀티턴 배열 형태로 Gemini에 전달
+        // 첫 user 메시지에 RAG 컨텍스트를 prepend, 이후 role별 분리
+        const geminiContents = [];
+        for (let i = 0; i < sanitizedMessages.length; i++) {
+            const m = sanitizedMessages[i];
+            const role = m.role === 'user' ? 'user' : 'model';
+            let text = m.content;
+            // 첫 user 메시지에 RAG 컨텍스트 삽입
+            if (i === 0 && role === 'user' && ragContext) {
+                text = ragContext + '\n\n' + text;
+            }
+            geminiContents.push({ role, parts: [{ text }] });
+        }
 
         // 429 대비 재시도 (최대 2회, 지수 백오프)
         let lastError = null;
@@ -2158,7 +2175,7 @@ ${deptProfiles}
             try {
                 const responseStream = await ai.models.generateContentStream({
                     model: "gemini-2.5-flash",
-                    contents: userPrompt,
+                    contents: geminiContents,
                     config: {
                         systemInstruction: systemInstructionString,
                         temperature: 0.3,
