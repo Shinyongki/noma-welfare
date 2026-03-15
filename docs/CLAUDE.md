@@ -1,53 +1,73 @@
 # 노마(Noma) AI 맞춤형 복지 내비게이터
+# Claude Code 작업 기준서 (docs/ 버전)
+# v3.0 — 2026년 3월 업데이트 (v032 반영)
 
 ## 프로젝트 개요
 경상남도사회서비스원의 AI 복지 내비게이터입니다. 도민이 일상 언어(음성 포함)로
 복지 서비스를 검색·신청할 수 있고, 내부 담당자가 상담 사건을 처리·연계·협업할 수
 있는 통합 플랫폼입니다. Node.js/Express 백엔드 + Gemini 2.0 Flash RAG 엔진 +
-TailwindCSS 프론트엔드로 구성된 모바일 웹 서비스입니다.
+TailwindCSS (로컬 빌드) 프론트엔드로 구성된 모바일 웹 서비스입니다.
 
 ## 프로젝트 구조
 ```
-noma/
-├── CLAUDE.md
-├── .env                          # 환경변수 (GEMINI_API_KEY 등)
-├── server.js                     # Express 서버 진입점
-├── package.json
+사서원/
+├── CLAUDE.md                                 # Claude Code용 프로젝트 지침 (메인)
+├── .env                                      # 환경변수
+├── server.js                                 # Express 서버 (라우트 포함 단일 파일, ~4540줄)
+├── package.json                              # type: "module" (ESM)
+├── tailwind.config.cjs                       # TailwindCSS 설정
+├── 경상남도사회서비스원_지식베이스_v2.csv     # RAG 지식베이스 CSV (29건)
+├── welfare_kb_detail_v3.json                 # RAG 상세 지식베이스 JSON (39건)
+├── welfare_kb_tonghapdolbom.json             # 통합돌봄 KB 보강 (18건)
 ├── data/
-│   ├── welfare_services.csv      # 지식베이스 (18건)
-│   ├── requests.json             # requestStore (상담 신청 저장)
-│   ├── requests.json.bak         # 자동 백업
-│   └── analytics.json            # analyticsStore (일별 이벤트)
-├── public/
-│   ├── code.html                 # 도민용 메인 검색 화면
-│   ├── admin.html                # 관리자 대시보드
-│   ├── case.html                 # 담당자 상담 처리 화면
-│   └── referral.html             # 서비스 연계 요청 페이지
-└── routes/
-    ├── chat.js                   # POST /api/chat (RAG + Gemini SSE)
-    ├── tts.js                    # POST /api/tts (Edge TTS)
-    ├── auth.js                   # POST /api/auth/login, GET /api/auth/status
-    ├── serviceRequest.js         # POST /api/service-request/connect
-    ├── referral.js               # GET+POST /api/referral/:id
-    ├── case.js                   # /api/case/* (담당자 처리)
-    ├── staff.js                  # POST /api/staff/chat (담당자 AI 상담)
-    ├── admin.js                  # /api/admin/* (관리자)
-    └── dept.js                   # /api/dept/* (부서 조정자)
+│   ├── requestStore.mjs                      # 상담 신청 저장/관리 (withLock 원자화)
+│   ├── analyticsStore.mjs                    # 일별 이벤트 분석 (withLock 원자화)
+│   ├── requests.json                         # 상담 신청 데이터
+│   ├── analytics.json                        # 분석 데이터
+│   ├── faq_kb.json                           # FAQ 보충분
+│   ├── faq_kb_026_tonghap.json               # 통합돌봄 FAQ (25건)
+│   └── welfare_docs_chunks.json              # 문서 청크 (28건, 통합돌봄 표준교안)
+├── stitch/                                   # 프론트엔드 (정적 파일)
+│   ├── code.html                             # 도민용 메인 검색·상담 화면
+│   ├── admin.html                            # 관리자 대시보드
+│   ├── case.html                             # 담당자 상담 처리 화면
+│   ├── dept.html                             # 부서 조정자 화면
+│   ├── referral.html                         # 서비스 연계 요청 페이지
+│   └── css/tailwind.css                      # 빌드된 TailwindCSS
+├── src/
+│   └── tailwind.css                          # TailwindCSS 소스
+├── scripts/                                  # 임베딩 업로드·시연 스크립트
+│   ├── upload_kb_embeddings.mjs
+│   ├── upload_faq_embeddings.mjs
+│   ├── upload_doc_embeddings.mjs
+│   ├── insert_demo_data.mjs
+│   ├── cleanup_demo_data.mjs
+│   └── pre_demo_check.mjs
+└── docs/                                     # 기획·분석·작업지시서 문서
+    ├── PRD.md                                # 제품 요구사항 (v3.0)
+    ├── IA.md                                 # 정보 아키텍처 (v3.0)
+    ├── UseCase.md                            # 유스케이스 (v3.0)
+    └── CLAUDE.md                             # 이 파일
 ```
 
+**참고:** 라우트가 별도 파일로 분리되지 않고 server.js 단일 파일에 모두 포함되어 있습니다.
+
 ## 환경
-- Node.js 18 이상
-- 주요 의존성: express, express-session, @google/generative-ai, edge-tts, nodemailer
-- TailwindCSS CDN (런타임 빌드), Chart.js CDN
+- Node.js 18 이상, ESM ("type": "module")
+- 주요 의존성: express, express-session, @google/genai, @andresaya/edge-tts, cors, helmet, express-rate-limit, @supabase/supabase-js, dotenv
+- TailwindCSS v3 로컬 빌드, Chart.js CDN
 - 환경변수 (.env 필수):
-  - `GEMINI_API_KEY`: Google Gemini API 키
-  - `ADMIN_PASSWORD`: 관리자/담당자 로그인 비밀번호
+  - `GOOGLE_GEMINI_API_KEY`: Google Gemini API 키
+  - `ADMIN_PASSWORD`: 관리자 로그인 비밀번호
+  - `DEPT_PASSWORD`: 부서 조정자 로그인 비밀번호
   - `SESSION_SECRET`: express-session 서명 키
-  - `EMAIL_USER`: Naver SMTP 사용자
-  - `EMAIL_PASS`: Naver SMTP 비밀번호
-  - `EMAIL_RECIPIENT`: 개발용 이메일 수신자
+  - `RESEND_API_KEY`: Resend 이메일 API 키
+  - `BASE_URL`: 배포 URL (기본 http://localhost:5000)
+  - `ALLOWED_ORIGINS`: CORS 허용 도메인 (쉼표 구분)
   - `NODE_ENV`: production 시 secure 쿠키 활성화
-  - `PORT`: 서버 포트 (기본 3000)
+  - `PORT`: 서버 포트 (기본 5000)
+  - `SUPABASE_URL`: Supabase 프로젝트 URL
+  - `SUPABASE_KEY`: Supabase anon key
 
 ---
 
@@ -56,8 +76,11 @@ noma/
 # 서버 실행
 node server.js
 
-# 개발 모드 (nodemon)
-npx nodemon server.js
+# TailwindCSS 빌드
+npm run build:css
+
+# TailwindCSS 감시 모드
+npm run watch:css
 
 # 의존성 설치
 npm install
@@ -66,23 +89,25 @@ npm install
 ---
 
 ## 주의사항
-- requestStore/analyticsStore 파일 쓰기는 반드시 원자적 쓰기(tmp→rename) 방식 유지
-- Gemini API 429 응답 시 3초 백오프 후 재시도 로직 유지할 것
-- Edge TTS 실패 시 브라우저 내장 SpeechSynthesis로 폴백하는 로직 유지할 것
-- 보호 API(/api/case/*, /api/dept/*, /api/admin/*, /api/staff/*)에 requireAuth 미들웨어 반드시 적용
-- 상태 전환은 전진형(open→confirmed→contacted→connected→closed)만 허용, 역행 불가
-- `<noma-apply>` / `<noma-card>` 태그 파싱 로직은 SSE 스트림 청크 경계에서도 안전하게 동작해야 함
-- Gemini 무료 티어 분당 요청 제한 있음 (429 시 자동 재시도 처리)
-- JSON 본문 크기 1MB 제한 유지 (Express body-parser 설정)
-- 세션 쿠키: httpOnly + sameSite(lax) + secure(production only), 8시간 유효
+- **단일 파일 구조**: server.js ~4540줄에 모든 라우트·로직 포함. 수정 시 영향 범위 주의
+- **withLock 직렬화 필수**: requestStore/analyticsStore read-modify-write 패턴은 반드시 `withLock()` 내부에서 수행
+- **원자적 쓰기 유지**: 반드시 tmp→rename 방식 유지 + 자동 백업(.bak)
+- **Gemini 429**: 무료 티어 분당 제한. 3초 백오프 재시도 로직 유지
+- **TTS 폴백**: Edge TTS 실패 → 브라우저 SpeechSynthesis
+- **인증 필수**: 보호 API에 requireAuth 미들웨어 적용 확인
+- **커스텀 태그 파싱**: `<noma-apply>`, `<noma-card>` — SSE 스트림 청크 경계에서도 안전하게 동작
+- **세션**: httpOnly + sameSite(lax) + secure(production only), 8시간 유효
+- **Railway 제약**: SMTP 포트 차단 → Resend HTTP API만 사용 가능
+- **CSV/JSON 파일 삭제 금지**: pgvector 폴백용으로 유지
+- **JSON 본문 크기**: 1MB 제한 유지
 
 ---
 
 ## 협업 방식
 
 ### 도구 역할 분담
-- Claude AI: 전략/방향 결정, 복잡한 판단, 이미지 분석, 작업지시서 작성
-- Claude Code: 직접 코딩 실행, 파일 작업, 변환 실행
+- Claude AI (채팅): 전략/방향 결정, 복잡한 판단, 이미지 분석, 작업지시서 작성
+- Claude Code (로컬): 직접 코딩 실행, 파일 작업, 빌드, 테스트
 
 ### 정보 전달 방식
 - Claude AI → Claude Code: 작업지시서 파일로 전달
@@ -91,32 +116,21 @@ npm install
 ### 작업지시서 파일명 규칙
 ```
 작업지시서_NNN_작업명.md
-예) 작업지시서_001_초기설정.md
-    작업지시서_002_RAG엔진개선.md
+예) 작업지시서_015_VectorDB전환.md
+    작업지시서_016_지식베이스확장.md
 ```
 
 ---
 
 ## Claude Code 행동 규칙
 
-1. 방향이 불명확하거나 복잡한 판단이 필요하면 작업 중단 후 보고할 것
-   "이 부분은 Claude AI에서 방향을 잡고 오시면 좋을 것 같습니다"
-2. 한 번에 다 구현하지 말고 분석 → 보고 → 구현 → 검증 순서로 진행할 것
-3. 작업 완료 후 CLAUDE.md 업데이트 필요 여부를 반드시 먼저 물어볼 것
-4. 오류 발생 시 원인과 함께 Claude AI 공유가 필요한지 판단해서 알려줄 것
-
-### CLAUDE.md 자동 업데이트 규칙
-아래 상황이 발생하면 작업 완료 후 사용자에게 먼저 물어볼 것:
-
-"이번 작업에서 아래 내용이 추가/변경됐습니다.
-CLAUDE.md에 업데이트할까요?
-- [변경 항목 1]
-- [변경 항목 2]"
-
-업데이트 물어볼 타이밍:
-- 새 기능이 추가됐을 때
-- 새 규칙이나 약속이 정해졌을 때
-- 폴더/파일 구조가 바뀔 때
-- 오류 해결 후 주의사항이 생겼을 때
-
-사용자가 "응" 또는 "추가해줘" 하면 CLAUDE.md를 직접 수정하고 완료 보고할 것.
+1. **세션 시작**: CLAUDE.md를 읽고 프로젝트 맥락을 파악할 것
+2. **withLock 필수**: read-modify-write 패턴은 반드시 withLock() 내부에서 수행. 미적용 패턴 작성 금지
+3. **새 API 엔드포인트**: requireAuth 미들웨어 적용 확인
+4. **requestStore/analyticsStore**: 직접 수정 금지 — 반드시 공개 메서드 사용
+5. **CSS**: TailwindCSS 유틸리티 클래스 사용. 인라인 style 최소화
+6. **환경변수**: 하드코딩 금지 — process.env 사용
+7. **server.js 수정**: 영향 범위 파악 후 작업
+8. **CLAUDE.md 동기화**: 구조·기능·규칙 변경 시 CLAUDE.md 업데이트 지시 포함
+9. **판단 필요 시**: Claude AI에 보고하고 방향 확인 후 진행
+10. **결과 검증**: 작업 완료 후 검증 방법 기준으로 확인하고 결과 보고

@@ -24,11 +24,11 @@
 사서원/
 ├── CLAUDE.md                                 # Claude Code용 프로젝트 지침
 ├── .env                                      # 환경변수
-├── server.js                                 # Express 서버 (라우트 포함 단일 파일, ~3000줄)
+├── server.js                                 # Express 서버 (라우트 포함 단일 파일, ~4500줄)
 ├── package.json                              # type: "module" (ESM)
 ├── tailwind.config.cjs                       # TailwindCSS 설정
 ├── 경상남도사회서비스원_지식베이스_v2.csv     # RAG 지식베이스 CSV (29건, 통합돌봄 포함)
-├── welfare_kb_detail_v3.json                 # RAG 상세 지식베이스 JSON (21건)
+├── welfare_kb_detail_v3.json                 # RAG 상세 지식베이스 JSON (39건)
 ├── welfare_kb_tonghapdolbom.json             # 통합돌봄 KB 보강 (18건)
 ├── data/
 │   ├── requestStore.mjs                      # 상담 신청 저장/관리 (withLock 원자화 완료)
@@ -68,7 +68,7 @@
 | **buildCumulativeQuery()** | 멀티턴 대화의 누적 컨텍스트로 RAG 쿼리 빌드 (v013 추가). 후속 질문에서도 초기 맥락 유지 |
 | **SSE** | Server-Sent Events — Gemini 응답을 스트리밍 전달. 체감 응답 지연 최소화 |
 | **STT** | Web Speech API 기반 음성→텍스트 (ko-KR). 음성 종료 시 자동 검색 |
-| **TTS** | Edge TTS (ko-KR-SunHiNeural) 텍스트→음성. 실패 시 브라우저 SpeechSynthesis 폴백 |
+| **TTS** | Edge TTS (ko-KR-SunHiNeural) 텍스트→음성. 사전 캐시(정형 질문 5종) + 첫 문장 조기 생성(v029) + 상담 신청 구간 비활성화(v029보충) + 마이크·탭 전환 시 즉시 중단(v032). 실패 시 브라우저 SpeechSynthesis 폴백 |
 | **staffSystemPrompt** | 담당자 AI 상담용 시스템 프롬프트. 사건 컨텍스트 + KB 요약 + 정책 문서 검색 포함 |
 | **pgvectorDocSearch()** | welfare_docs 테이블 벡터 검색. 정책 문서 청크를 코사인 유사도로 매칭 (v026 추가) |
 | **3테이블 병렬 검색** | Promise.all로 pgvectorSearch + pgvectorFaqSearch + pgvectorDocSearch 동시 실행 (v026 추가) |
@@ -166,6 +166,11 @@
 | **024** | **응답 일관성 보장** | temperature 조정(도민 0.3/담당자 0.5) + 세션 RAG 캐시(10분 TTL) + 안정 정렬 + 일관성 프롬프트 + 이전 추천 서비스 추적 |
 | **025** | **프롬프트 사각지대 보강** | 7가지 가이드(할루시네이션/의료법률/신청후문의/정보정정/복수수혜/지역관할/외국인다문화) + REFERRAL_CONTACTS + 전화번호·서비스명 할루시네이션 로깅 |
 | **026** | **통합돌봄 KB 보강 + 문서DB** | welfare_kb 통합돌봄 18건 추가(총 39건, 기존 29건 + 통합돌봄 18건 upsert, 중복 사업명 8건 제외) + welfare_faq 통합돌봄 FAQ 25건 + welfare_docs 정책문서 28청크 + pgvectorDocSearch + 3테이블 병렬 검색 + 통합돌봄 시스템 프롬프트 가이드 + 담당자 AI 문서 검색 |
+| **028** | **소관 외 배너 3중 조건** | pgvectorTopScore 기반 → Gemini 응답 내용 기반 3중 조건(hasServiceCard && hasOutOfScopeLanguage && outOfScopeFlag). NON_WELFARE_THRESHOLD 0.45→0.55 상향 |
+| **029** | **TTS 지연 개선** | 사전 캐시(정형 질문 5종 워밍업, ~0ms) + 첫 문장 조기 생성(일반 응답 3~8초→1~2초) |
+| **029보충** | **상담 신청 구간 TTS 비활성화** | 이름·전화번호 수집 단계에서 조기 TTS 스킵 — 음성·화면 불일치 해결 |
+| **031** | **이름 반복 + 통합돌봄 오안내** | chatHistory 배열 형식 전달로 이름 반복 질문 해소 + 통합돌봄 noma-apply 생성 금지 프롬프트 |
+| **032** | **TTS 중단 처리 강화** | 마이크 활성화 시 즉시 TTS 중단 + 탭 전환 시 즉시 TTS 중단 |
 
 ---
 
@@ -173,7 +178,8 @@
 
 | 번호 | 작업명 | 상태 | 핵심 내용 |
 |------|--------|------|----------|
-| 015~018 | pgvector·KB확장·소관외·FAQ | 완료 (v015~v018에서 순차 구현) | Supabase pgvector + 통합돌봄법 + 소관외 안내 + FAQ 임베딩 |
+| 015~018 | pgvector·KB확장·소관외·FAQ | ✅ 완료 | Supabase pgvector + 통합돌봄법 + 소관외 안내 + FAQ 임베딩 |
+| 028~032 | 안정화·최적화 | ✅ 완료 | 소관외 배너 3중 조건 + TTS 최적화(캐시/조기/중단) + 이름 반복 해소 + 통합돌봄 noma-apply 금지 |
 
 ---
 
@@ -182,7 +188,7 @@
 | 소스 | 데이터 | 상태 |
 |------|--------|------|
 | 경상남도사회서비스원_지식베이스_v2.csv | 29건 서비스 정보 (통합돌봄 8건 포함) | 운영 중 |
-| welfare_kb_detail_v3.json | 21건 상세 정보 | 운영 중 |
+| welfare_kb_detail_v3.json | 39건 상세 정보 | 운영 중 |
 | welfare_kb_tonghapdolbom.json | 18건 통합돌봄 KB 보강 | 운영 중 |
 | data/faq_kb_026_tonghap.json | 25건 통합돌봄 FAQ | 운영 중 |
 | data/welfare_docs_chunks.json | 28건 정책 문서 청크 (통합돌봄 표준교안) | 운영 중 |
@@ -197,7 +203,7 @@
 
 ## 8. 주요 기술 제약 및 주의사항
 
-1. **단일 파일 구조**: server.js ~4500줄에 모든 라우트·로직 포함. 수정 시 영향 범위 주의
+1. **단일 파일 구조**: server.js ~4540줄에 모든 라우트·로직 포함. 수정 시 영향 범위 주의
 2. **withLock 직렬화 필수**: read-modify-write 패턴은 반드시 `withLock()` 내부에서 수행. withLock 없는 패턴 절대 금지
 3. **원자적 쓰기 유지**: requestStore/analyticsStore는 반드시 tmp→rename 방식 유지
 4. **Gemini 429**: 무료 티어 분당 제한. 3초 백오프 재시도 로직 유지

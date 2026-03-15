@@ -1,6 +1,6 @@
 # IA (Information Architecture)
 # 노마(Noma) 정보 아키텍처
-# v2.1 — 2026년 3월 업데이트 (v012~v026 반영)
+# v3.0 — 2026년 3월 업데이트 (v012~v032 반영)
 
 ---
 
@@ -463,7 +463,7 @@
 ### 4.1 지식베이스 (Supabase pgvector 3테이블 + CSV/JSON 폴백)
 
 ```
-welfareKB[] → Supabase welfare_kb (47건, gemini-embedding-001, 3072차원)
+welfareKB[] → Supabase welfare_kb (39건, gemini-embedding-001, 3072차원)
 ├── 대분류:    공공돌봄 | 민간지원 | 국공립시설 | 통합돌봄
 ├── 중분류:    서비스 하위 분류
 ├── 소분류:    세부 분류 (대부분 "분류없음")

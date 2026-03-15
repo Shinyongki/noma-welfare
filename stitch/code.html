@@ -2030,6 +2030,92 @@
             return clean.trim();
         }
 
+        // ── TTS 프리페치 방식 (v033) ──
+        // 텍스트를 단락으로 분할, 현재 단락 재생 중 다음 단락 미리 요청
+
+        function splitTTSParagraphs(text) {
+            if (!text) return [];
+            if (text.length <= 480) return [text];
+            const sentences = text.match(/[^.!?。]+[.!?。]?\s*/g) || [text];
+            const paragraphs = [];
+            let current = '';
+            for (const s of sentences) {
+                if ((current + s).length > 480 && current) {
+                    paragraphs.push(current.trim());
+                    current = s;
+                } else {
+                    current += s;
+                }
+            }
+            if (current.trim()) paragraphs.push(current.trim());
+            return paragraphs.filter(p => p.length > 0);
+        }
+
+        // TTS 오디오를 서버에서 받아 base64 audioContent 반환 (중단 시 null)
+        async function fetchTTSAudio(text) {
+            if (!isSpeaking || !text) return null;
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 15000);
+                const res = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text }),
+                    signal: controller.signal,
+                });
+                clearTimeout(timeout);
+                if (!res.ok || !isSpeaking) return null;
+                const data = await res.json();
+                if (data.audioContent && data.audioContent.length > 100) {
+                    return data.audioContent;
+                }
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // base64 audioContent를 AudioContext 필터 체인으로 재생, 완료까지 대기
+        function playAudioContent(audioContent) {
+            return new Promise(async (resolve) => {
+                if (!isSpeaking || !audioContent) { resolve(); return; }
+                try {
+                    const ctx = getAudioCtx();
+                    if (ctx.state === 'suspended') await ctx.resume();
+                    const raw = atob(audioContent);
+                    const buf = new Uint8Array(raw.length);
+                    for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+                    const audioBuf = await ctx.decodeAudioData(buf.buffer);
+                    if (!isSpeaking) { resolve(); return; }
+                    const source = ctx.createBufferSource();
+                    source.buffer = audioBuf;
+                    // 저음 부스트 — 따뜻하고 풍성한 음색
+                    const warmth = ctx.createBiquadFilter();
+                    warmth.type = 'lowshelf';
+                    warmth.frequency.value = 250;
+                    warmth.gain.value = 3.5;
+                    // 고음 살짝 깎아 부드럽게
+                    const soften = ctx.createBiquadFilter();
+                    soften.type = 'highshelf';
+                    soften.frequency.value = 6000;
+                    soften.gain.value = -2;
+                    // 컴프레서 — 일정한 볼륨
+                    const comp = ctx.createDynamicsCompressor();
+                    comp.threshold.value = -18;
+                    comp.ratio.value = 4;
+                    comp.attack.value = 0.003;
+                    comp.release.value = 0.15;
+                    source.connect(warmth).connect(soften).connect(comp).connect(ctx.destination);
+                    currentAudioSource = source;
+                    source.onended = () => { currentAudioSource = null; resolve(); };
+                    source.start();
+                } catch (e) {
+                    resolve();
+                }
+            });
+        }
+
+        // 메인 TTS 함수: 단락 분할 + 프리페치 패턴
         function speakText(text) {
             return new Promise(async resolve => {
                 if (!text) { resolve(); return; }
@@ -2037,76 +2123,66 @@
                 isSpeaking = true;
                 updateFloatingMicState();
 
-                // 문장 단위로 자르기 (500자 하드 컷 대신)
-                let ttsText = text;
-                if (text.length > 500) {
-                    const sentences = text.match(/[^.!?。]+[.!?。]?\s*/g) || [text];
-                    ttsText = '';
-                    for (const s of sentences) {
-                        if ((ttsText + s).length > 480) break;
-                        ttsText += s;
+                const paragraphs = splitTTSParagraphs(text);
+                if (paragraphs.length === 0) { isSpeaking = false; updateFloatingMicState(); resolve(); return; }
+
+                // Edge TTS: 프리페치 방식으로 단락 순차 재생
+                let currentFetch = fetchTTSAudio(paragraphs[0]);
+                let edgeTTSWorked = false;
+
+                for (let i = 0; i < paragraphs.length; i++) {
+                    if (!isSpeaking) break;
+
+                    // 다음 단락 미리 요청 (현재 단락 재생과 동시에)
+                    const nextFetch = (i + 1 < paragraphs.length)
+                        ? fetchTTSAudio(paragraphs[i + 1])
+                        : null;
+
+                    const audioContent = await currentFetch;
+                    if (!isSpeaking) break;
+
+                    if (audioContent) {
+                        edgeTTSWorked = true;
+                        await playAudioContent(audioContent);
+                    } else if (i === 0) {
+                        // 첫 단락 실패 → Web Speech API 폴백으로 전환
+                        console.warn('Edge TTS failed, using Web Speech API');
+                        break;
                     }
-                    if (!ttsText) ttsText = text.slice(0, 500);
+
+                    currentFetch = nextFetch;
                 }
 
-                // Try Edge TTS (server-side)
-                try {
-                    const controller = new AbortController();
-                    const timeout = setTimeout(() => controller.abort(), 15000);
-                    const res = await fetch('/api/tts', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: ttsText }),
-                        signal: controller.signal,
-                    });
-                    clearTimeout(timeout);
-                    if (!res.ok) throw new Error('TTS API error ' + res.status);
-                    const data = await res.json();
-                    if (data.audioContent && data.audioContent.length > 100) {
-                        const ctx = getAudioCtx();
-                        if (ctx.state === 'suspended') await ctx.resume();
-                        const raw = atob(data.audioContent);
-                        const buf = new Uint8Array(raw.length);
-                        for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
-                        const audioBuf = await ctx.decodeAudioData(buf.buffer);
-                        const source = ctx.createBufferSource();
-                        source.buffer = audioBuf;
-                        // 저음 부스트 — 따뜻하고 풍성한 음색
-                        const warmth = ctx.createBiquadFilter();
-                        warmth.type = 'lowshelf';
-                        warmth.frequency.value = 250;
-                        warmth.gain.value = 3.5;
-                        // 고음 살짝 깎아 부드럽게
-                        const soften = ctx.createBiquadFilter();
-                        soften.type = 'highshelf';
-                        soften.frequency.value = 6000;
-                        soften.gain.value = -2;
-                        // 컴프레서 — 일정한 볼륨
-                        const comp = ctx.createDynamicsCompressor();
-                        comp.threshold.value = -18;
-                        comp.ratio.value = 4;
-                        comp.attack.value = 0.003;
-                        comp.release.value = 0.15;
-                        source.connect(warmth).connect(soften).connect(comp).connect(ctx.destination);
-                        currentAudioSource = source;
-                        source.onended = () => { isSpeaking = false; currentAudioSource = null; currentAudio = null; updateFloatingMicState(); resolve(); };
-                        source.start();
-                        return;
+                // 폴백: Web Speech API (Edge TTS 첫 단락 실패 시)
+                if (!edgeTTSWorked && isSpeaking) {
+                    if (window.speechSynthesis) {
+                        let ttsText = text;
+                        if (text.length > 500) {
+                            const sentences = text.match(/[^.!?。]+[.!?。]?\s*/g) || [text];
+                            ttsText = '';
+                            for (const s of sentences) {
+                                if ((ttsText + s).length > 480) break;
+                                ttsText += s;
+                            }
+                            if (!ttsText) ttsText = text.slice(0, 500);
+                        }
+                        await new Promise(fbResolve => {
+                            const utterance = new SpeechSynthesisUtterance(ttsText);
+                            utterance.lang = 'ko-KR';
+                            utterance.rate = 0.9;
+                            currentUtterance = utterance;
+                            utterance.onend = () => { currentUtterance = null; fbResolve(); };
+                            utterance.onerror = () => { currentUtterance = null; fbResolve(); };
+                            speechSynthesis.speak(utterance);
+                        });
                     }
-                    throw new Error('Empty audio content');
-                } catch (e) {
-                    console.warn('Edge TTS failed, using Web Speech API:', e.message);
                 }
 
-                // Fallback: Web Speech API
-                if (!window.speechSynthesis) { isSpeaking = false; updateFloatingMicState(); resolve(); return; }
-                const utterance = new SpeechSynthesisUtterance(ttsText);
-                utterance.lang = 'ko-KR';
-                utterance.rate = 0.9;
-                currentUtterance = utterance;
-                utterance.onend = () => { isSpeaking = false; currentUtterance = null; updateFloatingMicState(); resolve(); };
-                utterance.onerror = () => { isSpeaking = false; currentUtterance = null; updateFloatingMicState(); resolve(); };
-                speechSynthesis.speak(utterance);
+                isSpeaking = false;
+                currentAudioSource = null;
+                currentAudio = null;
+                updateFloatingMicState();
+                resolve();
             });
         }
 
