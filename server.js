@@ -1456,7 +1456,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     const outOfScopeFlag = usedPgvector && pgvectorTopScore < OUT_OF_SCOPE_THRESHOLD;
 
     // 비복지 감지: 유사도가 극히 낮으면 복지와 무관한 질의
-    const NON_WELFARE_THRESHOLD = 0.45;
+    const NON_WELFARE_THRESHOLD = 0.55;
     const nonWelfareFlag = usedPgvector && pgvectorTopScore < NON_WELFARE_THRESHOLD;
 
     // Analytics tracking
@@ -2196,9 +2196,22 @@ ${deptProfiles}
                     console.warn('[Hallucination] 알 수 없는 서비스명:', unknownServices);
                 }
 
+                // Gemini 응답 내용 기반 소관 외 최종 판단
+                // <noma-card> 태그가 있으면 실제 서비스를 안내한 것이므로 소관 외 배너 표시 안 함
+                const hasServiceCard = accumulatedResponse.includes('<noma-card>');
+
+                // Gemini 응답에 실제 소관 외 안내 문구가 있는지 확인
+                // "읍면동 주민센터", "행정복지센터", "지자체" 중 하나라도 포함 시 소관 외로 판단
+                const hasOutOfScopeLanguage =
+                    accumulatedResponse.includes('읍면동 주민센터') ||
+                    accumulatedResponse.includes('행정복지센터') ||
+                    (accumulatedResponse.includes('지자체') && (accumulatedResponse.includes('담당') || accumulatedResponse.includes('문의')));
+
+                const finalOutOfScope = outOfScopeFlag && !hasServiceCard && hasOutOfScopeLanguage;
+
                 clearTimeout(sseTimeout);
                 if (!clientDisconnected) {
-                    if (outOfScopeFlag) {
+                    if (finalOutOfScope) {
                         res.write(`data: ${JSON.stringify({
                             event: 'outOfScope',
                             outOfScope: true,
@@ -2226,7 +2239,7 @@ ${deptProfiles}
                                 matched_faq: faqDirectMatch[0]?.question || null,
                                 faq_score: faqDirectMatch[0]?.similarity || 0,
                                 match_count: matchedServiceNames.length,
-                                is_out_of_scope: outOfScopeFlag && !nonWelfareFlag,
+                                is_out_of_scope: finalOutOfScope && !nonWelfareFlag,
                                 detected_persona: persona,
                                 detected_faq_type: detectedType,
                                 led_to_apply: false,
