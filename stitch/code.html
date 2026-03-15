@@ -1401,15 +1401,29 @@
                                 // ── 첫 문장 조기 TTS ──
                                 if (ttsEnabled && !firstTTSSent) {
                                     streamAccumulated += data.text;
-                                    // 문장 종결 감지: 마침표/물음표/느낌표 + 공백 또는 줄바꿈
-                                    const sentenceEndMatch = streamAccumulated.match(/^(.{20,}[.?!])\s/);
-                                    if (sentenceEndMatch) {
+
+                                    // 상담 신청 흐름 감지 — 이름/전화번호 수집 구간에서는 조기 TTS 스킵
+                                    const isConsultationFlow =
+                                        streamAccumulated.includes('성함') ||
+                                        streamAccumulated.includes('전화번호') ||
+                                        streamAccumulated.includes('연락') ||
+                                        streamAccumulated.includes('<noma-apply>');
+
+                                    if (isConsultationFlow) {
+                                        // 조기 TTS 비활성화 — 전체 응답 완료 후 기존 방식으로 처리
                                         firstTTSSent = true;
-                                        const firstSentence = sentenceEndMatch[1];
-                                        // noma-card, noma-apply 태그 포함 시 조기 TTS 스킵
-                                        if (!firstSentence.includes('<noma-card>') && !firstSentence.includes('<noma-apply>')) {
-                                            console.log('[TTS] 첫 문장 조기 호출:', firstSentence.slice(0, 30));
-                                            firstTTSPromise = speakText(firstSentence);
+                                        firstTTSPromise = null;
+                                    } else {
+                                        // 문장 종결 감지: 마침표/물음표/느낌표 + 공백 또는 줄바꿈
+                                        const sentenceEndMatch = streamAccumulated.match(/^(.{20,}[.?!])\s/);
+                                        if (sentenceEndMatch) {
+                                            firstTTSSent = true;
+                                            const firstSentence = sentenceEndMatch[1];
+                                            // noma-card, noma-apply 태그 포함 시 조기 TTS 스킵
+                                            if (!firstSentence.includes('<noma-card>') && !firstSentence.includes('<noma-apply>')) {
+                                                console.log('[TTS] 첫 문장 조기 호출:', firstSentence.slice(0, 30));
+                                                firstTTSPromise = speakText(firstSentence);
+                                            }
                                         }
                                     }
                                 }
