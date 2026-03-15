@@ -2198,7 +2198,7 @@
                 if (msg) showToast(msg);
             };
 
-            DOM.heroMic.addEventListener('click', e => { e.preventDefault(); startListening(DOM.heroInput, DOM.heroMic); });
+            DOM.heroMic.addEventListener('click', e => { e.preventDefault(); stopSpeaking(); startListening(DOM.heroInput, DOM.heroMic); });
 
             // ── Modal Mic Buttons ──
             if (DOM.modalNameMic) {
@@ -2230,7 +2230,7 @@
             // ── Floating Mic Button ──
             if (DOM.floatingMic) {
                 DOM.floatingMic.addEventListener('click', () => {
-                    if (isSpeaking) stopSpeaking();
+                    stopSpeaking(); // TTS 재생 중이면 즉시 중단
                     startListening(DOM.heroInput, DOM.heroMic);
                     updateFloatingMicState();
                 });
@@ -2265,6 +2265,14 @@
         } else {
             DOM.heroMic.style.display = 'none';
         }
+
+        // ── 화면 전환/이탈 시 TTS 중단 ──
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) stopSpeaking();
+        });
+        window.addEventListener('pagehide', () => {
+            stopSpeaking();
+        });
 
         // Update floating mic visual state
         function updateFloatingMicState() {
