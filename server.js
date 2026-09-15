@@ -154,20 +154,27 @@ function requireCaseAuth(req, res, next) {
     res.status(401).json({ error: '인증이 필요합니다. 이메일 링크를 통해 접근하거나 로그인하세요.' });
 }
 
-// 로그인 API
-app.post('/api/auth/login', (req, res) => {
-    const { password } = req.body;
+// 공유 비밀번호 검사 (ADMIN_PASSWORD 단일) — /api/auth/login, /api/unified-auth/login 공용
+function checkSharedPassword(password) {
     const adminPassword = process.env.ADMIN_PASSWORD;
     if (!adminPassword) {
         console.error('[Auth] ADMIN_PASSWORD 환경변수가 설정되지 않았습니다.');
-        return res.status(500).json({ error: '서버 설정 오류가 발생했습니다. 관리자에게 문의하세요.' });
+        return { status: 500, error: '서버 설정 오류가 발생했습니다. 관리자에게 문의하세요.' };
     }
-    if (password === adminPassword) {
-        req.session.authenticated = true;
-        req.session.loginAt = new Date().toISOString();
-        return res.json({ success: true, message: '로그인 성공' });
+    if (password !== adminPassword) {
+        return { status: 403, error: '비밀번호가 올바르지 않습니다.' };
     }
-    res.status(403).json({ error: '비밀번호가 올바르지 않습니다.' });
+    return null;
+}
+
+// 로그인 API
+app.post('/api/auth/login', (req, res) => {
+    const { password } = req.body;
+    const denied = checkSharedPassword(password);
+    if (denied) return res.status(denied.status).json({ error: denied.error });
+    req.session.authenticated = true;
+    req.session.loginAt = new Date().toISOString();
+    res.json({ success: true, message: '로그인 성공' });
 });
 
 // 로그아웃 API
@@ -182,9 +189,11 @@ app.get('/api/auth/status', (req, res) => {
     res.json({ authenticated: !!req.session?.authenticated });
 });
 
-// ── 통합 인증 API (비밀번호 없음, 역할/부서 선택만) ──
+// ── 통합 인증 API (공유 비밀번호 + 역할/부서 선택) ──
 app.post('/api/unified-auth/login', (req, res) => {
-    const { role, deptId, serviceName } = req.body;
+    const { role, deptId, serviceName, password } = req.body;
+    const denied = checkSharedPassword(password);
+    if (denied) return res.status(denied.status).json({ error: denied.error });
     if (role === 'admin') {
         req.session.authenticated = true;
         req.session.role = 'admin';
@@ -293,7 +302,11 @@ async function sendEmail({ to, subject, html }) {
         console.warn('[이메일] RESEND_API_KEY 미설정 — 발송 건너뜀');
         return null;
     }
-    const recipients = [].concat(to);
+    const recipients = [].concat(to).filter(Boolean);
+    if (recipients.length === 0) {
+        console.warn('[이메일] 수신자 없음 — 발송 건너뜀:', subject);
+        return null;
+    }
     const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -2344,7 +2357,10 @@ app.get('/api/services', (req, res) => {
 // ── 이메일 발송: sendEmail() 함수 사용 (Resend HTTP API) ──
 
 // 기본 수신자 (Gmail 필터로 부서별 자동 전달)
-const DEFAULT_RECIPIENTS = ['shinyongki71@gmail.com'];
+// 기본 이메일 수신자: 환경변수 DEFAULT_RECIPIENTS (콤마 구분). 미설정 시 빈 배열 → 부서 이메일 없으면 발송 대상 없음
+const DEFAULT_RECIPIENTS = (process.env.DEFAULT_RECIPIENTS || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+if (DEFAULT_RECIPIENTS.length === 0) console.warn('[이메일] DEFAULT_RECIPIENTS 미설정 — 기본 수신자 없음');
 
 // 수신자 결정: 부서 이메일이 있으면 부서로, 없으면 기본 수신자
 function getRecipients(deptInfo) {

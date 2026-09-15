@@ -747,6 +747,12 @@
             </div>
             <div id="login-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"></div>
 
+            <!-- 공유 비밀번호 (역할/부서 선택 끝에 함께 전송) -->
+            <div class="mb-4">
+                <input id="login-password" type="password" autocomplete="current-password" placeholder="기관 공유 비밀번호"
+                    class="w-full py-3 px-4 rounded-xl text-sm bg-white/95 border border-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            </div>
+
             <!-- 역할 선택 카드 (초기 화면) -->
             <div id="login-role-cards" class="grid grid-cols-3 gap-3">
                 <button onclick="selectLoginRole('admin')" class="bg-white rounded-2xl p-5 text-center shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 group">
@@ -5268,8 +5274,14 @@
     async function doLoginAs(role, deptId, serviceName) {
         const errEl = document.getElementById('login-error');
         errEl.classList.add('hidden');
+        const password = document.getElementById('login-password').value;
+        if (!password) {
+            errEl.textContent = '비밀번호를 입력하세요.';
+            errEl.classList.remove('hidden');
+            return;
+        }
         try {
-            const body = { role, deptId };
+            const body = { role, deptId, password };
             if (serviceName) body.serviceName = serviceName;
             const resp = await fetch('/api/unified-auth/login', {
                 method: 'POST',
