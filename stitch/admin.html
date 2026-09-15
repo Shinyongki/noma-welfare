@@ -787,32 +787,9 @@
                         </button>
                         <h2 id="login-step-title" class="text-sm font-bold text-slate-800">소속 부서 선택</h2>
                     </div>
-                    <!-- Step 1: 부서 카테고리 -->
+                    <!-- Step 1: 기관 선택 (/api/departments 기준으로 렌더) -->
                     <div id="login-step-dept" class="space-y-2">
-                        <button onclick="loginSelectDept('care')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50 transition-all text-left group">
-                            <div class="w-9 h-9 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0 group-hover:bg-teal-200 transition-colors">
-                                <span class="material-symbols-outlined text-teal-600 text-lg" aria-hidden="true">favorite</span>
-                            </div>
-                            <div><div class="text-sm font-semibold text-slate-700">공공돌봄</div><div class="text-[11px] text-slate-400">돌봄 서비스 총괄</div></div>
-                        </button>
-                        <button onclick="loginSelectDept('private')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-purple-300 hover:bg-purple-50 transition-all text-left group">
-                            <div class="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0 group-hover:bg-purple-200 transition-colors">
-                                <span class="material-symbols-outlined text-purple-600 text-lg" aria-hidden="true">handshake</span>
-                            </div>
-                            <div><div class="text-sm font-semibold text-slate-700">민간지원</div><div class="text-[11px] text-slate-400">민간기관 지원 및 협력</div></div>
-                        </button>
-                        <button onclick="loginSelectDept('facility')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition-all text-left group">
-                            <div class="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-200 transition-colors">
-                                <span class="material-symbols-outlined text-amber-600 text-lg" aria-hidden="true">account_balance</span>
-                            </div>
-                            <div><div class="text-sm font-semibold text-slate-700">국공립시설</div><div class="text-[11px] text-slate-400">국공립시설 운영</div></div>
-                        </button>
-                        <button onclick="loginSelectDept('research')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-all text-left group">
-                            <div class="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-200 transition-colors">
-                                <span class="material-symbols-outlined text-blue-600 text-lg" aria-hidden="true">science</span>
-                            </div>
-                            <div><div class="text-sm font-semibold text-slate-700">연구활동</div><div class="text-[11px] text-slate-400">정책연구 및 데이터 분석</div></div>
-                        </button>
+                        <p class="text-xs text-slate-400 text-center py-2">기관 목록을 불러오는 중...</p>
                     </div>
                     <!-- Step 2: 서비스 선택 (staff만) -->
                     <div id="login-step-service" class="hidden space-y-2"></div>
@@ -1762,10 +1739,12 @@
     // ── Dashboard ──
     // 부서 이름 매핑
     let deptMap = {};
+    let deptList = []; // /api/departments 원본 (id, name, services) — 로그인 게이트 렌더용
     async function loadDeptMap() {
         try {
             const depts = await api('/api/departments');
-            depts.forEach(d => { deptMap[d.id] = d.name; });
+            deptList = Array.isArray(depts) ? depts : [];
+            deptList.forEach(d => { deptMap[d.id] = d.name; });
         } catch { /* ignore */ }
     }
     function getDeptName(id) { return deptMap[id] || id; }
@@ -1798,24 +1777,7 @@
         consultation: '자문', referral: '서비스연계',
     };
 
-    const DEPT_SERVICES = {
-        care: {
-            name: '공공돌봄',
-            services: ['긴급돌봄지원사업', '경남발달장애인긴급돌봄센터', '경상남도 통합돌봄지원센터(경남형 희망나눔)', '퇴원환자 지역사회 연계서비스', '창원종합재가센터 통합재가서비스', '김해종합재가센터 통합재가서비스', '일상돌봄 병원동행서비스(바우처)', '노인맞춤돌봄서비스 광역지원', '응급안전안심서비스', 'AI 온하나케어 스마트 돌봄', '1인가구 안전안심 라이프링 긴급구조 알림']
-        },
-        private: {
-            name: '민간지원',
-            services: ['사회복지시설 종사자 대체인력 지원사업', '맞춤형 통합지원', '품질관리 종합 컨설팅사업', '사회복지시설 안전점검 지원사업', '장기요양기관 평가지원 및 컨설팅']
-        },
-        facility: {
-            name: '국공립시설',
-            services: ['경상남도청 어린이집', '경상남도 보조기기센터', '경상남도 피해장애인쉼터', '경상남도장애인종합복지관']
-        },
-        research: {
-            name: '연구활동',
-            services: ['사회서비스 정책연구 및 데이터 분석']
-        }
-    };
+    // 기관·서비스 목록은 deptList(/api/departments)에서 받는다 — 화면에 하드코딩하지 않음
 
     function renderCollabItem(c) {
         // 승인 상태 우선 표시
@@ -5221,8 +5183,26 @@
         document.getElementById('login-step-title').textContent = role === 'dept' ? '소속 부서 선택 (부서장)' : '소속 부서 선택 (담당자)';
     }
 
+    function renderLoginDepts() {
+        const el = document.getElementById('login-step-dept');
+        if (!el) return;
+        if (deptList.length === 0) {
+            el.innerHTML = '<p class="text-xs text-red-400 text-center py-2">기관 목록을 불러올 수 없습니다.</p>';
+            return;
+        }
+        el.innerHTML = deptList.map(d =>
+            `<button onclick="loginSelectDept('${escapeHtml(d.id)}')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50 transition-all text-left group">
+                <div class="w-9 h-9 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0 group-hover:bg-teal-200 transition-colors">
+                    <span class="material-symbols-outlined text-teal-600 text-lg" aria-hidden="true">favorite</span>
+                </div>
+                <div class="text-sm font-semibold text-slate-700">${escapeHtml(d.name)}</div>
+            </button>`
+        ).join('');
+    }
+
     function loginSelectDept(deptId) {
         _loginDeptId = deptId;
+        const dept = deptList.find(d => d.id === deptId);
         if (_loginRole === 'dept') {
             // 부서장: 부서 선택만으로 충분
             doLoginAs('dept', deptId);
@@ -5232,8 +5212,8 @@
             document.getElementById('login-step-dept').classList.add('hidden');
             const serviceEl = document.getElementById('login-step-service');
             serviceEl.classList.remove('hidden');
-            document.getElementById('login-step-title').textContent = (DEPT_SERVICES[deptId]?.name || deptId) + ' - 서비스 선택';
-            const services = DEPT_SERVICES[deptId]?.services || [];
+            document.getElementById('login-step-title').textContent = (dept?.name || deptId) + ' - 서비스 선택';
+            const services = dept?.services || [];
             serviceEl.innerHTML = services.map(s =>
                 `<button onclick="loginSelectService('${escapeHtml(s)}')" class="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50 transition-all text-left">
                     <div class="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
@@ -5820,6 +5800,9 @@
 
     // ── Init: 인증 상태 확인 (통합 인증) ──
     (async function checkAuth() {
+        // 로그인 게이트용 기관 목록 (인증 전에도 필요)
+        await loadDeptMap();
+        renderLoginDepts();
         try {
             const resp = await fetch('/api/unified-auth/status');
             const data = await resp.json();
