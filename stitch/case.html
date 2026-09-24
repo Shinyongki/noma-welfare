@@ -1367,7 +1367,8 @@
             try {
                 const resp = await fetch('/api/staff/cases');
                 if (!resp.ok) throw new Error();
-                const cases = await resp.json();
+                const data = await resp.json();
+                const cases = data.items || [];
                 if (cases.length === 0) {
                     body.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">접수된 케이스가 없습니다.</p>';
                     return;
