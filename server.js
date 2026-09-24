@@ -137,12 +137,6 @@ function requireAuth(req, res, next) {
     res.status(401).json({ error: '인증이 필요합니다. /api/auth/login으로 로그인하세요.' });
 }
 
-// 부서 조정자 인증 미들웨어
-function requireDeptAuth(req, res, next) {
-    if (req.session?.deptAuthenticated && req.session?.deptId) return next();
-    res.status(401).json({ error: '부서 조정자 인증이 필요합니다.' });
-}
-
 // case API 전용 인증: 세션 또는 토큰
 function requireCaseAuth(req, res, next) {
     if (req.session?.authenticated) return next();
@@ -1138,7 +1132,6 @@ if (migratedCount > 0) {
 app.use(express.static(path.join(__dirname, 'stitch'), { dotfiles: 'deny', index: false }));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'code.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'admin.html')));
-app.get('/dept', (req, res) => res.redirect('/admin'));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.use('/.well-known', (req, res) => res.status(404).end());
 
@@ -2688,7 +2681,7 @@ app.get('/api/referral/:requestId', (req, res) => {
     res.json({ request, services: grouped });
 });
 
-// 연계 요청 → 통합 linkage로 생성 (승인 대기, 이메일 발송 안 함)
+// 외부 연계 요청 → 통합 linkage로 생성 (생성 즉시 accepted, 이메일 발송 없음)
 app.post('/api/referral/:requestId/send', async (req, res) => {
     const { targetService, reason } = req.body;
     const request = requestStore.findById(req.params.requestId);
@@ -2710,9 +2703,9 @@ app.post('/api/referral/:requestId/send', async (req, res) => {
     });
     if (!linkage) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
-    console.log(`[연계 요청 생성] 서비스연계: ${request.serviceName} → ${targetService} (승인 대기)`);
+    console.log(`[연계 요청 생성] 외부연계: ${request.serviceName} → ${targetService} (즉시 수락)`);
 
-    res.json({ success: true, message: '연계 요청이 생성되었습니다. 관리자 승인 후 이메일이 발송됩니다.', linkage });
+    res.json({ success: true, message: '외부 연계가 기록되었습니다. 접수 결과는 담당자가 직접 기록합니다.', linkage });
 });
 
 // 연계 이메일 HTML 빌더
@@ -2919,15 +2912,9 @@ app.post('/api/tts', ttsLimiter, async (req, res) => {
 // ── 보호된 API 인증 적용 ──
 // case 페이지: 이메일 링크에서 접근하므로 토큰 기반 또는 세션 인증
 app.use('/api/case', requireCaseAuth);
-app.use('/api/dept', (req, res, next) => {
-    // 부서 조정자 세션 또는 관리자 세션 모두 허용
-    if (req.session?.authenticated || (req.session?.deptAuthenticated && req.session?.deptId)) return next();
-    res.status(401).json({ error: '인증이 필요합니다.' });
-});
-app.use('/api/target-dept', (req, res, next) => {
-    // 대상부서 또는 관리자 세션 모두 허용
-    if (req.session?.authenticated || (req.session?.deptAuthenticated && req.session?.deptId)) return next();
-    res.status(401).json({ error: '인증이 필요합니다.' });
+// 승인 단계 제거(작업 2): 구 승인 API는 더 이상 존재하지 않는다
+app.use(['/api/dept', '/api/target-dept'], (req, res) => {
+    res.status(410).json({ error: '승인 단계가 제거되었습니다. 연계는 요청 → 수락 또는 반려로 처리됩니다.' });
 });
 app.use('/api/admin', requireAuth);
 app.use('/api/staff', requireAuth);
@@ -3264,7 +3251,7 @@ app.get('/api/departments', (req, res) => {
     res.json(requestStore.DEPARTMENTS);
 });
 
-// 협업 요청 생성 → 통합 linkage로 생성 (승인 대기, 이메일 발송 안 함)
+// 내부 연계 요청 생성 → 통합 linkage로 생성 (수락 대기, 이메일 발송 안 함)
 app.post('/api/case/:requestId/collaboration', async (req, res) => {
     const { fromDept, toDept, reason, type } = req.body;
     if (!fromDept || !toDept || !reason) {
@@ -3287,7 +3274,7 @@ app.post('/api/case/:requestId/collaboration', async (req, res) => {
 
     const fromDeptName = getDeptName(fromDept);
     const toDeptName = getDeptName(toDept);
-    console.log(`[연계 요청 생성] 협업: ${fromDeptName} → ${toDeptName} (승인 대기)`);
+    console.log(`[연계 요청 생성] 내부연계: ${fromDeptName} → ${toDeptName} (수락 대기)`);
 
     res.json(linkage);
 });
@@ -3347,24 +3334,49 @@ app.post('/api/case/:id/linkage', async (req, res) => {
     });
     if (!linkage) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
-    console.log(`[연계 요청 생성] ${category}: ${reason.slice(0, 30)}... (승인 대기)`);
+    console.log(`[연계 요청 생성] ${category}: ${reason.slice(0, 30)}...`);
     res.json(linkage);
 });
 
-// 재제출 단일화 + 연계 실행 상태 변경
+// 연계 실행 상태 변경
 app.patch('/api/case/:id/linkage/:lid', async (req, res) => {
-    if (req.body.resubmit === true) {
-        const found = requestStore.findByLinkageId(req.params.lid);
-        if (!found) return res.status(404).json({ error: '연계 요청 없음' });
-        // rejected or revision_requested → pending으로 리셋
-        const updated = await requestStore.updateLinkage(
-            found.request.id, req.params.lid, { approvalStatus: 'pending' }
-        );
-        return res.json({ success: true, linkage: updated });
-    }
-    // 기존 일반 업데이트
     const linkage = await requestStore.updateLinkage(req.params.id, req.params.lid, req.body);
     res.json(linkage);
+});
+
+// 내부 연계 수락 (pending → accepted). 승인자가 아니라 대상 기관이 수락한다
+app.post('/api/case/:id/linkage/:lid/accept', async (req, res) => {
+    const found = requestStore.findByLinkageId(req.params.lid);
+    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+    if (found.linkage.category !== 'collaboration') {
+        return res.status(400).json({ error: '외부 연계는 수락 대상이 아닙니다.' });
+    }
+    const by = getDeptName(found.linkage.toDept);
+    const linkage = await requestStore.acceptLinkage(found.request.id, req.params.lid, by);
+    if (!linkage) return res.status(400).json({ error: '수락 처리 실패 (요청 대기 상태가 아닙니다)' });
+
+    const connected = await requestStore.autoConnectOnApproval(found.request.id);
+    if (connected) console.log(`[자동연동] 연계 수락 → 케이스 ${found.request.id} 상태를 connected로 변경`);
+
+    console.log(`[연계 수락] ${req.params.lid}: ${by}`);
+    res.json({ success: true, linkage });
+});
+
+// 내부 연계 반려 (pending → rejected). 사유는 필수 — 광역이 읽는 자료가 된다
+app.post('/api/case/:id/linkage/:lid/reject', async (req, res) => {
+    const reason = (req.body.reason || '').trim();
+    if (!reason) return res.status(400).json({ error: '반려 사유를 입력하세요.' });
+    const found = requestStore.findByLinkageId(req.params.lid);
+    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+    if (found.linkage.category !== 'collaboration') {
+        return res.status(400).json({ error: '외부 연계는 반려 대상이 아닙니다.' });
+    }
+    const by = getDeptName(found.linkage.toDept);
+    const linkage = await requestStore.rejectLinkage(found.request.id, req.params.lid, by, reason);
+    if (!linkage) return res.status(400).json({ error: '반려 처리 실패 (요청 대기 상태가 아닙니다)' });
+
+    console.log(`[연계 반려] ${req.params.lid}: ${by} - ${reason}`);
+    res.json({ success: true, linkage });
 });
 
 // 연계 메모 추가
@@ -3377,259 +3389,6 @@ app.post('/api/case/:id/linkage/:lid/notes', async (req, res) => {
     );
     if (!linkage) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
     res.json(linkage);
-});
-
-// ── 부서 조정자 승인 API (1단계: pending → dept_approved / rejected / revision_requested) ──
-
-// 부서 조정자 승인 대기 목록
-app.get('/api/dept/pending-approvals', (req, res) => {
-    const pending = requestStore.getDeptPendingApprovals();
-    res.json({ count: pending.length, items: pending });
-});
-
-// 부서 조정자 승인 — 소속부서(fromDept) 검증 추가
-// consultation/referral → 즉시 approved (1-step), 기타 → dept_approved (2-step)
-app.post('/api/dept/linkage/:lid/approve', async (req, res) => {
-    const { comment } = req.body;
-    const found = requestStore.findByLinkageId(req.params.lid);
-    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
-
-    // 소속부서 검증 (관리자는 패스)
-    if (req.session.role === 'dept' && found.linkage.fromDept !== req.session.deptId) {
-        return res.status(403).json({ error: '소속부서만 승인할 수 있습니다.' });
-    }
-
-    const targetReq = found.request;
-    const targetLinkage = found.linkage;
-    const linkage = await requestStore.deptApproveLinkage(found.request.id, req.params.lid, comment || '');
-    if (!linkage) return res.status(400).json({ error: '부서 조정자 승인 처리 실패 (pending 상태가 아닙니다)' });
-
-    console.log(`[부서 조정자 승인] ${req.params.lid}: ${comment || ''} → ${linkage.approvalStatus}`);
-
-    // 1-step 유형 (consultation/referral): approvalStatus === 'approved' 이면 이메일 발송 + 후처리
-    if (linkage.approvalStatus === 'approved') {
-        // 자동 연동: referral 외 승인 시 케이스 상태를 connected로 변경
-        if (targetLinkage.category !== 'referral') {
-            const connected = await requestStore.autoConnectOnApproval(targetReq.id);
-            if (connected) console.log(`[자동연동] 연계 승인 → 케이스 ${targetReq.id} 상태를 connected로 변경`);
-        }
-
-        // referral인 경우 새 요청 레코드 생성
-        if (targetLinkage.category === 'referral' && targetLinkage.targetService) {
-            analyticsStore.track('referral_sent');
-            const newRequestId = crypto.randomUUID();
-            const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-
-            await requestStore.save({
-                id: newRequestId,
-                serviceName: targetLinkage.targetService,
-                userName: targetReq.userName,
-                userPhone: targetReq.userPhone,
-                createdAt: now,
-                createdAtISO: new Date().toISOString(),
-                status: 'open',
-                referredFrom: targetReq.id,
-                referrals: [],
-            });
-
-            await requestStore.updateStatus(targetReq.id, 'referred');
-
-            await requestStore.addReferral(targetReq.id, {
-                targetService: targetLinkage.targetService,
-                reason: targetLinkage.reason,
-                newRequestId,
-                sentAt: now,
-            });
-
-            await requestStore.updateLinkage(targetReq.id, req.params.lid, { newRequestId });
-        }
-
-        // 이메일 발송
-        const emailCaseToken = generateCaseToken(targetReq.id);
-        const caseUrl = `${BASE_URL}/case/${targetReq.id}?token=${emailCaseToken}`;
-        let subject, html;
-
-        if (targetLinkage.category === 'referral') {
-            const chain = getSafeReferralChain(targetReq.id);
-            const refreshedLinkage = requestStore.findById(targetReq.id)?.linkages?.find(l => l.id === req.params.lid);
-            const newRequestId = refreshedLinkage?.newRequestId;
-            const refToken = newRequestId ? generateCaseToken(newRequestId) : emailCaseToken;
-            subject = sanitizeEmailHeader(`[서비스 연계] ${targetLinkage.targetService} ← ${targetReq.serviceName} - 노마 AI`);
-            html = buildReferralEmailHTML({
-                request: targetReq,
-                targetService: targetLinkage.targetService,
-                reason: targetLinkage.reason,
-                newRequestId: newRequestId || null,
-                chain,
-                caseToken: refToken,
-            });
-        } else {
-            const fromDeptName = getDeptName(targetLinkage.fromDept);
-            const toDeptName = getDeptName(targetLinkage.toDept);
-            const typeName = COLLAB_TYPE_NAMES[targetLinkage.type] || '자문 요청';
-            subject = sanitizeEmailHeader(`[협업 요청] ${typeName} - ${fromDeptName} → ${toDeptName}`);
-            html = buildCollaborationEmailHTML({
-                request: targetReq, collab: targetLinkage,
-                fromDeptName, toDeptName, typeName, caseUrl,
-            });
-        }
-
-        const approvalDeptInfo = targetLinkage.category === 'referral'
-            ? deptServiceMap[targetLinkage.targetService] || null
-            : deptServiceMap[targetReq.serviceName] || null;
-        const approvalRecipients = getRecipients(approvalDeptInfo);
-        try {
-            await sendEmail({ to: approvalRecipients, subject, html });
-            console.log(`[승인 후 이메일 발송 완료] ${subject} → ${approvalRecipients.join(', ')}`);
-            await requestStore.updateLinkage(targetReq.id, req.params.lid, { executionStatus: 'email_sent' });
-            return res.json({ success: true, linkage: requestStore.findById(targetReq.id)?.linkages?.find(l => l.id === req.params.lid) });
-        } catch (err) {
-            console.error('[승인 후 이메일 발송 실패]', err.message);
-            await requestStore.updateLinkage(targetReq.id, req.params.lid, { executionStatus: 'email_failed' });
-            return res.json({ success: true, emailError: true, linkage });
-        }
-    }
-
-    // 2-step 유형: dept_approved 상태 → 관리자 최종 승인 대기
-    res.json({ success: true, linkage });
-});
-
-// 부서 조정자 반려 (pending → rejected) — 소속부서(fromDept) 검증 추가
-app.post('/api/dept/linkage/:lid/reject', async (req, res) => {
-    const { comment } = req.body;
-    const found = requestStore.findByLinkageId(req.params.lid);
-    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
-
-    if (req.session.role === 'dept' && found.linkage.fromDept !== req.session.deptId) {
-        return res.status(403).json({ error: '소속부서만 반려할 수 있습니다.' });
-    }
-
-    const linkage = await requestStore.deptRejectLinkage(found.request.id, req.params.lid, comment || '');
-    if (!linkage) return res.status(400).json({ error: '부서 조정자 반려 처리 실패 (pending 상태가 아닙니다)' });
-
-    console.log(`[부서 조정자 반려] ${req.params.lid}: ${comment || '사유 없음'}`);
-    res.json({ success: true, linkage });
-});
-
-// 부서 조정자 수정 요청 (pending → revision_requested) — 소속부서(fromDept) 검증 추가
-app.post('/api/dept/linkage/:lid/revision', async (req, res) => {
-    const { comment } = req.body;
-    const found = requestStore.findByLinkageId(req.params.lid);
-    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
-
-    if (req.session.role === 'dept' && found.linkage.fromDept !== req.session.deptId) {
-        return res.status(403).json({ error: '소속부서만 수정요청할 수 있습니다.' });
-    }
-
-    const linkage = await requestStore.deptRequestRevision(found.request.id, req.params.lid, comment || '');
-    if (!linkage) return res.status(400).json({ error: '부서 조정자 수정 요청 처리 실패 (pending 상태가 아닙니다)' });
-
-    console.log(`[부서 조정자 수정 요청] ${req.params.lid}: ${comment || ''}`);
-    res.json({ success: true, linkage });
-});
-
-// ── 대상부서 수락/반려/수정요청 API (dept_approved → approved / target_rejected / target_revision_requested) ──
-
-// 대상부서 수락 (dept_approved → approved) + autoConnectOnApproval
-app.post('/api/target-dept/linkage/:lid/accept', async (req, res) => {
-    const { comment } = req.body;
-    const found = requestStore.findByLinkageId(req.params.lid);
-    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
-
-    // 대상부서 or 관리자만 수락 가능
-    if (req.session.role === 'dept') {
-        if (found.linkage.toDept !== req.session.deptId) {
-            return res.status(403).json({ error: '대상부서만 수락할 수 있습니다.' });
-        }
-    }
-
-    const deptName = req.session.deptName || '관리자';
-    const linkage = await requestStore.targetDeptAcceptLinkage(found.request.id, req.params.lid, comment || '', deptName);
-    if (!linkage) return res.status(400).json({ error: '수락 처리 실패 (dept_approved 상태가 아닙니다)' });
-
-    // 자동 연동: 승인 시 케이스 상태를 connected로 변경
-    if (found.linkage.category !== 'referral') {
-        const connected = await requestStore.autoConnectOnApproval(found.request.id);
-        if (connected) console.log(`[자동연동] 대상부서 수락 → 케이스 ${found.request.id} 상태를 connected로 변경`);
-    }
-
-    // referral인 경우 새 요청 레코드 생성
-    if (found.linkage.category === 'referral' && found.linkage.targetService) {
-        const newRequestId = crypto.randomUUID();
-        const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-        await requestStore.save({
-            id: newRequestId,
-            serviceName: found.linkage.targetService,
-            userName: found.request.userName,
-            userPhone: found.request.userPhone,
-            createdAt: now,
-            createdAtISO: new Date().toISOString(),
-            status: 'open',
-            referredFrom: found.request.id,
-            referrals: [],
-        });
-        await requestStore.updateStatus(found.request.id, 'referred');
-        await requestStore.addReferral(found.request.id, {
-            targetService: found.linkage.targetService,
-            reason: found.linkage.reason,
-            newRequestId,
-            sentAt: now,
-        });
-        await requestStore.updateLinkage(found.request.id, req.params.lid, { newRequestId });
-    }
-
-    console.log(`[대상부서 수락] ${req.params.lid}: ${deptName} - ${comment || ''}`);
-    res.json({ success: true, linkage: requestStore.findById(found.request.id)?.linkages?.find(l => l.id === req.params.lid) });
-});
-
-// 대상부서 반려 (dept_approved → target_rejected)
-app.post('/api/target-dept/linkage/:lid/reject', async (req, res) => {
-    const { comment } = req.body;
-    if (!comment) return res.status(400).json({ error: '반려 사유를 입력하세요.' });
-    const found = requestStore.findByLinkageId(req.params.lid);
-    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
-
-    if (req.session.role === 'dept') {
-        if (found.linkage.toDept !== req.session.deptId) {
-            return res.status(403).json({ error: '대상부서만 반려할 수 있습니다.' });
-        }
-    }
-
-    const deptName = req.session.deptName || '관리자';
-    const linkage = await requestStore.targetDeptRejectLinkage(found.request.id, req.params.lid, comment, deptName);
-    if (!linkage) return res.status(400).json({ error: '반려 처리 실패 (dept_approved 상태가 아닙니다)' });
-
-    console.log(`[대상부서 반려] ${req.params.lid}: ${deptName} - ${comment}`);
-    res.json({ success: true, linkage });
-});
-
-// 대상부서 수정요청 (dept_approved → target_revision_requested)
-app.post('/api/target-dept/linkage/:lid/revision', async (req, res) => {
-    const { comment } = req.body;
-    if (!comment) return res.status(400).json({ error: '수정요청 사유를 입력하세요.' });
-    const found = requestStore.findByLinkageId(req.params.lid);
-    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
-
-    if (req.session.role === 'dept') {
-        if (found.linkage.toDept !== req.session.deptId) {
-            return res.status(403).json({ error: '대상부서만 수정요청할 수 있습니다.' });
-        }
-    }
-
-    const deptName = req.session.deptName || '관리자';
-    const linkage = await requestStore.targetDeptRequestRevision(found.request.id, req.params.lid, comment, deptName);
-    if (!linkage) return res.status(400).json({ error: '수정요청 처리 실패 (dept_approved 상태가 아닙니다)' });
-
-    console.log(`[대상부서 수정요청] ${req.params.lid}: ${deptName} - ${comment}`);
-    res.json({ success: true, linkage });
-});
-
-// 대상부서 수신 요청 (부서장용)
-app.get('/api/dept/incoming-requests', (req, res) => {
-    const deptId = req.session?.deptId;
-    if (!deptId) return res.status(400).json({ error: '부서 정보 없음' });
-    const items = requestStore.getDeptIncomingRequests(deptId);
-    res.json({ count: items.length, items });
 });
 
 // 관리자용 이상 건 알림
@@ -3649,10 +3408,10 @@ app.get('/api/admin/linkages', (req, res) => {
     res.json(linkages);
 });
 
-// 승인 대기 건수
+// 수락 대기 건수 (내부 연계)
 app.get('/api/admin/pending-approvals', (req, res) => {
     let pending = requestStore.getPendingApprovals();
-    // 부서 조정자: 해당 부서 관련 승인 대기만
+    // 부서 조정자: 해당 부서 관련 대기 건만
     if (req.session.role === 'dept') {
         const deptId = req.session.deptId;
         pending = pending.filter(l => l.fromDept === deptId || l.toDept === deptId);
@@ -3789,18 +3548,14 @@ app.patch('/api/admin/requests/:id/status', async (req, res) => {
         return res.status(400).json({ error: '이전 단계로 되돌릴 수 없습니다.', current: request.status, requested: status });
     }
 
-    // 승인상태 기반 서비스상태 상한 검증
+    // 연계 수락 여부 기반 서비스상태 상한 검증
     const CASE_STEPS = ['open', 'confirmed', 'contacted', 'connected', 'providing', 'closed', 'referred'];
     const targetIdx = CASE_STEPS.indexOf(status);
     if (request.linkages && request.linkages.length > 0) {
-        // 가장 진행된 연계의 승인상태 기준으로 상한 결정
-        let bestMaxIdx = 2; // 기본: contacted
-        for (const l of request.linkages) {
-            if (l.approvalStatus === 'approved') { bestMaxIdx = 6; break; }
-            if (l.approvalStatus === 'dept_approved') bestMaxIdx = Math.max(bestMaxIdx, 3);
-        }
-        if (targetIdx > bestMaxIdx) {
-            return res.status(400).json({ error: '연계 승인이 완료되지 않아 해당 상태로 변경할 수 없습니다.' });
+        // 수락된 연계가 하나라도 있으면 상한 없음, 없으면 contacted까지
+        const hasAccepted = request.linkages.some(l => l.approvalStatus === 'accepted');
+        if (!hasAccepted && targetIdx > 2) {
+            return res.status(400).json({ error: '수락된 연계가 없어 해당 상태로 변경할 수 없습니다.' });
         }
     }
 
@@ -3839,12 +3594,9 @@ app.get('/api/admin/collaborations', (req, res) => {
             : l.executionStatus === 'declined' ? 'declined'
                 : l.executionStatus === 'in_progress' ? 'accepted'
                     : l.approvalStatus === 'pending' ? 'requested'
-                        : l.approvalStatus === 'dept_approved' ? 'requested'
-                            : l.approvalStatus === 'approved' ? 'accepted'
-                                : l.approvalStatus === 'rejected' ? 'declined'
-                                    : l.approvalStatus === 'admin_rejected' ? 'declined'
-                                        : l.approvalStatus === 'admin_revision_requested' ? 'requested'
-                                            : 'requested',
+                        : l.approvalStatus === 'accepted' ? 'accepted'
+                            : l.approvalStatus === 'rejected' ? 'declined'
+                                : 'requested',
     }));
     res.json(mapped);
 });
@@ -3935,15 +3687,14 @@ app.get('/api/admin/analytics', (req, res) => {
         .slice(0, 10);
 
     // 8. 연계 현황 분석
-    const linkageStats = { total: 0, pending: 0, approved: 0, rejected: 0, revision: 0 };
+    const linkageStats = { total: 0, pending: 0, accepted: 0, rejected: 0 };
     const deptLinkageCount = {};
     all.forEach(r => {
         (r.linkages || []).forEach(l => {
             linkageStats.total++;
             const as = l.approvalStatus || 'pending';
-            if (as === 'approved') linkageStats.approved++;
-            else if (as === 'rejected' || as === 'admin_rejected') linkageStats.rejected++;
-            else if (as === 'revision_requested' || as === 'admin_revision_requested') linkageStats.revision++;
+            if (as === 'accepted') linkageStats.accepted++;
+            else if (as === 'rejected') linkageStats.rejected++;
             else linkageStats.pending++;
 
             const dept = l.toDept || l.targetService || '미지정';

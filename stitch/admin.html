@@ -991,8 +991,8 @@
                     </div>
                 </div>
 
-                <!-- 연계 조정 현황 (dashboard: 승인 대기 + 최근 5건) -->
-                <div class="card-elevated mb-6">
+                <!-- 연계 조정 현황 (dashboard) — 승인 단계 제거(작업 2)로 숨김. 코드는 남겨둔다 -->
+                <div id="collab-dashboard-card" class="card-elevated mb-6" style="display:none">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-lg text-indigo-500" aria-hidden="true">hub</span>
@@ -1645,10 +1645,10 @@
 
     // ── Tab switching ──
     function switchTab(tab) {
+        // 승인 단계 제거(작업 2): 연계 조정 화면으로는 들어가지 않는다
+        if (tab === 'collab' || tab === 'approvals' || tab === 'incoming') tab = 'dashboard';
         // 역할별 접근 제한
         if (tab === 'analytics' && sessionRole !== 'admin') tab = 'dashboard';
-        if (tab === 'approvals' && sessionRole !== 'dept') tab = 'dashboard';
-        if (tab === 'incoming' && sessionRole !== 'dept') tab = 'dashboard';
         if (tab === 'edgeAlerts' && sessionRole !== 'admin') tab = 'dashboard';
         if (tab === 'alerts' && sessionRole !== 'admin') tab = 'dashboard';
         if ((tab === 'cases' || tab === 'completed') && sessionRole !== 'staff') tab = 'dashboard';
@@ -1751,7 +1751,8 @@
 
     // 승인 상태 (부서→부서 직접 연계)
     const APPROVAL_STATUS_MAP = {
-        pending:              { label: '승인대기',     bg: 'bg-yellow-100', text: 'text-yellow-700', step: 0 },
+        pending:              { label: '수락대기',     bg: 'bg-yellow-100', text: 'text-yellow-700', step: 0 },
+        accepted:             { label: '수락',         bg: 'bg-green-100',  text: 'text-green-700',  step: 2 },
         dept_approved:        { label: '부서 승인',    bg: 'bg-blue-100',   text: 'text-blue-700',   step: 1 },
         approved:             { label: '승인완료',     bg: 'bg-green-100',  text: 'text-green-700',  step: 2 },
         rejected:             { label: '반려',         bg: 'bg-red-100',    text: 'text-red-600',    step: -1 },
@@ -1765,6 +1766,11 @@
         admin_rejected:       { label: '관리자 반려',   bg: 'bg-red-100',    text: 'text-red-600',    step: -1 },
         admin_revision_requested: { label: '관리자 수정요청', bg: 'bg-orange-100', text: 'text-orange-600', step: -1 },
     };
+    // 알 수 없는 상태값은 오류 없이 원문 그대로 표시한다
+    function approvalStatusOf(status) {
+        return APPROVAL_STATUS_MAP[status]
+            || { label: String(status ?? '-'), bg: 'bg-gray-100', text: 'text-gray-600', step: 0 };
+    }
     const COLLAB_STATUS_MAP = {
         requested: { label: '대기', bg: 'bg-yellow-100', text: 'text-yellow-700' },
         accepted:  { label: '승인', bg: 'bg-green-100', text: 'text-green-700' },
@@ -1781,7 +1787,7 @@
 
     function renderCollabItem(c) {
         // 승인 상태 우선 표시
-        const approvalSt = c.approvalStatus ? (APPROVAL_STATUS_MAP[c.approvalStatus] || APPROVAL_STATUS_MAP.pending) : null;
+        const approvalSt = c.approvalStatus ? (approvalStatusOf(c.approvalStatus)) : null;
         const st = approvalSt || COLLAB_STATUS_MAP[c.status] || COLLAB_STATUS_MAP.requested;
         const typeName = COLLAB_TYPE_MAP[c.type] || '자문';
         const catLabel = c.category === 'referral' ? '서비스연계' : '부서협업';
@@ -2144,7 +2150,7 @@
     }
 
     function renderKanbanCard(c, isActionable) {
-        const approvalSt = c.approvalStatus ? (APPROVAL_STATUS_MAP[c.approvalStatus] || APPROVAL_STATUS_MAP.pending) : APPROVAL_STATUS_MAP.pending;
+        const approvalSt = c.approvalStatus ? (approvalStatusOf(c.approvalStatus)) : APPROVAL_STATUS_MAP.pending;
 
         let directionHtml = '';
         if (c.category === 'referral' && c.targetService) {
@@ -2381,7 +2387,7 @@
     }
 
     function renderDetailSummary(collab) {
-        const approvalSt = collab.approvalStatus ? (APPROVAL_STATUS_MAP[collab.approvalStatus] || APPROVAL_STATUS_MAP.pending) : APPROVAL_STATUS_MAP.pending;
+        const approvalSt = collab.approvalStatus ? (approvalStatusOf(collab.approvalStatus)) : APPROVAL_STATUS_MAP.pending;
         const elapsed = safeElapsed(collab.createdAtISO || collab.createdAt);
         const elapsedText = `접수 ${elapsed.text}`;
 
@@ -3338,7 +3344,7 @@
             target_revision_requested: '재제출 또는 반려 처리가 필요합니다',
         };
         const guideText = statusGuideMap[collab.approvalStatus] || '';
-        const approvalSt = APPROVAL_STATUS_MAP[collab.approvalStatus] || APPROVAL_STATUS_MAP.pending;
+        const approvalSt = approvalStatusOf(collab.approvalStatus);
 
         rightHtml += `<div style="position:sticky;top:1rem">`;
 
@@ -3840,7 +3846,7 @@
         }
 
         tbody.innerHTML = sorted.map((c, idx) => {
-            const approvalSt = c.approvalStatus ? (APPROVAL_STATUS_MAP[c.approvalStatus] || APPROVAL_STATUS_MAP.pending) : APPROVAL_STATUS_MAP.pending;
+            const approvalSt = c.approvalStatus ? (approvalStatusOf(c.approvalStatus)) : APPROVAL_STATUS_MAP.pending;
             const typeName = COLLAB_TYPE_MAP[c.type] || c.type || '-';
             const catLabel = c.category === 'referral' ? '서비스연계' : '부서협업';
             const dateStr = safeDateStr(c.createdAtISO || c.createdAt);
@@ -4190,7 +4196,7 @@
                 </h4>
                 <div class="space-y-2">
                     ${data.linkages.map(l => {
-                        const ast = APPROVAL_STATUS_MAP[l.approvalStatus] || APPROVAL_STATUS_MAP.pending;
+                        const ast = approvalStatusOf(l.approvalStatus);
                         const typeName = COLLAB_TYPE_MAP[l.type] || l.type || '-';
                         const isDeptApproved = l.approvalStatus === 'target_approved' || l.approvalStatus === 'dept_approved';
                         const isApproved = l.approvalStatus === 'approved';
@@ -5084,7 +5090,7 @@
     }
 
     function renderCasePanelLinkage(l) {
-        const ast = APPROVAL_STATUS_MAP[l.approvalStatus] || APPROVAL_STATUS_MAP.pending;
+        const ast = approvalStatusOf(l.approvalStatus);
         const typeName = COLLAB_TYPE_MAP[l.type] || '자문';
         const catLabel = l.category === 'referral' ? '서비스연계' : '부서협업';
 
@@ -5340,11 +5346,12 @@
         });
 
         // 역할별 표시할 nav 설정
+        // 승인 단계 제거(작업 2): 연계 조정 화면(collab/approvals/incoming)은 노출하지 않는다
         let visibleNavs = [];
         if (sessionRole === 'admin') {
-            visibleNavs = ['nav-dashboard', 'nav-requests', 'nav-analytics', 'nav-collab', 'nav-alerts'];
+            visibleNavs = ['nav-dashboard', 'nav-requests', 'nav-analytics', 'nav-alerts'];
         } else if (sessionRole === 'dept') {
-            visibleNavs = ['nav-dashboard', 'nav-approvals', 'nav-incoming', 'nav-collab'];
+            visibleNavs = ['nav-dashboard'];
         } else if (sessionRole === 'staff') {
             visibleNavs = ['nav-cases', 'nav-completed'];
         }

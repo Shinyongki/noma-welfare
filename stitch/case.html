@@ -282,7 +282,7 @@
                         </div>
                         <p class="text-xs text-amber-600 flex items-center gap-1">
                             <span class="material-symbols-rounded text-sm" aria-hidden="true">info</span>
-                            관리자 승인 후 실행됩니다
+                            내부 연계는 대상 기관이 수락 또는 반려합니다
                         </p>
                     </div>
                 </div>
@@ -505,16 +505,18 @@
             referred:  '<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-600">연계</span>',
         };
 
-        // 승인 상태 배지
+        // 연계 상태 배지 (요청 → 수락 또는 반려)
         const APPROVAL_BADGE = {
-            pending:                     { label: '부서 검토 대기', bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'hourglass_top' },
-            dept_approved:               { label: '부서 승인 (최종 대기)', bg: 'bg-blue-100', text: 'text-blue-700', icon: 'verified' },
-            approved:                    { label: '최종 승인', bg: 'bg-green-100', text: 'text-green-700', icon: 'check_circle' },
-            rejected:                    { label: '부서 반려', bg: 'bg-red-100', text: 'text-red-700', icon: 'cancel' },
-            revision_requested:          { label: '부서 수정 요청', bg: 'bg-orange-100', text: 'text-orange-700', icon: 'edit_note' },
-            admin_rejected:              { label: '관리자 반려', bg: 'bg-red-100', text: 'text-red-700', icon: 'block' },
-            admin_revision_requested:    { label: '관리자 수정 요청', bg: 'bg-orange-100', text: 'text-orange-700', icon: 'rate_review' },
+            pending:   { label: '수락 대기', bg: 'bg-yellow-100', text: 'text-yellow-700', icon: 'hourglass_top' },
+            accepted:  { label: '수락',     bg: 'bg-green-100',  text: 'text-green-700',  icon: 'check_circle' },
+            rejected:  { label: '반려',     bg: 'bg-red-100',    text: 'text-red-700',    icon: 'cancel' },
         };
+
+        // 알 수 없는 상태값은 오류 없이 원문 그대로 표시한다
+        function approvalBadgeOf(status) {
+            return APPROVAL_BADGE[status]
+                || { label: String(status ?? '-'), bg: 'bg-gray-100', text: 'text-gray-600', icon: 'help' };
+        }
 
         const EXEC_STATUS = {
             email_sent: { label: '발송완료', bg: 'bg-blue-100', text: 'text-blue-700' },
@@ -692,59 +694,29 @@
                 return;
             }
             el.innerHTML = linkages.map(l => {
-                // 승인 상태 배지
-                const ab = APPROVAL_BADGE[l.approvalStatus] || APPROVAL_BADGE.pending;
+                // 연계 상태 배지 (알 수 없는 값은 원문 그대로)
+                const ab = approvalBadgeOf(l.approvalStatus);
                 const tp = LINKAGE_TYPE[l.type] || LINKAGE_TYPE.consultation;
+                const isReferral = l.category === 'referral';
 
-                // 실행 상태 배지 (승인 후)
+                // 실행 상태 배지 (내부 연계 수락 후)
                 let execBadge = '';
-                if (l.approvalStatus === 'approved' && l.executionStatus) {
+                if (!isReferral && l.approvalStatus === 'accepted' && l.executionStatus) {
                     const es = EXEC_STATUS[l.executionStatus] || {};
-                    execBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${es.bg || ''} ${es.text || ''}">${es.label || l.executionStatus}</span>`;
+                    execBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${es.bg || 'bg-gray-100'} ${es.text || 'text-gray-600'}">${es.label || l.executionStatus}</span>`;
                 }
 
-                // 반려 사유 / 수정 요청 코멘트
+                // 반려 사유 (광역이 읽는 자료가 되므로 카드에 남긴다)
                 let feedbackHtml = '';
-                const feedbackStatuses = ['rejected', 'revision_requested', 'admin_rejected', 'admin_revision_requested'];
-                if (feedbackStatuses.includes(l.approvalStatus)) {
-                    const lastAction = [...(l.approvalHistory || [])].reverse().find(h => h.action === l.approvalStatus);
+                if (l.approvalStatus === 'rejected') {
+                    const lastAction = [...(l.approvalHistory || [])].reverse().find(h => h.action === 'rejected');
                     if (lastAction && lastAction.comment) {
-                        const isReject = l.approvalStatus === 'rejected' || l.approvalStatus === 'admin_rejected';
-                        const source = l.approvalStatus.startsWith('admin_') ? '관리자' : '부서 조정자';
-                        feedbackHtml = `<div class="mt-2 p-2.5 rounded-lg ${isReject ? 'bg-red-50 border border-red-100' : 'bg-orange-50 border border-orange-100'}">
-                            <p class="text-xs ${isReject ? 'text-red-700' : 'text-orange-700'} font-semibold mb-0.5">${source} ${isReject ? '반려 사유' : '수정 요청 사항'}</p>
+                        feedbackHtml = `<div class="mt-2 p-2.5 rounded-lg bg-red-50 border border-red-100">
+                            <p class="text-xs text-red-700 font-semibold mb-0.5">반려 사유${lastAction.by ? ' — ' + escapeHtml(lastAction.by) : ''}</p>
                             <p class="text-xs text-gray-700">${escapeHtml(lastAction.comment)}</p>
                         </div>`;
                     }
                 }
-
-                // 승인 스테퍼 (3단계: 담당자 요청 → 부서 조정자 → 관리자 조정자)
-                const approvalSteps = [
-                    { label: '담당자 요청', key: 'submitted' },
-                    { label: '부서 조정자', key: 'dept' },
-                    { label: '관리자 최종', key: 'admin' },
-                ];
-                let stepIdx = 0;
-                if (l.approvalStatus === 'dept_approved') stepIdx = 1;
-                else if (l.approvalStatus === 'approved') stepIdx = 2;
-                else if (l.approvalStatus === 'admin_rejected' || l.approvalStatus === 'admin_revision_requested') stepIdx = 1; // 관리자가 반환 → 부서 단계로
-                else if (l.approvalStatus === 'rejected' || l.approvalStatus === 'revision_requested') stepIdx = 0; // 부서 반려 → 담당자로
-                else stepIdx = 0; // pending
-                const isDone = l.approvalStatus === 'approved';
-
-                let stepperHtml = `<div class="flex items-center gap-1 mt-2 mb-1">`;
-                approvalSteps.forEach((s, i) => {
-                    const done = isDone || i < stepIdx;
-                    const current = !isDone && i === stepIdx;
-                    const colorClass = done ? 'bg-green-500 text-white' : current ? 'bg-blue-500 text-white ring-2 ring-blue-300' : 'bg-gray-200 text-gray-400';
-                    const lineColor = done ? 'bg-green-400' : 'bg-gray-200';
-                    stepperHtml += `<div class="flex flex-col items-center" style="min-width:28px">
-                        <div class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${colorClass}">${i + 1}</div>
-                        <span class="text-[9px] mt-0.5 whitespace-nowrap ${current ? 'font-bold text-blue-700' : done ? 'text-green-700' : 'text-gray-400'}">${s.label}</span>
-                    </div>`;
-                    if (i < approvalSteps.length - 1) stepperHtml += `<div class="flex-1 h-0.5 ${lineColor} -mt-3"></div>`;
-                });
-                stepperHtml += `</div>`;
 
                 // 방향 표시
                 let directionHtml = '';
@@ -754,7 +726,7 @@
                         <span class="material-symbols-rounded text-gray-400 text-base" aria-hidden="true">arrow_forward</span>
                         <span class="font-semibold text-green-700">${getDeptName(l.toDept)}</span>
                     </div>`;
-                } else if (l.category === 'referral' && l.targetService) {
+                } else if (isReferral && l.targetService) {
                     directionHtml = `<div class="text-sm mb-1.5">
                         <span class="font-semibold text-blue-700">${escapeHtml(l.targetService)}</span>
                     </div>`;
@@ -771,47 +743,23 @@
 
                 // 액션 버튼
                 let actionsHtml = '';
-                const isApproved = l.approvalStatus === 'approved';
-                const isActive = isApproved && (l.executionStatus === 'email_sent' || l.executionStatus === 'in_progress');
-
-                // 부서 조정자 검토 대기 안내 (pending 상태)
-                if (l.approvalStatus === 'pending') {
+                if (!isReferral && l.approvalStatus === 'pending') {
+                    // 대상 기관이 수락 또는 반려한다. 승인자는 없다
                     actionsHtml = `<div class="mt-2 pt-2 border-t border-yellow-200">
-                        <p class="text-xs font-medium text-yellow-700 flex items-center gap-1">
-                            <span class="material-symbols-rounded text-sm" aria-hidden="true">hourglass_top</span>부서 조정자 검토 대기 중입니다
-                        </p>
-                    </div>`;
-                }
-                // 담당자 재요청 (부서 조정자 반려/수정요청 시) — staff만 표시
-                else if (l.approvalStatus === 'rejected' || l.approvalStatus === 'revision_requested') {
-                    if (sessionRole === 'staff') {
-                        const isReject = l.approvalStatus === 'rejected';
-                        actionsHtml = `<div class="flex gap-1.5 mt-2">
-                            <button onclick="resubmitLinkage('${l.id}')" class="px-3 py-1.5 ${isReject ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-orange-600 hover:bg-orange-700'} text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1">
-                                <span class="material-symbols-rounded text-sm" aria-hidden="true">${isReject ? 'refresh' : 'edit'}</span>${isReject ? '재요청' : '수정 후 재제출'}
+                        <div id="linkage-action-${l.id}" class="flex gap-1.5">
+                            <button onclick="acceptLinkage('${l.id}')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1">
+                                <span class="material-symbols-rounded text-sm" aria-hidden="true">check</span>수락
                             </button>
-                        </div>`;
-                    } else {
-                        const isReject = l.approvalStatus === 'rejected';
-                        actionsHtml = `<div class="mt-2 pt-2 border-t ${isReject ? 'border-red-200' : 'border-orange-200'}">
-                            <p class="text-xs font-medium ${isReject ? 'text-red-600' : 'text-orange-600'} flex items-center gap-1">
-                                <span class="material-symbols-rounded text-sm" aria-hidden="true">${isReject ? 'cancel' : 'edit_note'}</span>${isReject ? '반려됨 — 담당자 재요청 대기' : '수정 요청됨 — 담당자 재제출 대기'}
-                            </p>
-                        </div>`;
-                    }
-                }
-                // 관리자 반환 → 부서 조정자 재검토 대기 안내
-                else if (l.approvalStatus === 'admin_rejected' || l.approvalStatus === 'admin_revision_requested') {
-                    actionsHtml = `<div class="mt-2 pt-2 border-t border-red-200">
-                        <p class="text-xs font-medium text-red-600 flex items-center gap-1">
-                            <span class="material-symbols-rounded text-sm" aria-hidden="true">assignment_return</span>관리자에서 반환됨 — 부서 조정자 재검토 대기 중
-                        </p>
+                            <button onclick="showRejectForm('${l.id}')" class="px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 transition-colors flex items-center gap-1">
+                                <span class="material-symbols-rounded text-sm" aria-hidden="true">close</span>반려
+                            </button>
+                        </div>
                     </div>`;
-                }
-                else if (isActive) {
+                } else if (!isReferral && l.approvalStatus === 'accepted') {
+                    const isActive = l.executionStatus === null || l.executionStatus === undefined || l.executionStatus === 'in_progress';
                     actionsHtml = `<div class="flex gap-1.5 mt-2">
-                        ${l.executionStatus === 'email_sent' ? `<button onclick="updateLinkageExec('${l.id}','in_progress')" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1"><span class="material-symbols-rounded text-sm" aria-hidden="true">play_arrow</span>진행</button>` : ''}
-                        <button onclick="updateLinkageExec('${l.id}','completed')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1"><span class="material-symbols-rounded text-sm" aria-hidden="true">task_alt</span>완료</button>
+                        ${l.executionStatus !== 'in_progress' && isActive ? `<button onclick="updateLinkageExec('${l.id}','in_progress')" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition-colors flex items-center gap-1"><span class="material-symbols-rounded text-sm" aria-hidden="true">play_arrow</span>진행</button>` : ''}
+                        ${isActive ? `<button onclick="updateLinkageExec('${l.id}','completed')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1"><span class="material-symbols-rounded text-sm" aria-hidden="true">task_alt</span>완료</button>` : ''}
                         <div class="flex-1"></div>
                         <div class="flex gap-1">
                             <input id="lnote-${l.id}" type="text" placeholder="메모..." class="border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs w-28 focus:outline-none focus:ring-1 focus:ring-indigo-400" onkeydown="if(event.key==='Enter')addLinkageNote('${l.id}')" />
@@ -823,13 +771,9 @@
                 }
 
                 const borderColor = l.approvalStatus === 'pending' ? 'border-yellow-200 bg-yellow-50/30'
-                    : l.approvalStatus === 'dept_approved' ? 'border-blue-200 bg-blue-50/30'
+                    : l.approvalStatus === 'accepted' ? 'border-indigo-200 bg-white'
                     : l.approvalStatus === 'rejected' ? 'border-red-200 bg-red-50/30'
-                    : l.approvalStatus === 'revision_requested' ? 'border-orange-200 bg-orange-50/30'
-                    : l.approvalStatus === 'admin_rejected' ? 'border-red-200 bg-red-50/30'
-                    : l.approvalStatus === 'admin_revision_requested' ? 'border-orange-200 bg-orange-50/30'
-                    : isActive ? 'border-indigo-200 bg-white'
-                    : 'border-gray-100 bg-gray-50 opacity-75';
+                    : 'border-gray-100 bg-gray-50';
 
                 return `
                 <div class="border rounded-xl overflow-hidden ${borderColor}">
@@ -845,7 +789,6 @@
                             <span class="text-xs text-gray-400 ml-auto">${new Date(l.createdAt).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
                         </div>
                         ${directionHtml}
-                        ${stepperHtml}
                         <p class="text-sm text-gray-600">${escapeHtml(l.reason)}</p>
                         ${feedbackHtml}
                         ${l.notes && l.notes.length > 0 ? `<div class="mt-2 pt-2 border-t border-gray-100">${notesHtml}</div>` : ''}
@@ -1157,22 +1100,59 @@
             } catch { showToast('상태 변경에 실패했습니다.'); }
         };
 
-        window.resubmitLinkage = async function(linkageId) {
-            if (!confirm('수정 후 재제출하시겠습니까?')) return;
+        window.acceptLinkage = async function(linkageId) {
             try {
-                const resp = await fetch(appendToken(`/api/case/${requestId}/linkage/${linkageId}`), {
-                    method: 'PATCH',
+                const resp = await fetch(appendToken(`/api/case/${requestId}/linkage/${linkageId}/accept`), {
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ resubmit: true }),
+                    body: JSON.stringify({}),
                 });
                 if (!resp.ok) {
-                    const data = await resp.json();
-                    if (data.error) return showToast(data.error);
-                    throw new Error();
+                    const data = await resp.json().catch(() => ({}));
+                    return showToast(data.error || '수락에 실패했습니다.');
                 }
-                showToast('재제출 완료', 'success');
+                showToast('수락했습니다.', 'success');
                 if (await loadData()) { render(); applyRoleVisibility(); }
-            } catch { showToast('재제출에 실패했습니다.'); }
+            } catch { showToast('수락에 실패했습니다.'); }
+        };
+
+        // 반려는 사유가 필수다 — 이 사유가 나중에 광역이 읽는 자료가 된다
+        window.showRejectForm = function(linkageId) {
+            const area = document.getElementById('linkage-action-' + linkageId);
+            if (!area) return;
+            area.innerHTML = `
+                <div class="w-full">
+                    <label class="text-xs text-red-700 font-semibold block mb-1">반려 사유 (필수)</label>
+                    <textarea id="reject-reason-${linkageId}" rows="2" placeholder="반려 사유를 입력하세요..." class="w-full border border-red-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"></textarea>
+                    <div class="flex gap-1.5 mt-1.5">
+                        <button onclick="submitReject('${linkageId}')" class="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 transition-colors">반려하기</button>
+                        <button onclick="cancelReject()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition-colors">취소</button>
+                    </div>
+                </div>`;
+            document.getElementById('reject-reason-' + linkageId)?.focus();
+        };
+
+        window.cancelReject = function() {
+            render();
+            applyRoleVisibility();
+        };
+
+        window.submitReject = async function(linkageId) {
+            const reason = (document.getElementById('reject-reason-' + linkageId)?.value || '').trim();
+            if (!reason) { showToast('반려 사유를 입력하세요.', 'warn'); return; }
+            try {
+                const resp = await fetch(appendToken(`/api/case/${requestId}/linkage/${linkageId}/reject`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason }),
+                });
+                if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    return showToast(data.error || '반려에 실패했습니다.');
+                }
+                showToast('반려했습니다.', 'success');
+                if (await loadData()) { render(); applyRoleVisibility(); }
+            } catch { showToast('반려에 실패했습니다.'); }
         };
 
         window.addLinkageNote = async function(linkageId) {
