@@ -3394,6 +3394,10 @@ app.post('/api/case/:id/linkage/:lid/accept', async (req, res) => {
     if (found.linkage.category !== 'collaboration') {
         return res.status(400).json({ error: '외부 연계는 수락 대상이 아닙니다.' });
     }
+    // 받는 기관만 수락한다 — 광역·관리자는 이 경로에 없다
+    if (req.session?.deptId !== found.linkage.toDept) {
+        return res.status(403).json({ error: '요청을 받은 기관만 수락할 수 있습니다.' });
+    }
     const by = getDeptName(found.linkage.toDept);
     const linkage = await requestStore.acceptLinkage(found.request.id, req.params.lid, by);
     if (!linkage) return res.status(400).json({ error: '수락 처리 실패 (요청 대기 상태가 아닙니다)' });
@@ -3413,6 +3417,10 @@ app.post('/api/case/:id/linkage/:lid/reject', async (req, res) => {
     if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
     if (found.linkage.category !== 'collaboration') {
         return res.status(400).json({ error: '외부 연계는 반려 대상이 아닙니다.' });
+    }
+    // 받는 기관만 반려한다 — 광역·관리자는 이 경로에 없다
+    if (req.session?.deptId !== found.linkage.toDept) {
+        return res.status(403).json({ error: '요청을 받은 기관만 반려할 수 있습니다.' });
     }
     const by = getDeptName(found.linkage.toDept);
     const linkage = await requestStore.rejectLinkage(found.request.id, req.params.lid, by, reason);
