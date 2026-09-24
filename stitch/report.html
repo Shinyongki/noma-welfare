@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상황 전달 - 노마</title>
+    <link rel="stylesheet" href="/css/tailwind.css">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet">
+    <style>
+        body { font-family: 'Pretendard Variable', sans-serif; }
+        .material-symbols-rounded { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        /* 어르신 댁에서 서서 쓰는 화면 — 탭 영역을 크게 잡는다 */
+        .big-tap { min-height: 64px; }
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5); }
+            70% { box-shadow: 0 0 0 24px rgba(22, 163, 74, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+        }
+        .mic-recording { animation: pulse-ring 1.5s infinite; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- 로그인 게이트 -->
+<div id="login-gate" class="min-h-screen flex items-center justify-center px-5">
+    <div class="w-full max-w-sm">
+        <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span class="material-symbols-rounded text-3xl text-green-600" aria-hidden="true">volunteer_activism</span>
+            </div>
+            <h1 class="text-xl font-bold text-gray-800">상황 전달</h1>
+            <p class="text-sm text-gray-500 mt-1">생활지원사용</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 space-y-3 shadow-sm">
+            <div>
+                <label class="text-sm text-gray-600 block mb-1.5">이름</label>
+                <input id="login-name" type="text" placeholder="이름을 입력하세요" autocomplete="name"
+                       class="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-400" />
+            </div>
+            <div>
+                <label class="text-sm text-gray-600 block mb-1.5">비밀번호</label>
+                <input id="login-password" type="password" placeholder="비밀번호" autocomplete="current-password"
+                       class="w-full border border-gray-200 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-green-400" />
+            </div>
+            <p id="login-error" class="hidden text-sm text-red-500"></p>
+            <button onclick="doLogin()" class="w-full big-tap bg-green-600 text-white rounded-xl text-base font-semibold hover:bg-green-700 transition-colors">
+                시작하기
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 본 화면 -->
+<div id="main" class="hidden min-h-screen flex flex-col">
+    <header class="bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-2 sticky top-0 z-10">
+        <span class="material-symbols-rounded text-green-600" aria-hidden="true">volunteer_activism</span>
+        <span class="font-bold text-gray-800">상황 전달</span>
+        <span id="worker-name" class="text-sm text-gray-500 ml-auto"></span>
+    </header>
+
+    <main class="flex-1 px-5 py-6 w-full max-w-md mx-auto">
+
+        <!-- 1단계: 어르신 선택 -->
+        <section id="step-select">
+            <h2 class="text-lg font-bold text-gray-800 mb-1">어느 어르신인가요?</h2>
+            <p class="text-sm text-gray-500 mb-5">담당하시는 어르신 목록입니다.</p>
+            <div id="elder-list" class="space-y-2.5">
+                <p class="text-sm text-gray-400 text-center py-8">불러오는 중...</p>
+            </div>
+        </section>
+
+        <!-- 2단계: 말하기 -->
+        <section id="step-speak" class="hidden text-center">
+            <p class="text-sm text-gray-500 mb-1"><span id="speak-elder-name" class="font-semibold text-gray-800"></span> 어르신</p>
+            <h2 class="text-lg font-bold text-gray-800 mb-8">어떤 상황인지 말씀해 주세요</h2>
+
+            <button id="mic-btn" onclick="startListening()"
+                    class="w-32 h-32 rounded-full bg-green-600 text-white mx-auto flex items-center justify-center hover:bg-green-700 transition-colors">
+                <span class="material-symbols-rounded" style="font-size:56px" aria-hidden="true">mic</span>
+            </button>
+            <p id="mic-hint" class="text-sm text-gray-500 mt-5">버튼을 누르고 말씀하세요</p>
+
+            <button onclick="useTextInput()" class="mt-8 text-sm text-gray-500 underline">
+                말하기가 어려우면 직접 입력하기
+            </button>
+            <div class="mt-8">
+                <button onclick="goSelect()" class="text-sm text-gray-400">어르신 다시 선택</button>
+            </div>
+        </section>
+
+        <!-- 3단계: 확인 후 전달 -->
+        <section id="step-confirm" class="hidden">
+            <p class="text-sm text-gray-500 mb-1"><span id="confirm-elder-name" class="font-semibold text-gray-800"></span> 어르신</p>
+            <h2 class="text-lg font-bold text-gray-800 mb-4">이대로 전달할까요?</h2>
+            <textarea id="report-text" rows="6"
+                      class="w-full border border-gray-200 rounded-xl px-4 py-3 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-green-400 resize-none"></textarea>
+            <p class="text-xs text-gray-400 mt-1.5">내용을 고치셔도 됩니다.</p>
+            <button onclick="submitReport()" id="submit-btn"
+                    class="w-full big-tap bg-green-600 text-white rounded-xl text-base font-semibold hover:bg-green-700 transition-colors mt-5">
+                전달하기
+            </button>
+            <button onclick="goSpeak()" class="w-full mt-3 py-3 text-sm text-gray-500">다시 말하기</button>
+        </section>
+
+        <!-- 완료 -->
+        <section id="step-done" class="hidden text-center py-10">
+            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                <span class="material-symbols-rounded text-green-600" style="font-size:44px" aria-hidden="true">check_circle</span>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">전달 완료</h2>
+            <p class="text-sm text-gray-500 mb-8">담당 선생님께 전달되었습니다.</p>
+            <button onclick="goSelect()" class="w-full big-tap bg-green-600 text-white rounded-xl text-base font-semibold hover:bg-green-700 transition-colors">
+                다른 어르신 전달하기
+            </button>
+        </section>
+    </main>
+</div>
+
+<!-- 토스트 -->
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-5 py-3 rounded-xl shadow-lg z-50 max-w-[90%] text-center"></div>
+
+<script>
+(function () {
+    'use strict';
+
+    let workerName = null;
+    let elders = [];
+    let selectedElder = null;
+    let recognition = null;
+    let isListening = false;
+
+    const $ = id => document.getElementById(id);
+
+    function showToast(msg) {
+        const t = $('toast');
+        t.textContent = msg;
+        t.classList.remove('hidden');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.classList.add('hidden'), 3000);
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str == null ? '' : str;
+        return div.innerHTML;
+    }
+
+    function showStep(name) {
+        ['step-select', 'step-speak', 'step-confirm', 'step-done'].forEach(s => {
+            $(s).classList.toggle('hidden', s !== name);
+        });
+    }
+
+    // ── 로그인 ──
+    window.doLogin = async function () {
+        const name = $('login-name').value.trim();
+        const password = $('login-password').value;
+        const err = $('login-error');
+        err.classList.add('hidden');
+        if (!name) { err.textContent = '이름을 입력하세요.'; err.classList.remove('hidden'); return; }
+        if (!password) { err.textContent = '비밀번호를 입력하세요.'; err.classList.remove('hidden'); return; }
+        try {
+            const resp = await fetch('/api/unified-auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role: 'worker', workerName: name, password }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                err.textContent = data.error || '로그인에 실패했습니다.';
+                err.classList.remove('hidden');
+                return;
+            }
+            workerName = data.workerName;
+            await startApp();
+        } catch {
+            err.textContent = '서버에 연결할 수 없습니다.';
+            err.classList.remove('hidden');
+        }
+    };
+
+    async function startApp() {
+        $('login-gate').classList.add('hidden');
+        $('main').classList.remove('hidden');
+        $('worker-name').textContent = workerName;
+        await loadElders();
+        showStep('step-select');
+    }
+
+    // ── 1단계: 담당 어르신 ──
+    async function loadElders() {
+        const list = $('elder-list');
+        try {
+            const resp = await fetch('/api/report/my-cases');
+            if (!resp.ok) throw new Error();
+            const data = await resp.json();
+            elders = data.items || [];
+            if (elders.length === 0) {
+                list.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">담당하시는 어르신이 없습니다.<br>담당 선생님께 문의해 주세요.</p>';
+                return;
+            }
+            list.innerHTML = elders.map(e =>
+                '<button onclick="selectElder(\'' + e.id + '\')" class="w-full big-tap bg-white border border-gray-200 rounded-xl px-5 text-left text-base font-semibold text-gray-800 hover:bg-green-50 hover:border-green-300 transition-colors flex items-center gap-3">' +
+                    '<span class="material-symbols-rounded text-gray-400" aria-hidden="true">person</span>' +
+                    escapeHtml(e.userName) +
+                '</button>'
+            ).join('');
+        } catch {
+            list.innerHTML = '<p class="text-sm text-red-400 text-center py-8">목록을 불러오지 못했습니다.</p>';
+        }
+    }
+
+    window.selectElder = function (id) {
+        selectedElder = elders.find(e => e.id === id) || null;
+        if (!selectedElder) return;
+        $('speak-elder-name').textContent = selectedElder.userName;
+        $('confirm-elder-name').textContent = selectedElder.userName;
+        goSpeak();
+    };
+
+    window.goSelect = function () {
+        stopListening();
+        selectedElder = null;
+        $('report-text').value = '';
+        showStep('step-select');
+    };
+
+    window.goSpeak = function () {
+        stopListening();
+        resetMic();
+        showStep('step-speak');
+    };
+
+    // ── 2단계: 말하기 (노마의 Web Speech API 재사용, 한 번 말하면 끝) ──
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    function resetMic() {
+        const btn = $('mic-btn');
+        btn.classList.remove('mic-recording', 'bg-red-500', 'hover:bg-red-600');
+        btn.classList.add('bg-green-600', 'hover:bg-green-700');
+        btn.querySelector('.material-symbols-rounded').textContent = 'mic';
+        $('mic-hint').textContent = SpeechRecognition
+            ? '버튼을 누르고 말씀하세요'
+            : '이 브라우저는 음성 입력을 지원하지 않습니다. 아래에서 직접 입력해 주세요.';
+        isListening = false;
+    }
+
+    window.startListening = function () {
+        if (!SpeechRecognition) { useTextInput(); return; }
+        if (isListening) { stopListening(); return; }
+
+        recognition = new SpeechRecognition();
+        recognition.lang = 'ko-KR';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onresult = event => {
+            const text = event.results[0][0].transcript;
+            $('report-text').value = text;
+            showStep('step-confirm');
+        };
+
+        recognition.onend = () => {
+            isListening = false;
+            // 결과 없이 끝났고 아직 말하기 단계면 버튼만 원상복구
+            if (!$('step-speak').classList.contains('hidden')) resetMic();
+        };
+
+        recognition.onerror = event => {
+            isListening = false;
+            resetMic();
+            const messages = {
+                'not-allowed': '마이크 사용을 허용해 주세요.',
+                'no-speech': '음성이 들리지 않았습니다. 다시 눌러 말씀해 주세요.',
+                'audio-capture': '마이크를 찾을 수 없습니다.',
+                'network': '인터넷 연결을 확인해 주세요.',
+            };
+            showToast(messages[event.error] || '다시 시도해 주세요. 어려우면 직접 입력해 주세요.');
+        };
+
+        try {
+            recognition.start();
+            isListening = true;
+            const btn = $('mic-btn');
+            btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+            btn.classList.add('mic-recording', 'bg-red-500', 'hover:bg-red-600');
+            btn.querySelector('.material-symbols-rounded').textContent = 'stop';
+            $('mic-hint').textContent = '듣고 있습니다. 말씀이 끝나면 저절로 멈춥니다.';
+        } catch {
+            resetMic();
+            showToast('마이크를 시작할 수 없습니다.');
+        }
+    };
+
+    function stopListening() {
+        if (recognition && isListening) {
+            try { recognition.abort(); } catch {}
+        }
+        isListening = false;
+    }
+
+    window.useTextInput = function () {
+        stopListening();
+        $('report-text').value = '';
+        showStep('step-confirm');
+        $('report-text').focus();
+    };
+
+    // ── 3단계: 전달 ──
+    window.submitReport = async function () {
+        const text = $('report-text').value.trim();
+        if (!text) { showToast('전달할 내용을 입력해 주세요.'); return; }
+        if (!selectedElder) { goSelect(); return; }
+
+        const btn = $('submit-btn');
+        btn.disabled = true;
+        btn.textContent = '전달 중...';
+        try {
+            const resp = await fetch('/api/report/' + selectedElder.id, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                showToast(data.error || '전달하지 못했습니다.');
+                return;
+            }
+            $('report-text').value = '';
+            showStep('step-done');
+        } catch {
+            showToast('전달하지 못했습니다. 다시 시도해 주세요.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '전달하기';
+        }
+    };
+
+    // ── 시작 ──
+    (async function init() {
+        ['login-name', 'login-password'].forEach(id => {
+            $(id).addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+        });
+        try {
+            const resp = await fetch('/api/unified-auth/status');
+            const data = await resp.json();
+            if (data.authenticated && data.role === 'worker') {
+                workerName = data.workerName;
+                await startApp();
+            }
+        } catch { /* 서버 미응답 — 로그인 화면 유지 */ }
+    })();
+})();
+</script>
+</body>
+</html>

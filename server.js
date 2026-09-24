@@ -103,6 +103,15 @@ app.use(session({
     },
 }));
 
+// ── 생활지원사(worker) 접근 범위 제한 ──
+// 화이트리스트를 /api/ 진입점에 한 번 건다. 새 라우트가 늘어도 worker에게는 자동으로 닫힌다.
+const WORKER_ALLOWED_PREFIXES = ['/report', '/unified-auth'];
+app.use('/api/', (req, res, next) => {
+    if (req.session?.role !== 'worker') return next();
+    if (WORKER_ALLOWED_PREFIXES.some(p => req.path === p || req.path.startsWith(p + '/'))) return next();
+    res.status(403).json({ error: '접근 권한이 없습니다.' });
+});
+
 // ── 일회성 토큰 저장소 (case.html 이메일 링크용) ──
 const caseTokens = new Map(); // token → { requestId, createdAt }
 const CASE_TOKEN_TTL = 72 * 60 * 60 * 1000; // 72시간
@@ -161,6 +170,19 @@ function checkSharedPassword(password) {
     return null;
 }
 
+// 생활지원사 비밀번호 검사 — 1층에 관리자 비밀번호를 주지 않는다
+function checkWorkerPassword(password) {
+    const workerPassword = process.env.WORKER_PASSWORD;
+    if (!workerPassword) {
+        console.error('[Auth] WORKER_PASSWORD 환경변수가 설정되지 않았습니다.');
+        return { status: 500, error: '서버 설정 오류가 발생했습니다. 관리자에게 문의하세요.' };
+    }
+    if (password !== workerPassword) {
+        return { status: 403, error: '비밀번호가 올바르지 않습니다.' };
+    }
+    return null;
+}
+
 // 로그인 API
 app.post('/api/auth/login', (req, res) => {
     const { password } = req.body;
@@ -185,7 +207,21 @@ app.get('/api/auth/status', (req, res) => {
 
 // ── 통합 인증 API (공유 비밀번호 + 역할/부서 선택) ──
 app.post('/api/unified-auth/login', (req, res) => {
-    const { role, deptId, serviceName, password } = req.body;
+    const { role, deptId, serviceName, workerName, password } = req.body;
+
+    // 생활지원사는 별도 비밀번호를 쓴다
+    if (role === 'worker') {
+        const deniedWorker = checkWorkerPassword(password);
+        if (deniedWorker) return res.status(deniedWorker.status).json({ error: deniedWorker.error });
+        const name = (workerName || '').trim();
+        if (!name) return res.status(400).json({ error: '이름을 입력하세요.' });
+        req.session.authenticated = true;
+        req.session.role = 'worker';
+        req.session.workerName = name;
+        req.session.loginAt = new Date().toISOString();
+        return res.json({ success: true, role: 'worker', workerName: name });
+    }
+
     const denied = checkSharedPassword(password);
     if (denied) return res.status(denied.status).json({ error: denied.error });
     if (role === 'admin') {
@@ -221,7 +257,7 @@ app.post('/api/unified-auth/login', (req, res) => {
         req.session.loginAt = new Date().toISOString();
         return res.json({ success: true, role: 'staff', deptId, deptName: req.session.deptName, serviceName });
     }
-    res.status(400).json({ error: '유효하지 않은 역할입니다. (admin, dept 또는 staff)' });
+    res.status(400).json({ error: '유효하지 않은 역할입니다. (admin, dept, staff 또는 worker)' });
 });
 
 app.get('/api/unified-auth/status', (req, res) => {
@@ -233,6 +269,7 @@ app.get('/api/unified-auth/status', (req, res) => {
         result.deptName = dept ? dept.name : req.session.deptId;
     }
     if (req.session.serviceName) result.serviceName = req.session.serviceName;
+    if (req.session.workerName) result.workerName = req.session.workerName;
     res.json(result);
 });
 
@@ -1130,6 +1167,7 @@ function findLinkageTarget(id) {
 app.use(express.static(path.join(__dirname, 'stitch'), { dotfiles: 'deny', index: false }));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'code.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'admin.html')));
+app.get('/report', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'report.html')));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.use('/.well-known', (req, res) => res.status(404).end());
 
@@ -2917,6 +2955,39 @@ app.use(['/api/dept', '/api/target-dept'], (req, res) => {
 });
 app.use('/api/admin', requireAuth);
 app.use('/api/staff', requireAuth);
+
+// ── 생활지원사(1층) API ──
+// worker 세션만 접근한다. 2층 화면의 API와는 경로 자체가 분리되어 있다
+app.use('/api/report', (req, res, next) => {
+    if (req.session?.authenticated && req.session.role === 'worker') return next();
+    res.status(401).json({ error: '생활지원사 인증이 필요합니다.' });
+});
+
+// 담당 어르신 목록 — 사업명·연계·메모는 내려보내지 않는다
+app.get('/api/report/my-cases', (req, res) => {
+    const cases = requestStore.getWorkerCases(req.session.workerName);
+    const items = cases.map(c => ({ id: c.id, userName: c.userName, sigun: c.sigun || null }));
+    res.json({ count: items.length, items });
+});
+
+// 상황 전달 — 케이스 notes에 field_report로 붙는다
+app.post('/api/report/:caseId', async (req, res) => {
+    const text = (req.body.text || '').trim();
+    if (!text) return res.status(400).json({ error: '전달할 내용이 없습니다.' });
+    if (text.length > 1000) return res.status(400).json({ error: '내용이 너무 깁니다.' });
+
+    const target = requestStore.findById(req.params.caseId);
+    if (!target) return res.status(404).json({ error: '어르신을 찾을 수 없습니다.' });
+    if (target.worker !== req.session.workerName) {
+        return res.status(403).json({ error: '담당하는 어르신이 아닙니다.' });
+    }
+
+    const note = await requestStore.addFieldReport(req.params.caseId, text, req.session.workerName);
+    if (!note) return res.status(404).json({ error: '어르신을 찾을 수 없습니다.' });
+
+    console.log(`[현장 보고] ${req.session.workerName} → ${req.params.caseId} (${text.length}자)`);
+    res.json({ success: true });
+});
 
 // ── Staff API Routes (담당자 케이스 목록) ──
 app.get('/api/staff/cases', (req, res) => {

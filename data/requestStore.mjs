@@ -241,6 +241,32 @@ export async function addNote(id, note, author = '관리자') {
     });
 }
 
+/** 생활지원사 현장 보고 추가 — 케이스 notes에 type: 'field_report'로 붙는다 */
+export async function addFieldReport(id, text, createdBy) {
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[id];
+        if (!req) return null;
+        if (!req.notes) req.notes = [];
+        const note = {
+            type: 'field_report',
+            text,
+            createdAt: new Date().toISOString(),
+            createdBy: createdBy || '',
+        };
+        req.notes.push(note);
+        req.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return note;
+    });
+}
+
+/** 담당 생활지원사 기준 케이스 조회 */
+export function getWorkerCases(workerName) {
+    if (!workerName) return [];
+    return listAll().filter(r => r.worker === workerName);
+}
+
 // ── 조직 정의 (파일럿: 산청 수행기관 1곳) ──
 // 기관 id·표시명·담당 서비스 목록의 유일한 원본. 화면(case.html, admin.html)은 /api/departments로 받아 렌더한다.
 // 실제 기관명이 확정되면 name만 바꾸면 된다. id는 세션·linkage(fromDept/toDept)에 저장되므로 바꾸지 않는다.
