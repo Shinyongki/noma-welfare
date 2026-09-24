@@ -201,12 +201,12 @@
                     <div id="service-plan-steps" class="flex flex-wrap items-center gap-2"></div>
                 </div>
 
-                <!-- F. 통합 연계 요청 -->
+                <!-- F. 통합 연계 -->
                 <div class="px-6 pb-4">
                     <div class="border-t border-gray-100 mb-4"></div>
                     <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1">
                         <span class="material-symbols-rounded text-sm" aria-hidden="true">hub</span>
-                        연계 요청
+                        연계
                     </p>
 
                     <!-- 연계 목록 -->
@@ -689,7 +689,7 @@
         function renderLinkages(linkages) {
             const el = document.getElementById('linkage-list');
             if (!linkages || linkages.length === 0) {
-                el.innerHTML = '<p class="text-sm text-gray-400 py-2 text-center">연계 요청 없음</p>';
+                el.innerHTML = '<p class="text-sm text-gray-400 py-2 text-center">연계 없음</p>';
                 return;
             }
             el.innerHTML = linkages.map(l => {
