@@ -344,6 +344,8 @@ export async function addLinkage(requestId, data) {
             toDept: data.toDept || null,
             // 외부 연계 대상: 연계처 목록에서 고른 항목의 스냅샷
             target: data.target || null,
+            // 외부 연계 접수 결과. null이면 미기록 — 기록되지 않으면 데이터에서 사라진다
+            result: null,
             targetService: data.targetService || null,
             reason: data.reason || '',
             approvalStatus: isReferral ? 'accepted' : 'pending',
@@ -431,6 +433,32 @@ export async function updateLinkage(requestId, linkageId, updates) {
         if (updates.targetService !== undefined) linkage.targetService = updates.targetService;
         if (updates.type !== undefined) linkage.type = updates.type;
         if (updates.followupLinkageId !== undefined) linkage.followupLinkageId = updates.followupLinkageId;
+        linkage.updatedAt = new Date().toISOString();
+        await writeAll(store);
+        return linkage;
+    });
+}
+
+/** 외부 연계 결과 기록 (referral 전용, 1회만)
+ *  접수는 시스템 밖에서 이뤄지므로 결과를 기록하지 않으면 외부 연계는 데이터에서 사라진다. */
+export async function recordLinkageResult(requestId, linkageId, { accepted, reason, recordedBy }) {
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[requestId];
+        if (!req || !req.linkages) return null;
+        const linkage = req.linkages.find(l => l.id === linkageId);
+        if (!linkage) return null;
+        if (linkage.category !== 'referral') return null;
+        if (linkage.result) return null; // 기록 후 수정은 범위 밖
+        linkage.result = {
+            accepted: !!accepted,
+            agencyName: linkage.target?.agencyName || '',
+            reason: reason || '',
+            recordedAt: new Date().toISOString(),
+            recordedBy: recordedBy || '',
+        };
+        // 결과 기록이 곧 완료다
+        linkage.executionStatus = 'completed';
         linkage.updatedAt = new Date().toISOString();
         await writeAll(store);
         return linkage;

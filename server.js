@@ -3345,10 +3345,37 @@ app.post('/api/case/:id/linkage', async (req, res) => {
     res.json(linkage);
 });
 
+// 외부 연계 결과 기록 (referral 전용). 기록이 곧 완료다
+app.post('/api/case/:id/linkage/:lid/result', async (req, res) => {
+    const { accepted, reason } = req.body;
+    if (typeof accepted !== 'boolean') {
+        return res.status(400).json({ error: '접수 여부를 선택하세요.' });
+    }
+    const found = requestStore.findByLinkageId(req.params.lid);
+    if (!found) return res.status(404).json({ error: '연계 요청을 찾을 수 없습니다.' });
+    if (found.linkage.category !== 'referral') {
+        return res.status(400).json({ error: '외부 연계만 결과를 기록합니다.' });
+    }
+    if (found.linkage.result) {
+        return res.status(400).json({ error: '이미 결과가 기록되었습니다.' });
+    }
+
+    // 공유 비밀번호 체계라 개인이 아니라 기관 단위로 남는다
+    const recordedBy = req.session?.deptName || req.session?.serviceName || '담당자';
+    const linkage = await requestStore.recordLinkageResult(found.request.id, req.params.lid, {
+        accepted, reason: (reason || '').trim(), recordedBy,
+    });
+    if (!linkage) return res.status(400).json({ error: '결과 기록에 실패했습니다.' });
+
+    console.log(`[외부 연계 결과] ${req.params.lid}: ${accepted ? '접수' : '미접수'} — ${linkage.result.agencyName}`);
+    res.json({ success: true, linkage });
+});
+
 // 연계처 목록 (외부 연계 대상 선택지) — /api/case 아래라 세션·케이스 토큰 인증이 모두 적용된다
 app.get('/api/case/:id/linkage-targets', (req, res) => {
     const request = requestStore.findById(req.params.id);
-    // 대상자 시군이 있으면 같은 시군만 — 경남 전체로 확대돼도 구조가 바뀌지 않는다
+    // 대상자 시군이 있으면 같은 시군만 — 경남 전체로 확대돼도 구조가 바뀌지 않는다.
+    // 시군을 알 수 없으면 전체를 준다. 수동 선택이 막히는 편이 더 나쁘다.
     const sigun = req.query.sigun || request?.sigun || null;
     const items = sigun ? linkageTargets.filter(t => t.sigun === sigun) : linkageTargets;
     res.json({ count: items.length, items });
