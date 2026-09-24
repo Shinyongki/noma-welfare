@@ -224,14 +224,24 @@
                             <span class="material-symbols-rounded text-base" aria-hidden="true">hub</span>
                             새 연계 요청
                         </p>
-                        <!-- 카테고리 탭 -->
+                        <!-- 카테고리 탭 — 주된 흐름은 소재지 시군 자원과의 외부 연계다 -->
                         <div class="flex gap-2">
-                            <button onclick="switchLinkageTab('collaboration')" id="tab-collab" class="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-indigo-600 text-white">부서 협업</button>
-                            <button onclick="switchLinkageTab('referral')" id="tab-referral" class="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-white text-indigo-600 border border-indigo-200">서비스 연계</button>
+                            <button onclick="switchLinkageTab('referral')" id="tab-referral" class="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-indigo-600 text-white">지역 연계처</button>
+                            <button onclick="switchLinkageTab('collaboration')" id="tab-collab" class="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-white text-indigo-600 border border-indigo-200">다른 수행기관에 의뢰</button>
                         </div>
 
-                        <!-- 부서 협업 필드 -->
-                        <div id="fields-collab">
+                        <!-- 지역 연계처 (기본) -->
+                        <div id="fields-referral">
+                            <div>
+                                <label class="text-xs text-gray-500 block mb-1">연계처</label>
+                                <select id="linkage-target-service" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                                    <option value="" disabled selected>연계처를 선택하세요</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 다른 수행기관에 의뢰 (보조 경로) -->
+                        <div id="fields-collab" class="hidden">
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="text-xs text-gray-500 block mb-1">우리팀</label>
@@ -256,16 +266,6 @@
                                     </label>
                                 </div>
                                 <p id="linkage-type-guide" class="text-sm mt-2" style="display:none"></p>
-                            </div>
-                        </div>
-
-                        <!-- 서비스 연계 필드 -->
-                        <div id="fields-referral" class="hidden">
-                            <div>
-                                <label class="text-xs text-gray-500 block mb-1">연계처</label>
-                                <select id="linkage-target-service" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                                    <option value="" disabled selected>서비스를 선택하세요</option>
-                                </select>
                             </div>
                         </div>
 
@@ -534,7 +534,8 @@
 
         let caseData = null;
         let departments = [];
-        let linkageTab = 'collaboration';
+        // 주된 흐름은 소재지 시군 자원과의 외부 연계다. 내부 연계는 보조 경로
+        let linkageTab = 'referral';
         let linkageTargets = [];
 
         // 부서 목록 로드
@@ -693,9 +694,10 @@
             }
             el.innerHTML = linkages.map(l => {
                 // 연계 상태 배지 (알 수 없는 값은 원문 그대로)
-                const ab = approvalBadgeOf(l.approvalStatus);
                 const tp = LINKAGE_TYPE[l.type] || LINKAGE_TYPE.consultation;
                 const isReferral = l.category === 'referral';
+                // 외부 연계는 수락을 물을 상대가 없다 — 승인 상태 배지 대신 결과 배지만 쓴다
+                const ab = isReferral ? null : approvalBadgeOf(l.approvalStatus);
 
                 // 실행 상태 배지 (내부 연계 수락 후)
                 let execBadge = '';
@@ -751,8 +753,15 @@
 
                 // 액션 버튼
                 let actionsHtml = '';
-                if (!isReferral && l.approvalStatus === 'pending') {
-                    // 대상 기관이 수락 또는 반려한다. 승인자는 없다
+                if (!isReferral && l.approvalStatus === 'pending' && l.toDept !== sessionDeptId) {
+                    // 요청을 보낸 쪽에는 대기 안내만 보여준다
+                    actionsHtml = `<div class="mt-2 pt-2 border-t border-yellow-200">
+                        <p class="text-xs font-medium text-yellow-700 flex items-center gap-1">
+                            <span class="material-symbols-rounded text-sm" aria-hidden="true">hourglass_top</span>${getDeptName(l.toDept)}의 수락을 기다리는 중입니다
+                        </p>
+                    </div>`;
+                } else if (!isReferral && l.approvalStatus === 'pending') {
+                    // 받는 기관만 수락 또는 반려한다. 승인자는 없다
                     actionsHtml = `<div class="mt-2 pt-2 border-t border-yellow-200">
                         <div id="linkage-action-${l.id}" class="flex gap-1.5">
                             <button onclick="acceptLinkage('${l.id}')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-colors flex items-center gap-1">
@@ -812,9 +821,9 @@
                 <div class="border rounded-xl overflow-hidden ${borderColor}">
                     <div class="px-4 py-3">
                         <div class="flex items-center gap-2 mb-2 flex-wrap">
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${ab.bg} ${ab.text}">
+                            ${ab ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${ab.bg} ${ab.text}">
                                 <span class="material-symbols-rounded text-sm" aria-hidden="true">${ab.icon}</span>${ab.label}
-                            </span>
+                            </span>` : ''}
                             ${execBadge}
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                                 <span class="material-symbols-rounded text-sm" aria-hidden="true">${tp.icon}</span>${tp.label}
@@ -1068,7 +1077,10 @@
 
         window.toggleLinkageForm = function() {
             const form = document.getElementById('linkage-form');
+            const opening = form.classList.contains('hidden');
             form.classList.toggle('hidden');
+            // 열 때는 항상 지역 연계처부터 보여준다
+            if (opening) switchLinkageTab('referral');
         };
 
         window.switchLinkageTab = function(tab) {
@@ -1412,7 +1424,7 @@
                 startTokenTimer(caseData.expiresAt ? new Date(caseData.expiresAt).getTime() : null);
                 if (openLinkage) {
                     toggleLinkageForm();
-                    if (openLinkage === 'referral') switchLinkageTab('referral');
+                    if (openLinkage === 'collaboration') switchLinkageTab('collaboration');
                 }
             }
         }
