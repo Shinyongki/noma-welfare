@@ -342,6 +342,8 @@ export async function addLinkage(requestId, data) {
             type: data.type || 'consultation',
             fromDept: data.fromDept || null,
             toDept: data.toDept || null,
+            // 외부 연계 대상: 연계처 목록에서 고른 항목의 스냅샷
+            target: data.target || null,
             targetService: data.targetService || null,
             reason: data.reason || '',
             approvalStatus: isReferral ? 'accepted' : 'pending',

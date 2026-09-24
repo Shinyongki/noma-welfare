@@ -1,0 +1,57 @@
+[
+  {
+    "id": "lt-001",
+    "sigun": "산청군",
+    "serviceName": "긴급돌봄",
+    "agencyName": "가상기관 A",
+    "department": "",
+    "phone": "",
+    "eligibility": "보호자 부재·입원 등으로 갑작스러운 돌봄 공백이 생긴 어르신",
+    "howToApply": "(미확인)",
+    "verified": false
+  },
+  {
+    "id": "lt-002",
+    "sigun": "산청군",
+    "serviceName": "병원동행",
+    "agencyName": "가상기관 B",
+    "department": "",
+    "phone": "",
+    "eligibility": "혼자 병원 방문이 어렵고 동행할 보호자가 없는 어르신",
+    "howToApply": "(미확인)",
+    "verified": false
+  },
+  {
+    "id": "lt-003",
+    "sigun": "산청군",
+    "serviceName": "퇴원연계",
+    "agencyName": "가상기관 C",
+    "department": "",
+    "phone": "",
+    "eligibility": "퇴원을 앞두고 있거나 퇴원 직후 집에서 돌봄이 필요한 어르신",
+    "howToApply": "(미확인)",
+    "verified": false
+  },
+  {
+    "id": "lt-004",
+    "sigun": "산청군",
+    "serviceName": "응급안전안심",
+    "agencyName": "가상기관 D",
+    "department": "",
+    "phone": "",
+    "eligibility": "홀로 지내며 낙상·응급 상황 발생 위험이 높은 어르신",
+    "howToApply": "(미확인)",
+    "verified": false
+  },
+  {
+    "id": "lt-005",
+    "sigun": "산청군",
+    "serviceName": "기타",
+    "agencyName": "가상기관 E",
+    "department": "",
+    "phone": "",
+    "eligibility": "위 사업에 해당하지 않으나 지역사회 자원 연계가 필요한 경우",
+    "howToApply": "(미확인)",
+    "verified": false
+  }
+]

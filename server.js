@@ -1104,26 +1104,24 @@ if (migratedCount > 0) {
     console.log(`[마이그레이션] 기존 데이터 ${migratedCount}건을 linkages로 변환 완료`);
 }
 
-// ── 부서 정보 누락 연계 자동 보정 (서버 시작 시 1회) ──
-{
-    const all = requestStore.listAll();
-    let patchCount = 0;
-    for (const r of all) {
-        if (!r.linkages) continue;
-        for (const l of r.linkages) {
-            if (l.category === 'referral' && l.targetService && (!l.fromDept || !l.toDept)) {
-                const profile = deptServiceMap[l.targetService];
-                if (profile && profile.deptId) {
-                    await requestStore.updateLinkage(r.id, l.id, {
-                        fromDept: l.fromDept || profile.deptId,
-                        toDept: l.toDept || profile.deptId,
-                    });
-                    patchCount++;
-                }
-            }
-        }
+// ── 연계처 목록 로드 (서버 시작 시 1회) ──
+// 코드와 데이터를 분리한다 — 실제 연락처를 채울 때 코드는 건드리지 않는다
+let linkageTargets = [];
+function loadLinkageTargets() {
+    try {
+        const file = path.join(__dirname, 'data', 'linkage_targets_sancheong.json');
+        linkageTargets = JSON.parse(fs.readFileSync(file, 'utf-8'));
+        const unverified = linkageTargets.filter(t => !t.verified).length;
+        console.log(`[연계처] ${linkageTargets.length}건 로딩 완료 (미확인 ${unverified}건)`);
+    } catch (err) {
+        linkageTargets = [];
+        console.error('[연계처] 목록 로딩 실패:', err.message);
     }
-    if (patchCount > 0) console.log(`[부서 보정] 연계 ${patchCount}건에 부서 정보 자동 매핑 완료`);
+}
+loadLinkageTargets();
+
+function findLinkageTarget(id) {
+    return linkageTargets.find(t => t.id === id) || null;
 }
 
 // ── API Routes ──
@@ -2683,27 +2681,28 @@ app.get('/api/referral/:requestId', (req, res) => {
 
 // 외부 연계 요청 → 통합 linkage로 생성 (생성 즉시 accepted, 이메일 발송 없음)
 app.post('/api/referral/:requestId/send', async (req, res) => {
-    const { targetService, reason } = req.body;
+    const { targetId, reason } = req.body;
     const request = requestStore.findById(req.params.requestId);
     if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
-    // 서비스 프로파일에서 소속부서 자동 매핑
-    const svcProfile = deptServiceMap[targetService];
-    const autoFromDept = svcProfile ? svcProfile.deptId : null;
+    // 외부 연계 대상은 연계처 목록에서만 고른다 (deptServiceMap 참조 없음)
+    if (!targetId) return res.status(400).json({ error: '연계처를 선택하세요.' });
+    const found = findLinkageTarget(targetId);
+    if (!found) return res.status(400).json({ error: '등록되지 않은 연계처입니다.' });
+    const target = { id: found.id, serviceName: found.serviceName, agencyName: found.agencyName };
 
-    // 통합 linkage로 생성 (pending 상태, 이메일 발송 없음)
+    // 통합 linkage로 생성 (생성 즉시 accepted, 이메일 발송 없음)
     const linkage = await requestStore.addLinkage(req.params.requestId, {
         category: 'referral',
         type: 'service_referral',
-        targetService,
-        fromDept: autoFromDept,
-        toDept: autoFromDept,
+        target,
+        targetService: target.serviceName,
         reason,
         submittedBy: '담당자',
     });
     if (!linkage) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
-    console.log(`[연계 요청 생성] 외부연계: ${request.serviceName} → ${targetService} (즉시 수락)`);
+    console.log(`[연계 요청 생성] 외부연계: ${request.serviceName} → ${target.agencyName}(${target.serviceName}) (즉시 수락)`);
 
     res.json({ success: true, message: '외부 연계가 기록되었습니다. 접수 결과는 담당자가 직접 기록합니다.', linkage });
 });
@@ -3320,22 +3319,39 @@ app.post('/api/case/:requestId/collaboration/:collabId/notes', async (req, res) 
 
 // 통합 연계 생성 (이메일 안 보냄)
 app.post('/api/case/:id/linkage', async (req, res) => {
-    const { category, type, fromDept, toDept, targetService, reason } = req.body;
+    const { category, type, fromDept, toDept, targetId, reason } = req.body;
     if (!reason) return res.status(400).json({ error: '사유를 입력하세요.' });
     if (category === 'collaboration' && (!fromDept || !toDept)) {
         return res.status(400).json({ error: '요청 부서와 대상 부서를 선택하세요.' });
     }
-    if (category === 'referral' && !targetService) {
-        return res.status(400).json({ error: '연계 대상 서비스를 선택하세요.' });
+
+    // 외부 연계 대상은 연계처 목록에서만 고른다 (deptServiceMap 참조 없음)
+    let target = null;
+    if (category === 'referral') {
+        if (!targetId) return res.status(400).json({ error: '연계처를 선택하세요.' });
+        const found = findLinkageTarget(targetId);
+        if (!found) return res.status(400).json({ error: '등록되지 않은 연계처입니다.' });
+        target = { id: found.id, serviceName: found.serviceName, agencyName: found.agencyName };
     }
 
     const linkage = await requestStore.addLinkage(req.params.id, {
-        category, type, fromDept, toDept, targetService, reason, submittedBy: '담당자',
+        category, type, fromDept, toDept, target,
+        targetService: target ? target.serviceName : null,
+        reason, submittedBy: '담당자',
     });
     if (!linkage) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
     console.log(`[연계 요청 생성] ${category}: ${reason.slice(0, 30)}...`);
     res.json(linkage);
+});
+
+// 연계처 목록 (외부 연계 대상 선택지) — /api/case 아래라 세션·케이스 토큰 인증이 모두 적용된다
+app.get('/api/case/:id/linkage-targets', (req, res) => {
+    const request = requestStore.findById(req.params.id);
+    // 대상자 시군이 있으면 같은 시군만 — 경남 전체로 확대돼도 구조가 바뀌지 않는다
+    const sigun = req.query.sigun || request?.sigun || null;
+    const items = sigun ? linkageTargets.filter(t => t.sigun === sigun) : linkageTargets;
+    res.json({ count: items.length, items });
 });
 
 // 연계 실행 상태 변경
