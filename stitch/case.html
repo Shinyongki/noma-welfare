@@ -212,17 +212,17 @@
                     <!-- 연계 목록 -->
                     <div id="linkage-list" class="space-y-3 mb-4"></div>
 
-                    <!-- 새 연계 요청 폼 -->
+                    <!-- 새 연계 폼 -->
                     <div id="linkage-form-toggle" class="mb-3" data-requires-auth data-action="create-linkage" style="position:relative">
                         <button onclick="toggleLinkageForm()" class="w-full py-2.5 border-2 border-dashed border-indigo-300 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5">
                             <span class="material-symbols-rounded text-lg" aria-hidden="true">add_circle</span>
-                            연계 요청하기
+                            연계 추가하기
                         </button>
                     </div>
                     <div id="linkage-form" class="hidden bg-indigo-50 rounded-xl p-4 mb-3 space-y-3">
                         <p class="text-sm font-semibold text-indigo-800 flex items-center gap-1">
                             <span class="material-symbols-rounded text-base" aria-hidden="true">hub</span>
-                            새 연계 요청
+                            새 연계
                         </p>
                         <!-- 카테고리 탭 — 주된 흐름은 소재지 시군 자원과의 외부 연계다 -->
                         <div class="flex gap-2">
@@ -275,14 +275,14 @@
                             <textarea id="linkage-reason" rows="2" placeholder="연계가 필요한 이유를 입력하세요..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="submitLinkage()" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1">
-                                <span class="material-symbols-rounded text-base" aria-hidden="true">send</span>요청 보내기
+                            <button id="linkage-submit-btn" onclick="submitLinkage()" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1">
+                                <span id="linkage-submit-icon" class="material-symbols-rounded text-base" aria-hidden="true">add_link</span><span id="linkage-submit-label">연계처 선택</span>
                             </button>
                             <button onclick="toggleLinkageForm()" class="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition-colors">취소</button>
                         </div>
-                        <p class="text-xs text-amber-600 flex items-center gap-1">
+                        <p id="linkage-form-hint" class="text-xs text-amber-600 flex items-center gap-1">
                             <span class="material-symbols-rounded text-sm" aria-hidden="true">info</span>
-                            내부 연계는 대상 기관이 수락 또는 반려합니다
+                            <span id="linkage-form-hint-text">선택한 기관에는 전담사회복지사가 직접 연락합니다</span>
                         </p>
                     </div>
                 </div>
@@ -736,9 +736,30 @@
                     // 담당자에게 필요한 것은 사업명이 아니라 "어디에 연락했는가"다
                     const agency = l.target?.agencyName || '';
                     const svc = l.target?.serviceName || l.targetService || '';
+                    // 연락처는 연계처 목록에서 가져온다 — 실데이터를 채우면 카드도 함께 최신이 된다
+                    const info = linkageTargets.find(t => t.id === l.target?.id) || null;
+                    const unknown = '<span class="text-gray-400">(미확인)</span>';
+                    const dept = info?.department ? escapeHtml(info.department) : unknown;
+                    const howTo = info?.howToApply && info.howToApply !== '(미확인)' ? escapeHtml(info.howToApply) : unknown;
+                    const phoneRaw = (info?.phone || '').trim();
+                    const phone = phoneRaw
+                        ? `<a href="tel:${phoneRaw.replace(/[^0-9+]/g, '')}" class="text-blue-600 font-semibold hover:underline">${escapeHtml(phoneRaw)}</a>`
+                        : unknown;
+
                     directionHtml = `<div class="text-sm mb-1.5">
                         <span class="font-semibold text-blue-700">${escapeHtml(agency || svc)}</span>
                         ${agency && svc ? `<span class="text-xs text-gray-500 ml-1.5">${escapeHtml(svc)}</span>` : ''}
+                    </div>
+                    <div class="mb-2 rounded-lg bg-blue-50/60 border border-blue-100 px-3 py-2 space-y-1">
+                        <div class="flex items-start gap-1.5 text-xs">
+                            <span class="text-gray-500 w-14 shrink-0">부서</span><span class="text-gray-800">${dept}</span>
+                        </div>
+                        <div class="flex items-start gap-1.5 text-xs">
+                            <span class="text-gray-500 w-14 shrink-0">연락처</span><span class="text-gray-800">${phone}</span>
+                        </div>
+                        <div class="flex items-start gap-1.5 text-xs">
+                            <span class="text-gray-500 w-14 shrink-0">신청 방법</span><span class="text-gray-800">${howTo}</span>
+                        </div>
                     </div>`;
                 }
 
@@ -802,6 +823,9 @@
                         </div>`;
                     } else {
                         actionsHtml = `<div class="mt-2 pt-2 border-t border-amber-200">
+                            <p class="text-xs text-amber-700 flex items-center gap-1 mb-2">
+                                <span class="material-symbols-rounded text-sm" aria-hidden="true">call</span>기관에 직접 연락한 뒤 결과를 기록하세요
+                            </p>
                             <div id="result-area-${l.id}">
                                 <button onclick="showResultForm('${l.id}')" class="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 transition-colors flex items-center gap-1">
                                     <span class="material-symbols-rounded text-sm" aria-hidden="true">edit_note</span>결과 기록
@@ -1090,16 +1114,28 @@
             const fieldsCollab = document.getElementById('fields-collab');
             const fieldsReferral = document.getElementById('fields-referral');
 
+            const label = document.getElementById('linkage-submit-label');
+            const icon = document.getElementById('linkage-submit-icon');
+            const hint = document.getElementById('linkage-form-hint-text');
+
             if (tab === 'collaboration') {
                 tabCollab.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-indigo-600 text-white';
                 tabReferral.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-white text-indigo-600 border border-indigo-200';
                 fieldsCollab.classList.remove('hidden');
                 fieldsReferral.classList.add('hidden');
+                // 내부 연계는 시스템 안에서 실제로 요청이 전달된다
+                if (label) label.textContent = '요청 보내기';
+                if (icon) icon.textContent = 'send';
+                if (hint) hint.textContent = '요청을 받은 기관이 수락 또는 반려합니다';
             } else {
                 tabReferral.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-indigo-600 text-white';
                 tabCollab.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-white text-indigo-600 border border-indigo-200';
                 fieldsCollab.classList.add('hidden');
                 fieldsReferral.classList.remove('hidden');
+                // 외부 기관은 시스템 사용자가 아니다 — 시스템은 연계처를 기록할 뿐 아무것도 보내지 않는다
+                if (label) label.textContent = '연계처 선택';
+                if (icon) icon.textContent = 'add_link';
+                if (hint) hint.textContent = '선택한 기관에는 전담사회복지사가 직접 연락합니다';
             }
         };
 
