@@ -135,7 +135,7 @@ if (args.includes('--roster')) {
         };
         if (kind === 'collab-rejected') {
             l.approvalStatus = 'rejected';
-            l.approvalHistory.push({ action: 'rejected', by: '가상 수행기관 B', comment: '담당 인력이 부족해 이번 달은 어렵습니다', at });
+            l.approvalHistory.push({ action: 'rejected', by: '산청해민노인통합지원센터', comment: '담당 인력이 부족해 이번 달은 어렵습니다', at });
         }
         return l;
     };
