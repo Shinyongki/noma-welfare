@@ -124,6 +124,58 @@ export function firstLine(text) {
     return String(text || '').split(/\r?\n/).find(l => l.trim())?.trim() || '';
 }
 
+// ── 목록용 (보고함 · 연계 현황) ──
+
+export const RECENT_DAYS = 30;
+
+/** 보고함 탭 소속: 처리 필요(연계·종결 없음) / 새 보고 / 최근 30일 */
+export function reportTabsOf(state, createdAt, now = Date.now()) {
+    const t = toTime(createdAt);
+    return {
+        needs: state === 'new' || state === 'reviewed',
+        new: state === 'new',
+        recent30: t !== null && now - t <= RECENT_DAYS * DAY_MS,
+    };
+}
+
+/** 내부 의뢰 반려 사유 (가장 최근 반려 기록) */
+export function rejectReasonOf(linkage) {
+    if (linkage.approvalStatus !== 'rejected') return null;
+    const h = [...(linkage.approvalHistory || [])].reverse().find(x => x.action === 'rejected');
+    return h ? (h.comment || '') : '';
+}
+
+/**
+ * 미접수: 외부 연계 결과가 '미접수'이거나, 내부 의뢰가 반려됨
+ */
+export function isNotAccepted(linkage) {
+    if (linkage.category === 'referral') return !!linkage.result && linkage.result.accepted === false;
+    return linkage.approvalStatus === 'rejected';
+}
+
+/**
+ * 경과(일) — 미기록·대기는 연계일부터 오늘까지, 끝난 것은 연계일부터 결과(수락·반려) 기록일까지
+ */
+export function elapsedDays(linkage, now = Date.now()) {
+    const start = toTime(linkage.createdAt);
+    if (start === null) return null;
+    let end = now;
+    if (linkage.category === 'referral' && linkage.result) {
+        end = toTime(linkage.result.recordedAt) ?? now;
+    } else if (linkage.category !== 'referral' && ['accepted', 'rejected'].includes(linkage.approvalStatus)) {
+        const h = [...(linkage.approvalHistory || [])].reverse().find(x => x.action === linkage.approvalStatus);
+        end = toTime(h?.at) ?? now;
+    }
+    return Math.max(0, Math.floor((end - start) / DAY_MS));
+}
+
+/** 한국 시각 기준 'YYYY-MM' — 연계처의 '이번 달 연계' */
+export function seoulMonthKey(v) {
+    const t = typeof v === 'number' ? v : toTime(v);
+    if (t === null) return null;
+    return new Date(t + 9 * 60 * 60 * 1000).toISOString().slice(0, 7);
+}
+
 /** 케이스 상세 응답에 붙일 보고별 상태 */
 export function reportStates(request) {
     const linkages = request.linkages || [];

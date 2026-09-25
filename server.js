@@ -3029,6 +3029,133 @@ app.get('/api/staff/roster', (req, res) => {
     res.json({ count: items.length, workers, items, states: pilotStatus.ELDER_STATE, now: new Date(now).toISOString() });
 });
 
+// ── 2층 표 화면용 목록 (작업 7 v2) ──
+// 범위: ?worker=<생활지원사 이름>. 없으면 전체. 상태는 pilotStatus로 계산한다(저장하지 않음)
+function staffScopeCases(req) {
+    const cases = requestStore.getStaffCases(req.session?.serviceName || null);
+    const worker = typeof req.query.worker === 'string' && req.query.worker ? req.query.worker : null;
+    return worker ? cases.filter(c => (c.worker || '') === worker) : cases;
+}
+
+// 생활지원사 요약 — 처리할 일만 센다. 생활지원사별 보고 건수·순위는 두지 않는다
+app.get('/api/staff/workers', (req, res) => {
+    const now = Date.now();
+    const byWorker = new Map();
+    const totals = { elderCount: 0, newReportCount: 0, unrecordedCount: 0, staleElderCount: 0 };
+    for (const c of requestStore.getStaffCases(req.session?.serviceName || null)) {
+        const key = c.worker || '';
+        const w = byWorker.get(key) || { name: c.worker || null, elderCount: 0, newReportCount: 0, unrecordedCount: 0, staleElderCount: 0, lastReportAt: null };
+        const s = pilotStatus.elderSummary(c, now);
+        w.elderCount++;
+        w.newReportCount += s.newReportCount;
+        w.unrecordedCount += s.linkageCounts.unrecorded;
+        if (s.state === 'stale') w.staleElderCount++;
+        if (s.lastReport && (!w.lastReportAt || s.lastReport.at > w.lastReportAt)) w.lastReportAt = s.lastReport.at;
+        byWorker.set(key, w);
+    }
+    const items = [...byWorker.values()]
+        .map(w => ({ ...w, needsAction: w.newReportCount + w.unrecordedCount + w.staleElderCount > 0 }))
+        .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ko', { numeric: true }));
+    for (const w of items) for (const k of Object.keys(totals)) totals[k] += w[k];
+    res.json({ count: items.length, items, totals });
+});
+
+// 전체 보고 목록 — 탭: needs(처리 필요) / new(새 보고) / recent30(최근 30일)
+app.get('/api/staff/reports', (req, res) => {
+    const now = Date.now();
+    const tab = ['needs', 'new', 'recent30'].includes(req.query.tab) ? req.query.tab : 'needs';
+    const counts = { needs: 0, new: 0, recent30: 0 };
+    const items = [];
+    for (const c of staffScopeCases(req)) {
+        const linkages = c.linkages || [];
+        for (const r of pilotStatus.fieldReports(c)) {
+            const state = pilotStatus.reportState(r, linkages);
+            const tabs = pilotStatus.reportTabsOf(state, r.createdAt, now);
+            for (const k of Object.keys(counts)) if (tabs[k]) counts[k]++;
+            if (!tabs[tab]) continue;
+            items.push({
+                id: r.id, caseId: c.id, elderName: c.userName, worker: c.worker || null,
+                createdAt: r.createdAt, text: r.text, state,
+                linkageCount: linkages.filter(l => r.id && l.fromReportId === r.id).length,
+            });
+        }
+    }
+    items.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    res.json({ tab, counts, items });
+});
+
+// 전체 연계 목록 — 탭: unrecorded(결과 미기록) / notaccepted(미접수·반려) / all / received(받은 의뢰 대기)
+// 받은 의뢰(내부 의뢰의 받는 기관 = 이 세션 기관)는 생활지원사 범위와 무관하게 싣는다.
+// 받는 기관에 싣는 어르신 정보는 기존에 이미 열람 가능한 값(이름·담당 생활지원사)을 넘지 않는다.
+app.get('/api/staff/linkages', (req, res) => {
+    const now = Date.now();
+    const tab = ['unrecorded', 'notaccepted', 'all', 'received'].includes(req.query.tab) ? req.query.tab : 'unrecorded';
+    const targetId = typeof req.query.targetId === 'string' ? req.query.targetId : null;
+    const myDept = req.session?.deptId || null;
+    const targetsById = new Map(linkageTargets.map(t => [t.id, t]));
+
+    const inScope = new Set(staffScopeCases(req).map(c => c.id));
+    const counts = { unrecorded: 0, notaccepted: 0, all: 0, received: 0 };
+    const items = [];
+    for (const c of requestStore.getStaffCases(req.session?.serviceName || null)) {
+        const reports = pilotStatus.fieldReports(c);
+        for (const l of c.linkages || []) {
+            const received = l.category === 'collaboration' && !!myDept && l.toDept === myDept;
+            if (!inScope.has(c.id) && !received) continue;
+            if (targetId && l.target?.id !== targetId) continue;
+            const progress = pilotStatus.linkageProgress(l);
+            const tabs = {
+                unrecorded: progress === 'unrecorded',
+                notaccepted: pilotStatus.isNotAccepted(l),
+                all: true,
+                received: received && l.approvalStatus === 'pending',
+            };
+            for (const k of Object.keys(counts)) if (tabs[k]) counts[k]++;
+            if (!tabs[tab]) continue;
+            const t = l.target ? targetsById.get(l.target.id) : null;
+            const fr = l.fromReportId ? reports.find(r => r.id === l.fromReportId) : null;
+            items.push({
+                id: l.id, caseId: c.id, elderName: c.userName, worker: c.worker || null,
+                category: l.category, type: l.type, createdAt: l.createdAt, reason: l.reason || '',
+                target: l.target ? {
+                    id: l.target.id, serviceName: l.target.serviceName, agencyName: l.target.agencyName,
+                    category: t?.category || null, department: t?.department || '', phone: t?.phone || '',
+                } : null,
+                fromDept: l.fromDept || null, toDept: l.toDept || null,
+                fromDeptName: l.fromDept ? getDeptName(l.fromDept) : null,
+                toDeptName: l.toDept ? getDeptName(l.toDept) : null,
+                approvalStatus: l.approvalStatus,
+                received,
+                fromReport: fr ? { id: fr.id, createdAt: fr.createdAt, firstLine: pilotStatus.firstLine(fr.text) } : null,
+                progress, result: l.result || null,
+                rejectReason: pilotStatus.rejectReasonOf(l),
+                elapsedDays: pilotStatus.elapsedDays(l, now),
+            });
+        }
+    }
+    // 결과 미기록·받은 의뢰는 오래된 것이 위로, 나머지는 최근 것이 위로
+    const oldestFirst = tab === 'unrecorded' || tab === 'received';
+    items.sort((a, b) => oldestFirst
+        ? String(a.createdAt).localeCompare(String(b.createdAt))
+        : String(b.createdAt).localeCompare(String(a.createdAt)));
+    res.json({ tab, counts, items });
+});
+
+// 연계처별 건수 — 생활지원사 범위와 무관
+app.get('/api/staff/linkage-targets', (req, res) => {
+    const month = pilotStatus.seoulMonthKey(Date.now());
+    const stat = new Map(linkageTargets.map(t => [t.id, { monthCount: 0, unrecordedCount: 0 }]));
+    for (const c of requestStore.getStaffCases(req.session?.serviceName || null)) {
+        for (const l of c.linkages || []) {
+            const s = l.target && stat.get(l.target.id);
+            if (!s) continue;
+            if (pilotStatus.seoulMonthKey(l.createdAt) === month) s.monthCount++;
+            if (pilotStatus.linkageProgress(l) === 'unrecorded') s.unrecordedCount++;
+        }
+    }
+    res.json({ month, count: linkageTargets.length, items: linkageTargets.map(t => ({ ...t, ...stat.get(t.id) })) });
+});
+
 // ── Case API Routes (담당자 처리 페이지용) ──
 
 const MAX_REFERRAL_CHAIN_DEPTH = 10;
@@ -3455,8 +3582,11 @@ app.post('/api/case/:requestId/collaboration/:collabId/notes', async (req, res) 
 
 // 통합 연계 생성 (이메일 안 보냄)
 app.post('/api/case/:id/linkage', async (req, res) => {
-    const { category, type, fromDept, toDept, targetId, reason, fromReportId } = req.body;
-    if (!reason) return res.status(400).json({ error: '사유를 입력하세요.' });
+    const { category, type, fromDept, toDept, targetId, fromReportId } = req.body;
+    const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+    // 외부 연계 사유는 선택 입력이다. 내부 의뢰는 받는 기관이 판단할 근거가 필요하므로 필수로 둔다
+    if (category !== 'referral' && !reason) return res.status(400).json({ error: '사유를 입력하세요.' });
+    if (reason.length > 1000) return res.status(400).json({ error: '사유가 너무 깁니다.' });
     if (category === 'collaboration' && (!fromDept || !toDept)) {
         return res.status(400).json({ error: '요청 부서와 대상 부서를 선택하세요.' });
     }

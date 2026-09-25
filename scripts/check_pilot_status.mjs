@@ -2,7 +2,8 @@
 //
 // 실행: node scripts/check_pilot_status.mjs
 import assert from 'assert/strict';
-import { reportState, elderSummary, linkageCounts, ELDER_STATE_ORDER, STALE_DAYS } from '../data/pilotStatus.mjs';
+import { reportState, elderSummary, linkageCounts, ELDER_STATE_ORDER, STALE_DAYS,
+    reportTabsOf, isNotAccepted, elapsedDays, rejectReasonOf, seoulMonthKey } from '../data/pilotStatus.mjs';
 
 const NOW = Date.parse('2026-09-25T12:00:00Z');
 const DAY = 24 * 60 * 60 * 1000;
@@ -56,5 +57,23 @@ check('최근 보고: 날짜 + 첫 줄', () => {
 });
 check('새 보고 건수', () => assert.equal(elderSummary(elder([rep('a', 1), rep('b', 2), rep('c', 3, reviewed)]), NOW).newReportCount, 2));
 check('정렬 순서', () => assert.deepEqual(ELDER_STATE_ORDER, ['new', 'unrecorded', 'linking', 'stale', 'reviewed', 'none', 'closed']));
+
+// ── 목록용 (작업 7 v2) ──
+check('보고함 탭: 새 보고는 처리 필요·새 보고', () => assert.deepEqual(reportTabsOf('new', iso(1), NOW), { needs: true, new: true, recent30: true }));
+check('보고함 탭: 확인은 처리 필요, 새 보고 아님', () => assert.deepEqual(reportTabsOf('reviewed', iso(1), NOW), { needs: true, new: false, recent30: true }));
+check('보고함 탭: 연계 진행·완료·조치 불필요는 처리 필요 아님', () => ['linking', 'linked', 'closed'].forEach(s => assert.equal(reportTabsOf(s, iso(1), NOW).needs, false)));
+check('보고함 탭: 30일 경계', () => { assert.equal(reportTabsOf('reviewed', iso(30), NOW).recent30, true); assert.equal(reportTabsOf('reviewed', iso(31), NOW).recent30, false); });
+check('미접수: 외부 결과 미접수 / 내부 반려', () => {
+    assert.equal(isNotAccepted(referral('a', { accepted: false })), true);
+    assert.equal(isNotAccepted(referral('a', { accepted: true })), false);
+    assert.equal(isNotAccepted(referral('a')), false);
+    assert.equal(isNotAccepted(collab('a', 'rejected')), true);
+    assert.equal(isNotAccepted(collab('a', 'pending')), false);
+});
+check('경과(일): 미기록은 오늘까지', () => assert.equal(elapsedDays({ category: 'referral', createdAt: iso(5), result: null }, NOW), 5));
+check('경과(일): 기록된 건은 결과 기록일까지', () => assert.equal(elapsedDays({ category: 'referral', createdAt: iso(5), result: { accepted: true, recordedAt: iso(2) } }, NOW), 3));
+check('경과(일): 반려된 내부 의뢰는 반려일까지', () => assert.equal(elapsedDays({ category: 'collaboration', createdAt: iso(6), approvalStatus: 'rejected', approvalHistory: [{ action: 'submitted', at: iso(6) }, { action: 'rejected', at: iso(1), comment: 'x' }] }, NOW), 5));
+check('반려 사유', () => assert.equal(rejectReasonOf({ approvalStatus: 'rejected', approvalHistory: [{ action: 'rejected', comment: '인력 부족' }] }), '인력 부족'));
+check('이번 달: 한국 시각 기준', () => { assert.equal(seoulMonthKey('2026-09-30T15:30:00Z'), '2026-10'); assert.equal(seoulMonthKey('2026-09-30T14:59:00Z'), '2026-09'); });
 
 console.log(`\n${n}건 통과`);
