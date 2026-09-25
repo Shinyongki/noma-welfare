@@ -102,9 +102,22 @@
         </div>
     </div>
 
-    <!-- 메인 콘텐츠 -->
-    <div id="state-main" class="hidden min-h-screen py-8 px-4">
-        <div class="max-w-lg lg:max-w-6xl mx-auto animate-fade-up">
+    <!-- 메인 콘텐츠 — 어르신 화면 (보고 → 연계 흐름 → 연계처 선택) -->
+    <div id="state-main" class="hidden min-h-screen">
+
+        <!-- 헤더 (흰색) -->
+        <header class="bg-white border-b border-gray-200 sticky top-0 z-20">
+            <div class="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
+                <a href="/case" class="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-0.5">
+                    <span class="material-symbols-rounded text-lg" aria-hidden="true">arrow_back</span>명부
+                </a>
+                <span class="font-bold text-gray-900">먼저봄</span>
+                <span class="text-sm text-gray-400">어르신 현황</span>
+                <span id="hdr-dept" class="ml-auto text-sm text-gray-500 truncate"></span>
+            </div>
+        </header>
+
+        <div class="max-w-lg lg:max-w-6xl mx-auto px-4 py-6">
 
             <!-- 토큰 만료 안내 배너 -->
             <div id="token-expiry-banner" class="hidden mb-3 px-4 py-2.5 rounded-xl text-sm font-medium flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700">
@@ -112,161 +125,119 @@
                 <span id="token-expiry-text">링크 유효 시간: 계산 중...</span>
             </div>
 
-            <!-- A. 헤더 (녹색 그라데이션) -->
-            <div class="bg-gradient-to-br from-green-700 to-green-900 rounded-t-2xl px-6 py-5 text-white">
-                <h1 class="text-xl font-bold flex items-center gap-2">
-                    <span class="material-symbols-rounded" aria-hidden="true">assignment</span>
-                    어르신 현황
-                </h1>
-                <p class="text-green-200 text-sm mt-1">대상자에게 연락하고 처리 상태를 업데이트해 주세요.</p>
+            <!-- PC(1024px 이상) 두 칸: 왼쪽(고정)은 어르신 요약·보고·담당자 메모, 오른쪽은 연계 흐름·연계처 선택.
+                 휴대폰에서는 두 묶음이 contents로 풀리고 order-*로 보고 → 연계 흐름 → 연계처 선택 → 메모 순서가 된다. -->
+            <div class="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-6 lg:items-start">
+
+                <div class="contents lg:flex lg:flex-col lg:gap-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+
+                    <!-- 어르신 요약 -->
+                    <section class="order-1 bg-white border border-gray-200 rounded-xl px-5 py-4">
+                        <div class="flex items-center gap-2">
+                            <h1 id="elder-name" class="text-lg font-bold text-gray-900">-</h1>
+                            <span id="elder-state" class="ml-auto"></span>
+                        </div>
+                        <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                            <dt class="text-gray-500">담당 생활지원사</dt><dd id="elder-worker" class="text-gray-900">-</dd>
+                            <dt class="text-gray-500">시군</dt><dd id="elder-sigun" class="text-gray-900">-</dd>
+                        </dl>
+                    </section>
+
+                    <!-- 생활지원사 보고 -->
+                    <section class="order-2 bg-white border border-gray-200 rounded-xl px-5 py-4">
+                        <h2 class="text-sm font-semibold text-gray-900">생활지원사 보고</h2>
+                        <div id="report-list" class="mt-1"></div>
+                    </section>
+
+                    <!-- 담당자 메모 -->
+                    <section class="order-5 bg-white border border-gray-200 rounded-xl px-5 py-4">
+                        <h2 class="text-sm font-semibold text-gray-900 mb-2">담당자 메모</h2>
+                        <div id="memo-list" class="space-y-2 mb-3 max-h-[240px] overflow-y-auto"></div>
+                        <div class="flex gap-2" data-action="add-note">
+                            <input id="note-input" type="text" placeholder="메모 입력..." class="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40 focus:border-navy" />
+                            <button onclick="submitNote()" id="note-btn" class="px-4 py-2 border border-gray-300 text-gray-900 rounded-lg text-sm font-semibold hover:bg-gray-50">추가</button>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="contents lg:flex lg:flex-col lg:gap-4">
+
+                    <!-- 연계 흐름: 보고 → 연결된 연계 → 결과 -->
+                    <section class="order-3 bg-white border border-gray-200 rounded-xl px-5 py-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <h2 class="text-sm font-semibold text-gray-900">연계 흐름</h2>
+                            <button onclick="openLinkagePanel(null)" data-action="create-linkage" class="ml-auto text-sm text-navy font-semibold hover:underline">보고 없이 연계하기</button>
+                        </div>
+                        <div id="flow-list" class="space-y-3"></div>
+                    </section>
+
+                    <!-- 연계처 선택 ([연계하기]를 누르면 연다) -->
+                    <section id="linkage-panel" class="order-4 hidden bg-white border-2 border-navy rounded-xl px-5 py-4" data-action="create-linkage">
+                        <div class="flex items-center gap-2 mb-3">
+                            <h2 class="text-sm font-semibold text-gray-900">연계처 선택</h2>
+                            <button onclick="closeLinkagePanel()" class="ml-auto text-sm text-gray-500 hover:text-gray-900">닫기</button>
+                        </div>
+
+                        <label for="linkage-report" class="text-xs text-gray-500 block mb-1">근거 보고</label>
+                        <select id="linkage-report" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-navy/40"></select>
+
+                        <div class="flex flex-wrap gap-1.5 mb-2" id="category-filter" role="group" aria-label="종류"></div>
+
+                        <table class="w-full text-sm">
+                            <thead class="hidden md:table-header-group text-xs text-gray-500">
+                                <tr class="border-b border-gray-200">
+                                    <th class="text-left font-medium py-2 pr-2 whitespace-nowrap">종류</th>
+                                    <th class="text-left font-medium py-2 pr-2">사업·기관</th>
+                                    <th class="text-left font-medium py-2 pr-2">대상 요건</th>
+                                    <th class="text-left font-medium py-2 pr-3 whitespace-nowrap">신청 방법</th>
+                                    <th class="text-left font-medium py-2 pr-2 whitespace-nowrap">담당 부서·연락처</th>
+                                    <th class="text-center font-medium py-2 whitespace-nowrap">선택</th>
+                                </tr>
+                            </thead>
+                            <tbody id="target-list"></tbody>
+                        </table>
+
+                        <label for="linkage-reason" class="text-xs text-gray-500 block mt-3 mb-1">사유</label>
+                        <textarea id="linkage-reason" rows="2" placeholder="연계가 필요한 이유를 입력하세요..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40 resize-none"></textarea>
+                        <div class="flex gap-2 mt-2">
+                            <button id="linkage-submit-btn" onclick="submitLinkage('referral')" class="flex-1 bg-navy text-white py-2.5 rounded-lg text-sm font-semibold hover:opacity-90">연계 기록</button>
+                            <button onclick="closeLinkagePanel()" class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">취소</button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">선택한 기관에는 전담사회복지사가 직접 연락합니다. 연락한 뒤 결과를 기록하세요.</p>
+
+                        <!-- 내부 연계(다른 수행기관 의뢰) — 표 아래 한 단계 뒤 -->
+                        <div class="mt-4 pt-3 border-t border-gray-200">
+                            <button id="tab-collab" onclick="switchLinkageTab(linkageTabIsCollab() ? 'referral' : 'collaboration')" class="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1">
+                                <span id="collab-toggle-icon" class="material-symbols-rounded text-lg" aria-hidden="true">chevron_right</span>다른 수행기관에 의뢰
+                            </button>
+                            <div id="fields-collab" class="hidden mt-3 space-y-3">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label for="linkage-from" class="text-xs text-gray-500 block mb-1">우리 기관</label>
+                                        <select id="linkage-from" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></select>
+                                    </div>
+                                    <div>
+                                        <label for="linkage-to" class="text-xs text-gray-500 block mb-1">받는 기관</label>
+                                        <select id="linkage-to" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></select>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2 text-sm">
+                                    <label class="flex items-center gap-1.5"><input type="radio" name="linkage-type" value="consultation" checked class="accent-navy"> 자문</label>
+                                    <label class="flex items-center gap-1.5"><input type="radio" name="linkage-type" value="joint" class="accent-navy"> 공동처리</label>
+                                    <label class="flex items-center gap-1.5"><input type="radio" name="linkage-type" value="transfer" class="accent-navy"> 이관</label>
+                                </div>
+                                <textarea id="linkage-reason-internal" rows="2" placeholder="의뢰 사유를 입력하세요..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40 resize-none"></textarea>
+                                <button onclick="submitLinkage('collaboration')" class="w-full border border-navy text-navy py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50">의뢰 보내기</button>
+                                <p class="text-xs text-gray-500">받는 기관이 수락 또는 반려합니다.</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
             </div>
 
-            <div class="bg-white rounded-b-2xl shadow-lg border border-gray-100 overflow-hidden flex flex-col lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:overflow-visible">
-
-                <!-- PC(1024px 이상) 두 칸: 왼쪽은 대상자 정보·처리 메모를 고정해 연계를 보는 동안에도 보고가 보이게 한다.
-                     휴대폰에서는 두 묶음이 contents로 풀리고 order-*로 원래 순서(A→J)를 그대로 유지한다. -->
-                <div class="contents lg:block lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
-
-                <!-- A. 대상자 정보 -->
-                <div class="px-6 pt-6 pb-4 order-1">
-                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">대상자 정보</p>
-                    <div class="bg-gray-50 rounded-xl p-4 space-y-2.5">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-500">신청 서비스</span>
-                            <span id="info-service" class="text-sm font-bold text-gray-800">-</span>
-                        </div>
-                        <div class="border-t border-gray-100"></div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-500">성함</span>
-                            <span id="info-name" class="text-sm font-bold text-gray-800">-</span>
-                        </div>
-                        <div class="border-t border-gray-100"></div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-500">연락처</span>
-                            <span id="info-phone" class="text-sm font-bold text-gray-800">-</span>
-                        </div>
-                        <div class="border-t border-gray-100"></div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-500">접수일</span>
-                            <span id="info-date" class="text-sm text-gray-600">-</span>
-                        </div>
-                        <div class="border-t border-gray-100"></div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-gray-500">현재 상태</span>
-                            <span id="info-status-badge">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="px-6 order-4"><div class="border-t border-gray-100"></div></div>
-
-                <!-- D. 처리 메모 -->
-                <div class="px-6 py-4 order-5">
-                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1">
-                        <span class="material-symbols-rounded text-sm" aria-hidden="true">sticky_note_2</span>
-                        처리 메모
-                    </p>
-                    <div id="notes-list" class="space-y-2 mb-3 max-h-[250px] overflow-y-auto">
-                        <p class="text-sm text-gray-400">메모 없음</p>
-                    </div>
-                    <div class="flex gap-2" data-requires-auth data-action="add-note" style="position:relative">
-                        <input id="note-input" type="text" placeholder="메모 입력..." class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" />
-                        <button onclick="submitNote()" id="note-btn" class="px-4 py-2.5 bg-green-700 text-white rounded-xl text-sm font-semibold hover:bg-green-800 transition-colors flex items-center gap-1">
-                            <span class="material-symbols-rounded text-base" aria-hidden="true">add</span>추가
-                        </button>
-                    </div>
-                </div>
-
-                </div>
-
-                <div class="contents lg:block lg:border-l lg:border-gray-100 lg:pt-6">
-
-                <!-- F. 통합 연계 -->
-                <div class="px-6 pb-4 order-7">
-                    <div class="border-t border-gray-100 mb-4 lg:hidden"></div>
-                    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1">
-                        <span class="material-symbols-rounded text-sm" aria-hidden="true">hub</span>
-                        연계
-                    </p>
-
-                    <!-- 연계 목록 -->
-                    <div id="linkage-list" class="space-y-3 mb-4"></div>
-
-                    <!-- 새 연계 폼 -->
-                    <div id="linkage-form-toggle" class="mb-3" data-requires-auth data-action="create-linkage" style="position:relative">
-                        <button onclick="toggleLinkageForm()" class="w-full py-2.5 border-2 border-dashed border-indigo-300 rounded-xl text-sm font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5">
-                            <span class="material-symbols-rounded text-lg" aria-hidden="true">add_circle</span>
-                            연계 추가하기
-                        </button>
-                    </div>
-                    <div id="linkage-form" class="hidden bg-indigo-50 rounded-xl p-4 mb-3 space-y-3">
-                        <p class="text-sm font-semibold text-indigo-800 flex items-center gap-1">
-                            <span class="material-symbols-rounded text-base" aria-hidden="true">hub</span>
-                            새 연계
-                        </p>
-                        <!-- 카테고리 탭 — 주된 흐름은 소재지 시군 자원과의 외부 연계다 -->
-                        <div class="flex gap-2">
-                            <button onclick="switchLinkageTab('referral')" id="tab-referral" class="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-indigo-600 text-white">지역 연계처</button>
-                            <button onclick="switchLinkageTab('collaboration')" id="tab-collab" class="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-white text-indigo-600 border border-indigo-200">다른 수행기관에 의뢰</button>
-                        </div>
-
-                        <!-- 지역 연계처 (기본) -->
-                        <div id="fields-referral">
-                            <div>
-                                <label class="text-xs text-gray-500 block mb-1">연계처</label>
-                                <select id="linkage-target-service" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                                    <option value="" disabled selected>연계처를 선택하세요</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- 다른 수행기관에 의뢰 (보조 경로) -->
-                        <div id="fields-collab" class="hidden">
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="text-xs text-gray-500 block mb-1">우리팀</label>
-                                    <select id="linkage-from" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"></select>
-                                </div>
-                                <div>
-                                    <label class="text-xs text-gray-500 block mb-1">대상팀</label>
-                                    <select id="linkage-to" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"></select>
-                                </div>
-                            </div>
-                            <div class="mt-3">
-                                <label class="text-xs text-gray-500 block mb-1">유형</label>
-                                <div class="flex gap-2">
-                                    <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs cursor-pointer has-[:checked]:bg-indigo-100 has-[:checked]:border-indigo-400">
-                                        <input type="radio" name="linkage-type" value="consultation" checked class="w-3 h-3 text-indigo-600" onchange="updateLinkageTypeGuide(this.value)"> 자문
-                                    </label>
-                                    <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs cursor-pointer has-[:checked]:bg-indigo-100 has-[:checked]:border-indigo-400">
-                                        <input type="radio" name="linkage-type" value="joint" class="w-3 h-3 text-indigo-600" onchange="updateLinkageTypeGuide(this.value)"> 공동처리
-                                    </label>
-                                    <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs cursor-pointer has-[:checked]:bg-indigo-100 has-[:checked]:border-indigo-400">
-                                        <input type="radio" name="linkage-type" value="transfer" class="w-3 h-3 text-indigo-600" onchange="updateLinkageTypeGuide(this.value)"> 이관
-                                    </label>
-                                </div>
-                                <p id="linkage-type-guide" class="text-sm mt-2" style="display:none"></p>
-                            </div>
-                        </div>
-
-                        <!-- 공통: 사유 -->
-                        <div>
-                            <label class="text-xs text-gray-500 block mb-1">사유</label>
-                            <textarea id="linkage-reason" rows="2" placeholder="연계가 필요한 이유를 입력하세요..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"></textarea>
-                        </div>
-                        <div class="flex gap-2">
-                            <button id="linkage-submit-btn" onclick="submitLinkage()" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1">
-                                <span id="linkage-submit-icon" class="material-symbols-rounded text-base" aria-hidden="true">add_link</span><span id="linkage-submit-label">연계처 선택</span>
-                            </button>
-                            <button onclick="toggleLinkageForm()" class="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-500 hover:bg-gray-50 transition-colors">취소</button>
-                        </div>
-                        <p id="linkage-form-hint" class="text-xs text-amber-600 flex items-center gap-1">
-                            <span class="material-symbols-rounded text-sm" aria-hidden="true">info</span>
-                            <span id="linkage-form-hint-text">선택한 기관에는 전담사회복지사가 직접 연락합니다</span>
-                        </p>
-                    </div>
-                </div>
-
+            <!-- 파일럿 2층에서 화면에 보이지 않는 섹션 (코드는 남겨 둔다):
+                 처리 진행 단계, AI 상담, 대상자에게 전화, 서비스 계획, 배정 근거, AI 대화 요약, 연계 체인 -->
+            <div id="legacy-sections" class="hidden" aria-hidden="true">
                 <!-- I. 연계 체인 -->
                 <div id="section-chain" class="hidden px-6 pb-4 order-10">
                     <div class="border-t border-gray-100 mb-4"></div>
@@ -378,8 +349,6 @@
                         대상자에게 전화
                     </a>
                 </div>
-
-                </div>
             </div>
         </div>
     </div>
@@ -424,9 +393,9 @@
             if (existing) existing.remove();
             const colors = {
                 error: 'bg-red-600',
-                success: 'bg-green-600',
-                warn: 'bg-amber-600',
-                info: 'bg-blue-600',
+                success: 'bg-gray-900',
+                warn: 'bg-gray-900',
+                info: 'bg-gray-900',
             };
             const toast = document.createElement('div');
             toast.className = `case-toast fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] ${colors[type] || colors.error} text-white text-sm font-medium px-5 py-3 rounded-xl shadow-lg animate-fade-up`;
@@ -581,18 +550,6 @@
                 if (!resp.ok) return;
                 const data = await resp.json();
                 linkageTargets = data.items || [];
-                const select = document.getElementById('linkage-target-service');
-                select.innerHTML = '<option value="" disabled selected>연계처를 선택하세요</option>';
-                linkageTargets.forEach(t => {
-                    const opt = document.createElement('option');
-                    opt.value = t.id;
-                    // 실데이터로 확인되지 않은 항목은 그렇게 보이게 둔다
-                    opt.textContent = `${t.serviceName} — ${t.agencyName}${t.verified ? '' : ' (미확인)'}`;
-                    select.appendChild(opt);
-                });
-                if (linkageTargets.length === 0) {
-                    select.innerHTML = '<option value="" disabled selected>등록된 연계처가 없습니다</option>';
-                }
             } catch { /* ignore */ }
         }
 
@@ -615,15 +572,248 @@
             return div.innerHTML;
         }
 
+        // ── 어르신 화면 ──
+        // 상태는 서버가 계산해 보낸다(reportStates·elderSummary). 색 대신 모양으로 구분한다:
+        // 채움 = 새 보고 / 검은 테두리 = 결과 미기록 / 회색 채움 = 연계 진행·수락 대기 / 점선 = 3주 이상 보고 없음 / 글자만 = 나머지
+        const MARK_SHAPE = {
+            fill:   'bg-navy text-white border border-navy',
+            border: 'border border-gray-900 text-gray-900',
+            gray:   'bg-gray-200 text-gray-800 border border-gray-200',
+            dashed: 'border border-dashed border-gray-900 text-gray-900',
+            text:   'text-gray-500 border border-transparent',
+        };
+        function mark(label, shape) {
+            return `<span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold whitespace-nowrap ${MARK_SHAPE[shape] || MARK_SHAPE.text}">${escapeHtml(label)}</span>`;
+        }
+        const REPORT_MARK = {
+            new: ['새 보고', 'fill'], reviewed: ['확인', 'text'], linking: ['연계 진행', 'gray'],
+            linked: ['연계 완료', 'text'], closed: ['조치 불필요', 'text'],
+        };
+        const ELDER_MARK = {
+            new: ['새 보고', 'fill'], unrecorded: ['결과 미기록', 'border'], linking: ['연계 진행', 'gray'],
+            stale: ['3주 이상 보고 없음', 'dashed'], reviewed: ['확인', 'text'], none: ['보고 없음', 'text'], closed: ['조치 불필요', 'text'],
+        };
+        const TARGET_CATEGORIES = ['돌봄', '의료', '주거', '식사', '정서'];
+
+        // 이번 방문에서 '확인'으로 기록된 보고 — 화면을 닫을 때까지는 새 보고로 보여 준다
+        let reviewedThisVisit = new Set();
+        let selectedTargetId = null;
+        let targetCategory = '';
+
+        function fmt(iso, opts = { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) {
+            const d = new Date(iso);
+            return isNaN(d) ? '' : d.toLocaleString('ko-KR', opts);
+        }
+        function firstLine(text) {
+            return String(text || '').split(/\r?\n/).find(l => l.trim())?.trim() || '';
+        }
+        function fieldReportsOf(req) {
+            return (req.notes || []).filter(n => n.type === 'field_report');
+        }
+        function serverReportState(r) {
+            return caseData.reportStates?.[r.id] || (r.closure ? 'closed' : r.reviewedAt ? 'reviewed' : 'new');
+        }
+        function shownReportState(r) {
+            const s = serverReportState(r);
+            return s === 'reviewed' && reviewedThisVisit.has(r.id) ? 'new' : s;
+        }
+        // 연계·종결 버튼은 아직 아무 조치가 없는 보고(새 보고·확인)에만 붙는다
+        function isOpenReport(r) {
+            return ['new', 'reviewed'].includes(serverReportState(r));
+        }
+        function canActOnReports() {
+            return sessionRole === 'staff';
+        }
+
+        function renderElder() {
+            const req = caseData;
+            const reports = fieldReportsOf(req).slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            // 요약
+            document.getElementById('elder-name').textContent = req.userName || '-';
+            document.getElementById('elder-worker').textContent = req.worker || '-';
+            document.getElementById('elder-sigun').textContent = req.sigun || '-';
+            const elderState = reports.some(r => shownReportState(r) === 'new') ? 'new' : (req.elderSummary?.state || 'none');
+            const em = ELDER_MARK[elderState] || [elderState, 'text'];
+            document.getElementById('elder-state').innerHTML = mark(em[0], em[1]);
+            document.getElementById('hdr-dept').textContent = sessionDeptName || '';
+
+            // 보고 목록
+            const linkages = req.linkages || [];
+            document.getElementById('report-list').innerHTML = reports.length === 0
+                ? '<p class="text-sm text-gray-400 py-3">아직 보고가 없습니다.</p>'
+                : reports.map(r => {
+                    const st = shownReportState(r);
+                    const [label, shape] = REPORT_MARK[st] || [st, 'text'];
+                    const linkedCount = linkages.filter(l => l.fromReportId === r.id).length;
+                    let extra = '';
+                    if (r.closure) {
+                        extra = `<p class="text-xs text-gray-500 mt-1.5">조치 불필요 — ${r.closure.reason ? escapeHtml(r.closure.reason) : '사유 없음'} · ${fmt(r.closure.at)}${r.closure.by ? ' · ' + escapeHtml(r.closure.by) : ''}</p>`;
+                    } else if (linkedCount > 0) {
+                        extra = `<p class="text-xs text-gray-500 mt-1.5">연계 ${linkedCount}건 — 연계 흐름에서 확인</p>`;
+                    }
+                    const actions = isOpenReport(r) && canActOnReports()
+                        ? `<div id="report-actions-${r.id}" class="flex flex-wrap gap-1.5 mt-2">
+                                <button onclick="openLinkagePanel('${r.id}')" class="px-3 py-1.5 bg-navy text-white rounded-lg text-xs font-semibold hover:opacity-90">연계하기</button>
+                                <button onclick="showClosureForm('${r.id}')" class="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50">조치 불필요</button>
+                           </div>`
+                        : '';
+                    return `<article class="py-3 border-b border-gray-100 last:border-b-0">
+                        <div class="flex items-center gap-2 text-xs text-gray-500">
+                            ${mark(label, shape)}
+                            <span>${fmt(r.createdAt)}</span>
+                            ${r.createdBy ? `<span class="truncate">${escapeHtml(r.createdBy)}</span>` : ''}
+                        </div>
+                        <p class="text-sm text-gray-900 mt-1.5 whitespace-pre-line leading-relaxed">${escapeHtml(r.text)}</p>
+                        ${extra}
+                        ${actions}
+                    </article>`;
+                }).join('');
+
+            // 담당자 메모 (생활지원사 보고 제외)
+            const memos = (req.notes || []).filter(n => n.type !== 'field_report');
+            const memoEl = document.getElementById('memo-list');
+            memoEl.innerHTML = memos.length === 0
+                ? '<p class="text-sm text-gray-400">메모 없음</p>'
+                : memos.map(n => `<div class="text-sm">
+                        <p class="text-xs text-gray-500">${escapeHtml(n.author || '')} · ${fmt(n.createdAt)}</p>
+                        <p class="text-gray-800">${escapeHtml(n.text)}</p>
+                    </div>`).join('');
+            memoEl.scrollTop = memoEl.scrollHeight;
+
+            renderFlow(reports, linkages);
+            renderReportOptions(document.getElementById('linkage-report').value || null);
+            renderTargets();
+        }
+
+        // 연계 흐름 — 보고 한 줄마다 보고 → 연결된 연계들 → 결과. 보고 없이 만든 연계는 맨 아래 줄
+        function renderFlow(reports, linkages) {
+            const groups = reports
+                .map(r => ({ report: r, items: linkages.filter(l => l.fromReportId === r.id) }))
+                .filter(g => g.items.length > 0);
+            const reportIds = new Set(reports.map(r => r.id));
+            const orphans = linkages.filter(l => !l.fromReportId || !reportIds.has(l.fromReportId));
+            if (orphans.length) groups.push({ report: null, items: orphans });
+
+            const el = document.getElementById('flow-list');
+            if (groups.length === 0) {
+                el.innerHTML = '<p class="text-sm text-gray-400">아직 연계가 없습니다. 보고에서 [연계하기]를 누르세요.</p>';
+                return;
+            }
+            el.innerHTML = groups.map(g => `
+                <div class="border border-gray-200 rounded-lg">
+                    <div class="px-4 py-2.5 bg-gray-50 rounded-t-lg text-sm">
+                        ${g.report
+                            ? `<span class="text-xs text-gray-500 mr-1.5">보고 ${fmt(g.report.createdAt)}</span><span class="text-gray-900">${escapeHtml(firstLine(g.report.text))}</span>`
+                            : '<span class="text-xs text-gray-500">보고 없이 만든 연계</span>'}
+                    </div>
+                    <div class="divide-y divide-gray-100">${g.items.map(flowRow).join('')}</div>
+                </div>`).join('');
+        }
+
+        function flowRow(l) {
+            const isReferral = l.category === 'referral';
+            let title, sub, info = '', stateMark, body = '';
+            if (isReferral) {
+                const t = linkageTargets.find(x => x.id === l.target?.id) || null;
+                title = escapeHtml(l.target?.agencyName || l.targetService || '-');
+                sub = escapeHtml([l.target?.serviceName || l.targetService, t?.category].filter(Boolean).join(' · '));
+                const unknown = '<span class="text-gray-400">(미확인)</span>';
+                const phoneRaw = (t?.phone || '').trim();
+                const phone = phoneRaw
+                    ? `<a href="tel:${phoneRaw.replace(/[^0-9+]/g, '')}" class="text-navy font-semibold underline">${escapeHtml(phoneRaw)}</a>`
+                    : unknown;
+                info = `<p class="text-xs text-gray-600 mt-1">부서 ${t?.department ? escapeHtml(t.department) : unknown} · 연락처 ${phone}</p>`;
+                if (l.result) {
+                    stateMark = mark(l.result.accepted ? '접수' : '미접수', 'text');
+                    body = `<p class="text-xs text-gray-700 mt-1.5">결과: ${l.result.accepted ? '접수됨' : '접수되지 않음'}${l.result.reason ? ' — ' + escapeHtml(l.result.reason) : ''}
+                        <span class="text-gray-400"> · ${fmt(l.result.recordedAt)}${l.result.recordedBy ? ' · ' + escapeHtml(l.result.recordedBy) : ''}</span></p>`;
+                } else {
+                    stateMark = mark('결과 미기록', 'border');
+                    body = `<div id="result-area-${l.id}" class="mt-2">
+                        <button onclick="showResultForm('${l.id}')" class="px-3 py-1.5 border border-gray-900 text-gray-900 rounded-lg text-xs font-semibold hover:bg-gray-50">결과 기록</button>
+                    </div>`;
+                }
+            } else {
+                title = `${escapeHtml(getDeptName(l.fromDept))} → ${escapeHtml(getDeptName(l.toDept))}`;
+                sub = escapeHtml('다른 수행기관 의뢰 · ' + (LINKAGE_TYPE[l.type]?.label || l.type || ''));
+                const ab = approvalBadgeOf(l.approvalStatus);
+                if (l.approvalStatus === 'pending') {
+                    stateMark = mark('수락 대기', 'gray');
+                    // 받는 기관만 수락 또는 반려한다
+                    body = l.toDept === sessionDeptId
+                        ? `<div id="linkage-action-${l.id}" class="flex gap-1.5 mt-2">
+                                <button onclick="acceptLinkage('${l.id}')" class="px-3 py-1.5 bg-navy text-white rounded-lg text-xs font-semibold hover:opacity-90">수락</button>
+                                <button onclick="showRejectForm('${l.id}')" class="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50">반려</button>
+                           </div>`
+                        : `<p class="text-xs text-gray-500 mt-1.5">${escapeHtml(getDeptName(l.toDept))}의 수락을 기다리는 중입니다</p>`;
+                } else if (l.approvalStatus === 'rejected') {
+                    stateMark = mark('반려', 'text');
+                    const h = [...(l.approvalHistory || [])].reverse().find(x => x.action === 'rejected');
+                    body = `<p class="text-xs text-gray-700 mt-1.5">반려 사유: ${h?.comment ? escapeHtml(h.comment) : '-'}${h?.by ? ' <span class="text-gray-400">· ' + escapeHtml(h.by) + '</span>' : ''}</p>`;
+                } else {
+                    stateMark = mark(ab.label, 'text');
+                }
+            }
+            return `<div class="px-4 py-3">
+                <div class="flex items-start gap-2">
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-gray-900">${title}</p>
+                        <p class="text-xs text-gray-500">${sub}</p>
+                    </div>
+                    <span class="ml-auto shrink-0">${stateMark}</span>
+                </div>
+                ${info}
+                ${l.reason ? `<p class="text-xs text-gray-500 mt-1">사유: ${escapeHtml(l.reason)} <span class="text-gray-400">· ${fmt(l.createdAt)}</span></p>` : ''}
+                ${body}
+            </div>`;
+        }
+
+        // 근거 보고 선택지 — 조치 불필요로 닫힌 보고는 뺀다
+        function renderReportOptions(selectedId) {
+            const sel = document.getElementById('linkage-report');
+            const reports = fieldReportsOf(caseData).filter(r => !r.closure)
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            sel.innerHTML = reports.map(r =>
+                `<option value="${r.id}">${escapeHtml(fmt(r.createdAt, { month: 'numeric', day: 'numeric' }) + ' · ' + firstLine(r.text).slice(0, 40))}</option>`
+            ).join('') + '<option value="">근거 보고 없음</option>';
+            sel.value = selectedId && reports.some(r => r.id === selectedId) ? selectedId : '';
+        }
+
+        // 연계처 표 — PC는 표, 휴대폰은 같은 행을 카드처럼 쌓는다
+        function renderTargets() {
+            const filter = document.getElementById('category-filter');
+            const btn = (value, label) => `<button onclick="filterTargets('${value}')" aria-pressed="${targetCategory === value}"
+                class="px-3 py-1 rounded-full text-xs font-semibold ${targetCategory === value ? 'bg-navy text-white border border-navy' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}">${label}</button>`;
+            filter.innerHTML = btn('', '전체') + TARGET_CATEGORIES.map(c => btn(c, c)).join('');
+
+            const rows = linkageTargets.filter(t => !targetCategory || t.category === targetCategory);
+            const unknown = '<span class="text-gray-400">(미확인)</span>';
+            const label = txt => `<span class="md:hidden text-xs text-gray-500 w-20 shrink-0">${txt}</span>`;
+            document.getElementById('target-list').innerHTML = rows.length === 0
+                ? '<tr><td colspan="6" class="py-4 text-sm text-gray-400">이 종류의 연계처가 없습니다.</td></tr>'
+                : rows.map(t => {
+                    const on = selectedTargetId === t.id;
+                    const how = t.howToApply && t.howToApply !== '(미확인)' ? escapeHtml(t.howToApply) : unknown;
+                    const phone = (t.phone || '').trim();
+                    return `<tr onclick="selectTarget('${t.id}')" class="block md:table-row border border-gray-200 md:border-0 md:border-b rounded-lg md:rounded-none mb-2 md:mb-0 px-3 py-2 md:p-0 cursor-pointer ${on ? 'bg-gray-100 outline outline-2 outline-navy md:outline-0' : 'hover:bg-gray-50'}">
+                        <td class="flex md:table-cell gap-2 py-0.5 md:py-2 md:pr-2 align-top text-gray-700 whitespace-nowrap">${label('종류')}${escapeHtml(t.category || '-')}</td>
+                        <td class="flex md:table-cell gap-2 py-0.5 md:py-2 md:pr-3 align-top">${label('사업·기관')}<span><span class="font-semibold text-gray-900 whitespace-nowrap">${escapeHtml(t.serviceName)}</span><span class="md:block text-gray-600 whitespace-nowrap"> ${escapeHtml(t.agencyName)}</span>${t.verified ? '' : '<span class="md:block text-xs text-gray-400 whitespace-nowrap"> 실데이터 미확인</span>'}</span></td>
+                        <td class="flex md:table-cell gap-2 py-0.5 md:py-2 md:pr-3 align-top text-gray-700">${label('대상 요건')}<span>${escapeHtml(t.eligibility || '-')}</span></td>
+                        <td class="flex md:table-cell gap-2 py-0.5 md:py-2 md:pr-3 align-top text-gray-700 md:whitespace-nowrap">${label('신청 방법')}<span>${how}</span></td>
+                        <td class="flex md:table-cell gap-2 py-0.5 md:py-2 md:pr-2 align-top text-gray-700 md:whitespace-nowrap">${label('부서·연락처')}<span>${t.department ? escapeHtml(t.department) : unknown}<br class="hidden md:inline"><span class="md:hidden"> · </span>${phone ? escapeHtml(phone) : unknown}</span></td>
+                        <td class="flex md:table-cell gap-2 py-1 md:py-2 align-top md:text-center">${label('선택')}<input type="radio" name="linkage-target" value="${t.id}" ${on ? 'checked' : ''} aria-label="${escapeHtml(t.serviceName + ' ' + t.agencyName)} 선택" class="w-4 h-4 accent-navy"></td>
+                    </tr>`;
+                }).join('');
+        }
+
         function render() {
             const req = caseData;
 
-            // A. 대상자 정보
-            document.getElementById('info-service').textContent = req.serviceName || '-';
-            document.getElementById('info-name').textContent = req.userName || '-';
-            document.getElementById('info-phone').textContent = req.userPhone || '-';
-            document.getElementById('info-date').textContent = req.createdAt || '-';
-            document.getElementById('info-status-badge').innerHTML = STATUS_BADGE[req.status] || req.status;
+            // 어르신 화면: 요약 · 보고 · 메모 · 연계 흐름 · 연계처 선택
+            renderElder();
+
+            // ── 아래는 화면에서 숨긴 섹션(#legacy-sections). 코드는 남겨 둔다 ──
 
             // B. AI 대화 요약
             if (req.conversationSummary) {
@@ -634,14 +824,8 @@
             // C. 스테퍼
             renderStepper(req.status);
 
-            // D. 메모
-            renderNotes(req.notes || []);
-
             // E. 서비스 계획
             renderServicePlan(req.servicePlan);
-
-            // F. 연계 목록
-            renderLinkages(req.linkages || []);
 
             // G. 배정 근거
             if (req.assignedDept || req.assignmentRationale) {
@@ -1010,9 +1194,9 @@
                     body: JSON.stringify({ note }),
                 });
                 if (!resp.ok) throw new Error();
-                caseData = await resp.json();
+                // 메모 응답에는 계산된 상태가 없다 — 다시 불러와 화면 전체를 맞춘다
                 input.value = '';
-                renderNotes(caseData.notes || []);
+                if (await loadData()) render();
             } catch {
                 showToast('메모 추가에 실패했습니다.');
             }
@@ -1124,61 +1308,80 @@
 
         // ── 통합 연계 기능 ──
 
-        window.toggleLinkageForm = function() {
-            const form = document.getElementById('linkage-form');
-            const opening = form.classList.contains('hidden');
-            form.classList.toggle('hidden');
-            // 열 때는 항상 지역 연계처부터 보여준다
-            if (opening) switchLinkageTab('referral');
+        window.renderElder = renderElder;
+
+        // 어르신 화면을 연 시점까지의 새 보고를 '확인'으로 기록한다 (전담사회복지사 세션만).
+        // 이번에 기록한 보고는 화면을 닫을 때까지 새 보고로 보여 [연계하기]·[조치 불필요]를 붙인다
+        async function markReportsReviewed() {
+            if (sessionRole !== 'staff') return;
+            try {
+                const resp = await fetch('/api/case/' + requestId + '/reports/review', { method: 'POST' });
+                if (!resp.ok) return;
+                const data = await resp.json();
+                (data.reviewed || []).forEach(id => reviewedThisVisit.add(id));
+            } catch { /* 확인 기록이 실패해도 화면은 연다 */ }
+        }
+
+        // 연계처 선택 열기 — 근거 보고를 미리 고른다. null이면 '근거 보고 없음'
+        window.openLinkagePanel = function(reportId) {
+            const panel = document.getElementById('linkage-panel');
+            renderReportOptions(reportId);
+            panel.classList.remove('hidden');
+            // 열 때는 항상 지역 연계처부터 — 내부 연계는 한 단계 뒤
+            switchLinkageTab('referral');
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
+
+        window.closeLinkagePanel = function() {
+            document.getElementById('linkage-panel').classList.add('hidden');
+            selectedTargetId = null;
+            renderTargets();
+        };
+
+        // 이전 이름 유지 (?openLinkage= 로 여는 경로)
+        window.toggleLinkageForm = function() {
+            const panel = document.getElementById('linkage-panel');
+            if (panel.classList.contains('hidden')) openLinkagePanel(null);
+            else closeLinkagePanel();
+        };
+
+        window.linkageTabIsCollab = () => linkageTab === 'collaboration';
 
         window.switchLinkageTab = function(tab) {
             linkageTab = tab;
-            const tabCollab = document.getElementById('tab-collab');
-            const tabReferral = document.getElementById('tab-referral');
-            const fieldsCollab = document.getElementById('fields-collab');
-            const fieldsReferral = document.getElementById('fields-referral');
-
-            const label = document.getElementById('linkage-submit-label');
-            const icon = document.getElementById('linkage-submit-icon');
-            const hint = document.getElementById('linkage-form-hint-text');
-
-            if (tab === 'collaboration') {
-                tabCollab.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-indigo-600 text-white';
-                tabReferral.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-white text-indigo-600 border border-indigo-200';
-                fieldsCollab.classList.remove('hidden');
-                fieldsReferral.classList.add('hidden');
-                // 내부 연계는 시스템 안에서 실제로 요청이 전달된다
-                if (label) label.textContent = '요청 보내기';
-                if (icon) icon.textContent = 'send';
-                if (hint) hint.textContent = '요청을 받은 기관이 수락 또는 반려합니다';
-            } else {
-                tabReferral.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-indigo-600 text-white';
-                tabCollab.className = 'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors bg-white text-indigo-600 border border-indigo-200';
-                fieldsCollab.classList.add('hidden');
-                fieldsReferral.classList.remove('hidden');
-                // 외부 기관은 시스템 사용자가 아니다 — 시스템은 연계처를 기록할 뿐 아무것도 보내지 않는다
-                if (label) label.textContent = '연계처 선택';
-                if (icon) icon.textContent = 'add_link';
-                if (hint) hint.textContent = '선택한 기관에는 전담사회복지사가 직접 연락합니다';
-            }
+            const open = tab === 'collaboration';
+            document.getElementById('fields-collab').classList.toggle('hidden', !open);
+            document.getElementById('collab-toggle-icon').textContent = open ? 'expand_more' : 'chevron_right';
         };
 
-        window.submitLinkage = async function() {
-            const reason = document.getElementById('linkage-reason').value.trim();
-            if (!reason) { showToast('사유를 입력하세요.', 'warn'); return; }
+        window.filterTargets = function(category) {
+            targetCategory = category;
+            renderTargets();
+        };
+
+        window.selectTarget = function(id) {
+            selectedTargetId = id;
+            renderTargets();
+        };
+
+        window.submitLinkage = async function(kind) {
+            const isCollab = (kind || linkageTab) === 'collaboration';
+            const reasonEl = document.getElementById(isCollab ? 'linkage-reason-internal' : 'linkage-reason');
+            const reason = reasonEl.value.trim();
+            const fromReportId = document.getElementById('linkage-report').value || null;
 
             let body;
-            if (linkageTab === 'collaboration') {
+            if (isCollab) {
                 const fromDept = document.getElementById('linkage-from').value;
                 const toDept = document.getElementById('linkage-to').value;
                 const type = document.querySelector('input[name="linkage-type"]:checked')?.value || 'consultation';
-                if (fromDept === toDept) { showToast('같은 부서에는 요청할 수 없습니다.', 'warn'); return; }
-                body = { category: 'collaboration', type, fromDept, toDept, reason };
+                if (fromDept === toDept) { showToast('같은 기관에는 의뢰할 수 없습니다.', 'warn'); return; }
+                if (!reason) { showToast('의뢰 사유를 입력하세요.', 'warn'); return; }
+                body = { category: 'collaboration', type, fromDept, toDept, reason, fromReportId };
             } else {
-                const targetId = document.getElementById('linkage-target-service').value;
-                if (!targetId) { showToast('연계처를 선택하세요.', 'warn'); return; }
-                body = { category: 'referral', type: 'service_referral', targetId, reason };
+                if (!selectedTargetId) { showToast('연계처를 선택하세요.', 'warn'); return; }
+                if (!reason) { showToast('사유를 입력하세요.', 'warn'); return; }
+                body = { category: 'referral', type: 'service_referral', targetId: selectedTargetId, reason, fromReportId };
             }
 
             try {
@@ -1188,10 +1391,45 @@
                     body: JSON.stringify(body),
                 });
                 if (!resp.ok) { const err = await resp.json(); showToast(err.error); return; }
-                document.getElementById('linkage-reason').value = '';
-                document.getElementById('linkage-form').classList.add('hidden');
+                reasonEl.value = '';
+                closeLinkagePanel();
+                showToast(isCollab ? '의뢰를 보냈습니다.' : '연계를 기록했습니다. 기관에 연락한 뒤 결과를 기록하세요.', 'success');
                 if (await loadData()) render();
-            } catch { showToast('연계 요청에 실패했습니다.'); }
+            } catch { showToast('연계 기록에 실패했습니다.'); }
+        };
+
+        // ── 보고: 조치 불필요 (사유는 선택) ──
+        window.showClosureForm = function(reportId) {
+            const area = document.getElementById('report-actions-' + reportId);
+            if (!area) return;
+            area.innerHTML = `
+                <div class="w-full space-y-2">
+                    <label for="closure-reason-${reportId}" class="text-xs text-gray-500 block">사유 <span class="text-gray-400">(선택)</span></label>
+                    <input id="closure-reason-${reportId}" type="text" maxlength="500" placeholder="비워 두면 사유 없이 닫습니다" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40" />
+                    <div class="flex gap-1.5">
+                        <button onclick="submitClosure('${reportId}')" class="px-3 py-1.5 bg-navy text-white rounded-lg text-xs font-semibold hover:opacity-90">조치 불필요로 닫기</button>
+                        <button onclick="renderElder()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-600 hover:bg-gray-50">취소</button>
+                    </div>
+                </div>`;
+            document.getElementById('closure-reason-' + reportId)?.focus();
+        };
+
+        window.submitClosure = async function(reportId) {
+            const reason = (document.getElementById('closure-reason-' + reportId)?.value || '').trim();
+            try {
+                const resp = await fetch(appendToken(`/api/case/${requestId}/reports/${reportId}/closure`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason }),
+                });
+                if (!resp.ok) {
+                    const data = await resp.json().catch(() => ({}));
+                    return showToast(data.error || '처리하지 못했습니다.');
+                }
+                reviewedThisVisit.delete(reportId);
+                showToast('조치 불필요로 닫았습니다.', 'success');
+                if (await loadData()) render();
+            } catch { showToast('처리하지 못했습니다.'); }
         };
 
         window.updateLinkageExec = async function(linkageId, status) {
@@ -1228,11 +1466,11 @@
             if (!area) return;
             area.innerHTML = `
                 <div class="w-full">
-                    <label class="text-xs text-red-700 font-semibold block mb-1">반려 사유 (필수)</label>
-                    <textarea id="reject-reason-${linkageId}" rows="2" placeholder="반려 사유를 입력하세요..." class="w-full border border-red-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"></textarea>
+                    <label for="reject-reason-${linkageId}" class="text-xs text-gray-700 font-semibold block mb-1">반려 사유 (필수)</label>
+                    <textarea id="reject-reason-${linkageId}" rows="2" placeholder="반려 사유를 입력하세요..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40 resize-none"></textarea>
                     <div class="flex gap-1.5 mt-1.5">
-                        <button onclick="submitReject('${linkageId}')" class="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 transition-colors">반려하기</button>
-                        <button onclick="cancelReject()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition-colors">취소</button>
+                        <button onclick="submitReject('${linkageId}')" class="px-3 py-1.5 bg-navy text-white rounded-lg text-xs font-semibold hover:opacity-90">반려하기</button>
+                        <button onclick="cancelReject()" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs text-gray-600 hover:bg-gray-50">취소</button>
                     </div>
                 </div>`;
             document.getElementById('reject-reason-' + linkageId)?.focus();
@@ -1247,27 +1485,28 @@
             area.innerHTML = `
                 <div class="space-y-2">
                     <div>
-                        <label class="text-xs text-gray-500 block mb-1">접수 여부</label>
+                        <p class="text-xs text-gray-500 mb-1">접수 여부</p>
                         <div class="flex gap-2">
-                            <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs cursor-pointer has-[:checked]:bg-green-100 has-[:checked]:border-green-400">
-                                <input type="radio" name="result-accepted-${linkageId}" value="yes" checked class="w-3 h-3"> 예
+                            <label class="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-sm cursor-pointer has-[:checked]:border-gray-900 has-[:checked]:font-semibold">
+                                <input type="radio" name="result-accepted-${linkageId}" value="yes" checked class="accent-navy"> 예
                             </label>
-                            <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs cursor-pointer has-[:checked]:bg-gray-200 has-[:checked]:border-gray-400">
-                                <input type="radio" name="result-accepted-${linkageId}" value="no" class="w-3 h-3"> 아니오
+                            <label class="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-sm cursor-pointer has-[:checked]:border-gray-900 has-[:checked]:font-semibold">
+                                <input type="radio" name="result-accepted-${linkageId}" value="no" class="accent-navy"> 아니오
                             </label>
                         </div>
                     </div>
                     <div>
-                        <label class="text-xs text-gray-500 block mb-1">기관명</label>
+                        <label for="result-agency-${linkageId}" class="text-xs text-gray-500 block mb-1">기관명</label>
                         <input id="result-agency-${linkageId}" type="text" value="${escapeHtml(agencyName)}" readonly class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-600" />
                     </div>
                     <div>
-                        <label class="text-xs text-gray-500 block mb-1">사유 <span class="text-gray-400">(선택)</span></label>
-                        <textarea id="result-reason-${linkageId}" rows="2" placeholder="접수 결과에 대한 설명..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none"></textarea>
+                        <label for="result-reason-${linkageId}" class="text-xs text-gray-500 block mb-1">사유 <span class="text-gray-400">(선택)</span></label>
+                        <textarea id="result-reason-${linkageId}" rows="2" placeholder="접수 결과에 대한 설명..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40 resize-none"></textarea>
                     </div>
+                    <p class="text-xs text-gray-500">기록한 뒤에는 고칠 수 없습니다.</p>
                     <div class="flex gap-1.5">
-                        <button onclick="submitResult('${linkageId}')" class="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 transition-colors">기록하기</button>
-                        <button onclick="cancelReject()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-500 hover:bg-gray-50 transition-colors">취소</button>
+                        <button onclick="submitResult('${linkageId}')" class="px-4 py-2 bg-navy text-white rounded-lg text-sm font-semibold hover:opacity-90">기록하기</button>
+                        <button onclick="cancelReject()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">취소</button>
                     </div>
                 </div>`;
         };
@@ -1480,6 +1719,7 @@
             await loadDepartments();
             if (await loadData()) {
                 await loadReferralServices();
+                await markReportsReviewed();
                 render();
                 applyRoleVisibility();
                 startTokenTimer(caseData.expiresAt ? new Date(caseData.expiresAt).getTime() : null);

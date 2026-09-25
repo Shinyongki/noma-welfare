@@ -7,6 +7,8 @@ module.exports = {
         extend: {
             colors: {
                 "primary": "#98002E",
+                // 파일럿 2층 강조색 (하나만 쓴다)
+                "navy": "#1F3553",
                 "primary-light": "#B8003E",
                 "bg-warm": "#F8F5F2",
                 "bg-section": "#F1ECE7",
