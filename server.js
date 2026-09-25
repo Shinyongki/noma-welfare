@@ -13,6 +13,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import * as requestStore from './data/requestStore.mjs';
 import * as analyticsStore from './data/analyticsStore.mjs';
+import * as pilotStatus from './data/pilotStatus.mjs';
 import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1140,6 +1141,11 @@ const migratedCount = await requestStore.migrateToLinkages();
 if (migratedCount > 0) {
     console.log(`[마이그레이션] 기존 데이터 ${migratedCount}건을 linkages로 변환 완료`);
 }
+// 파일럿 2층: 보고 id·확인·종결 필드, 연계 fromReportId (여러 번 실행해도 결과가 같다)
+const reportMigration = await requestStore.migrateFieldReports();
+if (reportMigration.reports + reportMigration.linkages > 0) {
+    console.log(`[마이그레이션] 보고 ${reportMigration.reports}건, 연계 ${reportMigration.linkages}건 필드 보강`);
+}
 
 // ── 연계처 목록 로드 (서버 시작 시 1회) ──
 // 코드와 데이터를 분리한다 — 실제 연락처를 채울 때 코드는 건드리지 않는다
@@ -1150,6 +1156,12 @@ function loadLinkageTargets() {
         linkageTargets = JSON.parse(fs.readFileSync(file, 'utf-8'));
         const unverified = linkageTargets.filter(t => !t.verified).length;
         console.log(`[연계처] ${linkageTargets.length}건 로딩 완료 (미확인 ${unverified}건)`);
+        // 파일로 관리하므로 값이 틀려도 서버는 뜬다 — 대신 로그로 알린다
+        for (const t of linkageTargets) {
+            if (!['sigun', 'region', 'province'].includes(t.scope || 'sigun')) console.warn(`[연계처] ${t.id}: 알 수 없는 scope "${t.scope}"`);
+            if (t.scope === 'region' && !(Array.isArray(t.siguns) && t.siguns.length)) console.warn(`[연계처] ${t.id}: region인데 siguns가 비어 있음`);
+            if (t.sector && !['public', 'private'].includes(t.sector)) console.warn(`[연계처] ${t.id}: 알 수 없는 sector "${t.sector}"`);
+        }
     } catch (err) {
         linkageTargets = [];
         console.error('[연계처] 목록 로딩 실패:', err.message);
@@ -1159,6 +1171,24 @@ loadLinkageTargets();
 
 function findLinkageTarget(id) {
     return linkageTargets.find(t => t.id === id) || null;
+}
+
+/**
+ * 연계처가 이 시군을 맡는가 — 시군(sigun) / 그 시군을 포함하는 권역(region.siguns) / 경남 전체(province).
+ * scope가 없는 옛 항목은 시군 단위로 본다.
+ */
+function targetCoversSigun(t, sigun) {
+    const scope = t.scope || 'sigun';
+    if (scope === 'province') return true;
+    if (scope === 'region') return Array.isArray(t.siguns) && t.siguns.includes(sigun);
+    return t.sigun === sigun;
+}
+
+/** 시군 목록 중 하나라도 맡는 연계처. 시군을 모르면(빈 목록) 전체 — 수동 선택이 막히는 편이 더 나쁘다 */
+function targetsForSiguns(siguns) {
+    const list = [...new Set(siguns.filter(Boolean))];
+    if (list.length === 0) return linkageTargets;
+    return linkageTargets.filter(t => list.some(s => targetCoversSigun(t, s)));
 }
 
 // ── API Routes ──
@@ -2996,6 +3026,165 @@ app.get('/api/staff/cases', (req, res) => {
     res.json({ count: cases.length, items: cases });
 });
 
+// 명부 — 어르신 한 줄에 필요한 값만 계산해서 준다 (보고 원문·연계 상세는 싣지 않는다)
+app.get('/api/staff/roster', (req, res) => {
+    const svcName = req.session?.serviceName || null;
+    const now = Date.now();
+    const items = requestStore.getStaffCases(svcName).map(c => ({
+        id: c.id,
+        userName: c.userName,
+        worker: c.worker || null,
+        sigun: c.sigun || null,
+        ...pilotStatus.elderSummary(c, now),
+    }));
+    items.sort((a, b) => a.rank - b.rank || String(a.userName).localeCompare(String(b.userName), 'ko'));
+
+    const byWorker = new Map();
+    for (const it of items) {
+        const key = it.worker || '';
+        const w = byWorker.get(key) || { name: it.worker, elderCount: 0, newReportCount: 0 };
+        w.elderCount++;
+        w.newReportCount += it.newReportCount;
+        byWorker.set(key, w);
+    }
+    const workers = [...byWorker.values()].sort((a, b) =>
+        String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ko', { numeric: true }));
+
+    res.json({ count: items.length, workers, items, states: pilotStatus.ELDER_STATE, now: new Date(now).toISOString() });
+});
+
+// ── 2층 표 화면용 목록 (작업 7 v2) ──
+// 범위: ?worker=<생활지원사 이름>. 없으면 전체. 상태는 pilotStatus로 계산한다(저장하지 않음)
+function staffScopeCases(req) {
+    const cases = requestStore.getStaffCases(req.session?.serviceName || null);
+    const worker = typeof req.query.worker === 'string' && req.query.worker ? req.query.worker : null;
+    return worker ? cases.filter(c => (c.worker || '') === worker) : cases;
+}
+
+// 생활지원사 요약 — 처리할 일만 센다. 생활지원사별 보고 건수·순위는 두지 않는다
+app.get('/api/staff/workers', (req, res) => {
+    const now = Date.now();
+    const byWorker = new Map();
+    const totals = { elderCount: 0, newReportCount: 0, unrecordedCount: 0, staleElderCount: 0 };
+    for (const c of requestStore.getStaffCases(req.session?.serviceName || null)) {
+        const key = c.worker || '';
+        const w = byWorker.get(key) || { name: c.worker || null, elderCount: 0, newReportCount: 0, unrecordedCount: 0, staleElderCount: 0, lastReportAt: null };
+        const s = pilotStatus.elderSummary(c, now);
+        w.elderCount++;
+        w.newReportCount += s.newReportCount;
+        w.unrecordedCount += s.linkageCounts.unrecorded;
+        if (s.state === 'stale') w.staleElderCount++;
+        if (s.lastReport && (!w.lastReportAt || s.lastReport.at > w.lastReportAt)) w.lastReportAt = s.lastReport.at;
+        byWorker.set(key, w);
+    }
+    const items = [...byWorker.values()]
+        .map(w => ({ ...w, needsAction: w.newReportCount + w.unrecordedCount + w.staleElderCount > 0 }))
+        .sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ko', { numeric: true }));
+    for (const w of items) for (const k of Object.keys(totals)) totals[k] += w[k];
+    res.json({ count: items.length, items, totals });
+});
+
+// 전체 보고 목록 — 탭: needs(처리 필요) / new(새 보고) / recent30(최근 30일)
+app.get('/api/staff/reports', (req, res) => {
+    const now = Date.now();
+    const tab = ['needs', 'new', 'recent30'].includes(req.query.tab) ? req.query.tab : 'needs';
+    const counts = { needs: 0, new: 0, recent30: 0 };
+    const items = [];
+    for (const c of staffScopeCases(req)) {
+        const linkages = c.linkages || [];
+        for (const r of pilotStatus.fieldReports(c)) {
+            const state = pilotStatus.reportState(r, linkages);
+            const tabs = pilotStatus.reportTabsOf(state, r.createdAt, now);
+            for (const k of Object.keys(counts)) if (tabs[k]) counts[k]++;
+            if (!tabs[tab]) continue;
+            items.push({
+                id: r.id, caseId: c.id, elderName: c.userName, worker: c.worker || null,
+                createdAt: r.createdAt, text: r.text, state,
+                linkageCount: linkages.filter(l => r.id && l.fromReportId === r.id).length,
+            });
+        }
+    }
+    items.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    res.json({ tab, counts, items });
+});
+
+// 전체 연계 목록 — 탭: unrecorded(결과 미기록) / notaccepted(미접수·반려) / all / received(받은 의뢰 대기)
+// 받은 의뢰(내부 의뢰의 받는 기관 = 이 세션 기관)는 생활지원사 범위와 무관하게 싣는다.
+// 받는 기관에 싣는 어르신 정보는 기존에 이미 열람 가능한 값(이름·담당 생활지원사)을 넘지 않는다.
+app.get('/api/staff/linkages', (req, res) => {
+    const now = Date.now();
+    const tab = ['unrecorded', 'notaccepted', 'all', 'received'].includes(req.query.tab) ? req.query.tab : 'unrecorded';
+    const targetId = typeof req.query.targetId === 'string' ? req.query.targetId : null;
+    const myDept = req.session?.deptId || null;
+    const targetsById = new Map(linkageTargets.map(t => [t.id, t]));
+
+    const inScope = new Set(staffScopeCases(req).map(c => c.id));
+    const counts = { unrecorded: 0, notaccepted: 0, all: 0, received: 0 };
+    const items = [];
+    for (const c of requestStore.getStaffCases(req.session?.serviceName || null)) {
+        const reports = pilotStatus.fieldReports(c);
+        for (const l of c.linkages || []) {
+            const received = l.category === 'collaboration' && !!myDept && l.toDept === myDept;
+            if (!inScope.has(c.id) && !received) continue;
+            if (targetId && l.target?.id !== targetId) continue;
+            const progress = pilotStatus.linkageProgress(l);
+            const tabs = {
+                unrecorded: progress === 'unrecorded',
+                notaccepted: pilotStatus.isNotAccepted(l),
+                all: true,
+                received: received && l.approvalStatus === 'pending',
+            };
+            for (const k of Object.keys(counts)) if (tabs[k]) counts[k]++;
+            if (!tabs[tab]) continue;
+            const t = l.target ? targetsById.get(l.target.id) : null;
+            const fr = l.fromReportId ? reports.find(r => r.id === l.fromReportId) : null;
+            items.push({
+                id: l.id, caseId: c.id, elderName: c.userName, worker: c.worker || null,
+                category: l.category, type: l.type, createdAt: l.createdAt, reason: l.reason || '',
+                target: l.target ? {
+                    id: l.target.id, serviceName: l.target.serviceName, agencyName: l.target.agencyName,
+                    category: t?.category || null, department: t?.department || '', phone: t?.phone || '',
+                    sector: t?.sector || null, scope: t?.scope || 'sigun',
+                } : null,
+                fromDept: l.fromDept || null, toDept: l.toDept || null,
+                fromDeptName: l.fromDept ? getDeptName(l.fromDept) : null,
+                toDeptName: l.toDept ? getDeptName(l.toDept) : null,
+                approvalStatus: l.approvalStatus,
+                received,
+                fromReport: fr ? { id: fr.id, createdAt: fr.createdAt, firstLine: pilotStatus.firstLine(fr.text) } : null,
+                progress, result: l.result || null,
+                rejectReason: pilotStatus.rejectReasonOf(l),
+                elapsedDays: pilotStatus.elapsedDays(l, now),
+            });
+        }
+    }
+    // 결과 미기록·받은 의뢰는 오래된 것이 위로, 나머지는 최근 것이 위로
+    const oldestFirst = tab === 'unrecorded' || tab === 'received';
+    items.sort((a, b) => oldestFirst
+        ? String(a.createdAt).localeCompare(String(b.createdAt))
+        : String(b.createdAt).localeCompare(String(a.createdAt)));
+    res.json({ tab, counts, items });
+});
+
+// 연계처별 건수 — 생활지원사 범위와 무관.
+// 목록은 이 세션이 보는 어르신들의 시군 + 그 시군을 포함하는 권역 + 경남 전체
+app.get('/api/staff/linkage-targets', (req, res) => {
+    const month = pilotStatus.seoulMonthKey(Date.now());
+    const cases = requestStore.getStaffCases(req.session?.serviceName || null);
+    const siguns = typeof req.query.sigun === 'string' && req.query.sigun ? [req.query.sigun] : cases.map(c => c.sigun);
+    const targets = targetsForSiguns(siguns);
+    const stat = new Map(targets.map(t => [t.id, { monthCount: 0, unrecordedCount: 0 }]));
+    for (const c of cases) {
+        for (const l of c.linkages || []) {
+            const s = l.target && stat.get(l.target.id);
+            if (!s) continue;
+            if (pilotStatus.seoulMonthKey(l.createdAt) === month) s.monthCount++;
+            if (pilotStatus.linkageProgress(l) === 'unrecorded') s.unrecordedCount++;
+        }
+    }
+    res.json({ month, count: targets.length, items: targets.map(t => ({ ...t, ...stat.get(t.id) })) });
+});
+
 // ── Case API Routes (담당자 처리 페이지용) ──
 
 const MAX_REFERRAL_CHAIN_DEPTH = 10;
@@ -3009,7 +3198,39 @@ app.get('/api/case/:requestId', (req, res) => {
     const request = requestStore.findById(req.params.requestId);
     if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
     const chain = getSafeReferralChain(req.params.requestId);
-    res.json({ ...request, linkages: request.linkages || [], chain });
+    // 보고·어르신 상태는 저장하지 않고 여기서 계산해 붙인다
+    res.json({
+        ...request, linkages: request.linkages || [], chain,
+        reportStates: pilotStatus.reportStates(request),
+        elderSummary: pilotStatus.elderSummary(request),
+    });
+});
+
+// 보고 확인 기록 — 어르신 화면을 연 시점까지의 새 보고. 전담사회복지사(staff) 세션만 남긴다
+app.post('/api/case/:requestId/reports/review', async (req, res) => {
+    if (req.session?.role !== 'staff') {
+        return res.status(403).json({ error: '담당자 세션에서만 확인을 기록합니다.' });
+    }
+    const by = req.session.deptName || req.session.serviceName || '담당자';
+    const reviewed = await requestStore.markReportsReviewed(req.params.requestId, by);
+    if (!reviewed) return res.status(404).json({ error: '어르신을 찾을 수 없습니다.' });
+    res.json({ success: true, reviewed });
+});
+
+// 보고 종결(조치 불필요). 사유는 선택 입력
+app.post('/api/case/:requestId/reports/:reportId/closure', async (req, res) => {
+    const reason = typeof req.body.reason === 'string' ? req.body.reason : '';
+    if (reason.length > 500) return res.status(400).json({ error: '사유가 너무 깁니다.' });
+    const by = req.session?.deptName || req.session?.serviceName || '담당자';
+    const out = await requestStore.closeReport(req.params.requestId, req.params.reportId, { reason, by });
+    const errors = {
+        not_found: [404, '어르신을 찾을 수 없습니다.'],
+        report_not_found: [404, '보고를 찾을 수 없습니다.'],
+        already_closed: [400, '이미 조치 불필요로 닫힌 보고입니다.'],
+        has_linkage: [400, '연계가 붙은 보고는 조치 불필요로 닫을 수 없습니다.'],
+    };
+    if (out.error) { const [s, m] = errors[out.error]; return res.status(s).json({ error: m }); }
+    res.json({ success: true, report: out.note });
 });
 
 // 상태 변경 (전진만 허용, referred는 별도 허용)
@@ -3390,10 +3611,21 @@ app.post('/api/case/:requestId/collaboration/:collabId/notes', async (req, res) 
 
 // 통합 연계 생성 (이메일 안 보냄)
 app.post('/api/case/:id/linkage', async (req, res) => {
-    const { category, type, fromDept, toDept, targetId, reason } = req.body;
-    if (!reason) return res.status(400).json({ error: '사유를 입력하세요.' });
+    const { category, type, fromDept, toDept, targetId, fromReportId } = req.body;
+    const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+    // 외부 연계 사유는 선택 입력이다. 내부 의뢰는 받는 기관이 판단할 근거가 필요하므로 필수로 둔다
+    if (category !== 'referral' && !reason) return res.status(400).json({ error: '사유를 입력하세요.' });
+    if (reason.length > 1000) return res.status(400).json({ error: '사유가 너무 깁니다.' });
     if (category === 'collaboration' && (!fromDept || !toDept)) {
         return res.status(400).json({ error: '요청 부서와 대상 부서를 선택하세요.' });
+    }
+
+    // 근거 보고는 이 어르신의 보고여야 하고, 조치 불필요로 닫힌 보고는 쓸 수 없다
+    if (fromReportId) {
+        const caseReq = requestStore.findById(req.params.id);
+        const report = pilotStatus.fieldReports(caseReq).find(r => r.id === fromReportId);
+        if (!report) return res.status(400).json({ error: '이 어르신의 보고가 아닙니다.' });
+        if (report.closure) return res.status(400).json({ error: '조치 불필요로 닫힌 보고입니다.' });
     }
 
     // 외부 연계 대상은 연계처 목록에서만 고른다 (deptServiceMap 참조 없음)
@@ -3402,6 +3634,11 @@ app.post('/api/case/:id/linkage', async (req, res) => {
         if (!targetId) return res.status(400).json({ error: '연계처를 선택하세요.' });
         const found = findLinkageTarget(targetId);
         if (!found) return res.status(400).json({ error: '등록되지 않은 연계처입니다.' });
+        // 목록에서 거른 것과 같은 기준 — 이 어르신 시군을 맡지 않는 연계처는 고를 수 없다
+        const caseSigun = requestStore.findById(req.params.id)?.sigun || null;
+        if (caseSigun && !targetCoversSigun(found, caseSigun)) {
+            return res.status(400).json({ error: '이 어르신 시군을 맡지 않는 연계처입니다.' });
+        }
         target = { id: found.id, serviceName: found.serviceName, agencyName: found.agencyName };
     }
 
@@ -3409,6 +3646,7 @@ app.post('/api/case/:id/linkage', async (req, res) => {
         category, type, fromDept, toDept, target,
         targetService: target ? target.serviceName : null,
         reason, submittedBy: '담당자',
+        fromReportId: fromReportId || null,
     });
     if (!linkage) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
@@ -3445,11 +3683,10 @@ app.post('/api/case/:id/linkage/:lid/result', async (req, res) => {
 // 연계처 목록 (외부 연계 대상 선택지) — /api/case 아래라 세션·케이스 토큰 인증이 모두 적용된다
 app.get('/api/case/:id/linkage-targets', (req, res) => {
     const request = requestStore.findById(req.params.id);
-    // 대상자 시군이 있으면 같은 시군만 — 경남 전체로 확대돼도 구조가 바뀌지 않는다.
-    // 시군을 알 수 없으면 전체를 준다. 수동 선택이 막히는 편이 더 나쁘다.
+    // 케이스 시군 + 그 시군을 포함하는 권역 + 경남 전체. 시군을 알 수 없으면 전체를 준다
     const sigun = req.query.sigun || request?.sigun || null;
-    const items = sigun ? linkageTargets.filter(t => t.sigun === sigun) : linkageTargets;
-    res.json({ count: items.length, items });
+    const items = targetsForSiguns([sigun]);
+    res.json({ sigun, count: items.length, items });
 });
 
 // 연계 실행 상태 변경

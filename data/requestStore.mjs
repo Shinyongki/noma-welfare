@@ -249,15 +249,90 @@ export async function addFieldReport(id, text, createdBy) {
         if (!req) return null;
         if (!req.notes) req.notes = [];
         const note = {
+            id: 'fr-' + crypto.randomUUID(),
             type: 'field_report',
             text,
             createdAt: new Date().toISOString(),
             createdBy: createdBy || '',
+            // 2층 처리 기록 — 상태는 저장하지 않고 이 값들로 계산한다 (pilotStatus.mjs)
+            reviewedAt: null,
+            reviewedBy: null,
+            closure: null,
         };
         req.notes.push(note);
         req.updatedAt = new Date().toISOString();
         await writeAll(store);
         return note;
+    });
+}
+
+/** 아직 확인하지 않은 보고를 모두 확인으로 기록. 이번에 기록한 보고 id 배열을 돌려준다 */
+export async function markReportsReviewed(id, by) {
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[id];
+        if (!req) return null;
+        const now = new Date().toISOString();
+        const reviewed = [];
+        for (const n of req.notes || []) {
+            if (n.type === 'field_report' && n.id && !n.reviewedAt) {
+                n.reviewedAt = now;
+                n.reviewedBy = by || '';
+                reviewed.push(n.id);
+            }
+        }
+        if (reviewed.length > 0) await writeAll(store);
+        return reviewed;
+    });
+}
+
+/**
+ * 보고를 '조치 불필요'로 닫는다. 사유는 선택 — 비어 있으면 사유 없이 닫는다.
+ * 연계가 붙은 보고, 이미 닫힌 보고는 닫지 않는다.
+ * @returns {{ note } | { error }}
+ */
+export async function closeReport(id, reportId, { reason, by }) {
+    return withLock(async () => {
+        const store = readAll();
+        const req = store[id];
+        if (!req) return { error: 'not_found' };
+        const note = (req.notes || []).find(n => n.type === 'field_report' && n.id === reportId);
+        if (!note) return { error: 'report_not_found' };
+        if (note.closure) return { error: 'already_closed' };
+        if ((req.linkages || []).some(l => l.fromReportId === reportId)) return { error: 'has_linkage' };
+        const now = new Date().toISOString();
+        note.closure = { reason: (reason || '').trim(), at: now, by: by || '' };
+        // 닫았다면 읽은 것이다
+        if (!note.reviewedAt) { note.reviewedAt = now; note.reviewedBy = by || ''; }
+        await writeAll(store);
+        return { note };
+    });
+}
+
+/**
+ * 파일럿 2층 이관 — 여러 번 실행해도 결과가 같다.
+ * 보고에 id·확인·종결 필드를, 연계에 fromReportId를 채운다. 기존 값은 건드리지 않는다.
+ */
+export async function migrateFieldReports() {
+    return withLock(async () => {
+        const store = readAll();
+        let reports = 0, linkages = 0;
+        for (const req of Object.values(store)) {
+            for (const n of req.notes || []) {
+                if (n.type !== 'field_report') continue;
+                let changed = false;
+                if (!n.id) { n.id = 'fr-' + crypto.randomUUID(); changed = true; }
+                for (const k of ['reviewedAt', 'reviewedBy', 'closure']) {
+                    if (!(k in n)) { n[k] = null; changed = true; }
+                }
+                if (changed) reports++;
+            }
+            for (const l of req.linkages || []) {
+                if (!('fromReportId' in l)) { l.fromReportId = null; linkages++; }
+            }
+        }
+        if (reports + linkages > 0) await writeAll(store);
+        return { reports, linkages };
     });
 }
 
@@ -372,6 +447,8 @@ export async function addLinkage(requestId, data) {
             target: data.target || null,
             // 외부 연계 접수 결과. null이면 미기록 — 기록되지 않으면 데이터에서 사라진다
             result: null,
+            // 근거가 된 생활지원사 보고. 보고 없이 만든 연계는 null
+            fromReportId: data.fromReportId || null,
             targetService: data.targetService || null,
             reason: data.reason || '',
             approvalStatus: isReferral ? 'accepted' : 'pending',
