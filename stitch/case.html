@@ -84,21 +84,53 @@
         </div>
     </div>
 
-    <!-- 케이스 목록 (requestId 없이 로그인 시) -->
-    <div id="state-case-list" class="hidden min-h-screen py-8 px-4">
-        <div class="max-w-2xl mx-auto animate-fade-up">
-            <div class="bg-gradient-to-br from-green-700 to-green-900 rounded-t-2xl px-6 py-5 text-white">
-                <h1 class="text-xl font-bold flex items-center gap-2">
-                    <span class="material-symbols-rounded" aria-hidden="true">folder_open</span>
-                    담당 케이스 목록
-                </h1>
-                <p class="text-green-200 text-sm mt-1">접수된 상담 케이스를 확인하고 처리하세요.</p>
+    <!-- 명부 (requestId 없이 로그인 시) — 생활지원사별 담당 어르신과 보고 상태 -->
+    <div id="state-case-list" class="hidden min-h-screen">
+
+        <header class="bg-white border-b border-gray-200 sticky top-0 z-20">
+            <div class="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
+                <span class="font-bold text-gray-900">먼저봄</span>
+                <span class="text-sm text-gray-400">명부</span>
+                <span id="roster-dept" class="ml-auto text-sm text-gray-500 truncate"></span>
             </div>
-            <div class="bg-white rounded-b-2xl shadow-lg border border-gray-100 overflow-hidden">
-                <div id="case-list-body" class="p-4">
-                    <p class="text-gray-400 text-sm text-center py-8">불러오는 중...</p>
+        </header>
+
+        <div class="max-w-6xl mx-auto px-4 py-6 lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-6 lg:items-start">
+
+            <!-- 생활지원사 목록 (PC) / 선택 상자 (휴대폰) -->
+            <nav aria-label="생활지원사" class="mb-4 lg:mb-0 lg:sticky lg:top-20">
+                <label for="roster-worker-select" class="lg:hidden text-xs text-gray-500 block mb-1">생활지원사</label>
+                <select id="roster-worker-select" onchange="selectRosterWorker(this.value)" class="lg:hidden w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"></select>
+                <ul id="roster-workers" class="hidden lg:block bg-white border border-gray-200 rounded-xl py-1 max-h-[calc(100vh-7rem)] overflow-y-auto"></ul>
+            </nav>
+
+            <section class="bg-white border border-gray-200 rounded-xl">
+                <div class="px-4 pt-4 pb-3 border-b border-gray-200">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h1 id="roster-title" class="text-base font-bold text-gray-900">전체</h1>
+                        <span id="roster-count" class="text-sm text-gray-500"></span>
+                        <label for="roster-search" class="sr-only">어르신 번호 검색</label>
+                        <input id="roster-search" type="search" inputmode="numeric" placeholder="어르신 번호 검색" oninput="setRosterQuery(this.value)"
+                            class="ml-auto w-full sm:w-48 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40" />
+                    </div>
+                    <div id="roster-tabs" class="flex flex-wrap gap-1.5 mt-3" role="tablist" aria-label="상태"></div>
                 </div>
-            </div>
+
+                <table class="w-full text-sm">
+                    <thead class="hidden md:table-header-group text-xs text-gray-500">
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left font-medium px-4 py-2 whitespace-nowrap">어르신</th>
+                            <th class="roster-worker-col text-left font-medium px-2 py-2 whitespace-nowrap">생활지원사</th>
+                            <th class="text-left font-medium px-2 py-2">최근 보고</th>
+                            <th class="text-left font-medium px-2 py-2 whitespace-nowrap">상태</th>
+                            <th class="text-left font-medium px-4 py-2 whitespace-nowrap">연계 (진행·미기록·완료)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="case-list-body">
+                        <tr><td colspan="5" class="px-4 py-8 text-center text-sm text-gray-400">불러오는 중...</td></tr>
+                    </tbody>
+                </table>
+            </section>
         </div>
     </div>
 
@@ -1751,38 +1783,109 @@
             referred: { label: '이관', bg: 'bg-gray-100', text: 'text-gray-600' },
         };
 
+        // ── 명부 ──
+        // 서버가 상태를 계산해 정렬까지 해서 준다(/api/staff/roster). 화면은 거르기만 한다
+        const ROSTER_TABS = [
+            ['', '전체'], ['new', '새 보고'], ['unrecorded', '결과 미기록'], ['linking', '연계 진행'], ['stale', '3주 이상 보고 없음'],
+        ];
+        let roster = { items: [], workers: [] };
+        // 선택은 이 탭 안에서만 기억한다 — 어르신 화면에 다녀와도 같은 자리로 돌아온다
+        const ROSTER_KEY = 'mb-roster-view';
+        let rosterView = { worker: '', tab: '', q: '' };
+        try { Object.assign(rosterView, JSON.parse(sessionStorage.getItem(ROSTER_KEY) || '{}')); } catch { /* 저장소를 못 쓰면 기본값 */ }
+        function saveRosterView() {
+            try { sessionStorage.setItem(ROSTER_KEY, JSON.stringify(rosterView)); } catch { /* 무시 */ }
+        }
+
         async function loadCaseList() {
             show($caseList);
+            document.getElementById('roster-dept').textContent = sessionDeptName || '';
             const body = document.getElementById('case-list-body');
             try {
-                const resp = await fetch('/api/staff/cases');
+                const resp = await fetch('/api/staff/roster');
                 if (!resp.ok) throw new Error();
-                const data = await resp.json();
-                const cases = data.items || [];
-                if (cases.length === 0) {
-                    body.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">접수된 케이스가 없습니다.</p>';
-                    return;
-                }
-                body.innerHTML = `<p class="text-xs text-gray-400 mb-3">총 ${cases.length}건</p>` +
-                    cases.map(c => {
-                        const st = STATUS_LABELS[c.status] || STATUS_LABELS.open;
-                        const date = c.createdAt ? new Date(c.createdAt).toLocaleString('ko-KR', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '-';
-                        return `<a href="/case/${c.id}" class="block border border-gray-100 rounded-xl p-4 mb-2 hover:bg-gray-50 hover:border-gray-200 transition-colors cursor-pointer">
-                            <div class="flex items-center gap-2 mb-1.5">
-                                <span class="font-semibold text-gray-800 text-sm">${escapeHtml(c.userName)}</span>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${st.bg} ${st.text}">${st.label}</span>
-                                <span class="text-xs text-gray-400 ml-auto">${date}</span>
-                            </div>
-                            <div class="flex items-center gap-2 text-xs text-gray-500">
-                                <span class="material-symbols-rounded text-sm" aria-hidden="true">support_agent</span>
-                                <span>${escapeHtml(c.serviceName)}</span>
-                                ${c.linkageCount > 0 ? `<span class="ml-auto inline-flex items-center gap-0.5 text-indigo-500"><span class="material-symbols-rounded text-sm" aria-hidden="true">link</span>${c.linkageCount}</span>` : ''}
-                            </div>
-                        </a>`;
-                    }).join('');
+                roster = await resp.json();
             } catch {
-                body.innerHTML = '<p class="text-red-400 text-sm text-center py-8">케이스 목록을 불러올 수 없습니다.</p>';
+                body.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-sm text-red-600">명부를 불러올 수 없습니다.</td></tr>';
+                return;
             }
+            if (rosterView.worker && !roster.workers.some(w => (w.name || '') === rosterView.worker)) rosterView.worker = '';
+            document.getElementById('roster-search').value = rosterView.q;
+            renderRoster();
+        }
+
+        window.selectRosterWorker = function(name) { rosterView.worker = name; saveRosterView(); renderRoster(); };
+        window.selectRosterTab = function(tab) { rosterView.tab = tab; saveRosterView(); renderRoster(); };
+        window.setRosterQuery = function(q) { rosterView.q = q; saveRosterView(); renderRoster(); };
+
+        function renderRoster() {
+            const all = roster.items || [];
+            const workers = roster.workers || [];
+            const newTotal = workers.reduce((a, w) => a + w.newReportCount, 0);
+            const isAll = !rosterView.worker;
+
+            // 생활지원사 목록 — 맨 위 "전체", 새 보고 건수
+            const wItem = (value, name, count, newCount) => {
+                const on = rosterView.worker === value;
+                return `<li><button data-worker="${escapeHtml(value)}" onclick="selectRosterWorker(this.dataset.worker)" aria-current="${on}"
+                    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-left ${on ? 'bg-gray-100 font-semibold text-gray-900 border-l-2 border-navy' : 'text-gray-700 hover:bg-gray-50 border-l-2 border-transparent'}">
+                    <span class="truncate">${escapeHtml(name)}</span>
+                    <span class="text-xs text-gray-400">${count}</span>
+                    ${newCount > 0 ? `<span class="ml-auto">${mark('새 ' + newCount, 'fill')}</span>` : ''}
+                </button></li>`;
+            };
+            document.getElementById('roster-workers').innerHTML =
+                wItem('', '전체', all.length, newTotal) +
+                '<li class="border-t border-gray-100 my-1" aria-hidden="true"></li>' +
+                workers.map(w => wItem(w.name || '', w.name || '(담당 미지정)', w.elderCount, w.newReportCount)).join('');
+            document.getElementById('roster-worker-select').innerHTML =
+                `<option value="">전체 (${all.length}명${newTotal ? ', 새 보고 ' + newTotal : ''})</option>` +
+                workers.map(w => `<option value="${escapeHtml(w.name || '')}" ${rosterView.worker === (w.name || '') ? 'selected' : ''}>${escapeHtml(w.name || '(담당 미지정)')} (${w.elderCount}명${w.newReportCount ? ', 새 보고 ' + w.newReportCount : ''})</option>`).join('');
+
+            // 선택 범위 → 상태 탭 → 번호 검색
+            const scope = isAll ? all : all.filter(i => (i.worker || '') === rosterView.worker);
+            const tabCount = t => t ? scope.filter(i => i.state === t).length : scope.length;
+            document.getElementById('roster-tabs').innerHTML = ROSTER_TABS.map(([t, label]) => {
+                const on = rosterView.tab === t;
+                return `<button role="tab" aria-selected="${on}" onclick="selectRosterTab('${t}')"
+                    class="px-3 py-1 rounded-full text-xs font-semibold ${on ? 'bg-navy text-white border border-navy' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}">${label} ${tabCount(t)}</button>`;
+            }).join('');
+            const q = rosterView.q.trim();
+            const rows = scope
+                .filter(i => !rosterView.tab || i.state === rosterView.tab)
+                .filter(i => !q || String(i.userName || '').includes(q) || String(i.id).includes(q));
+
+            document.getElementById('roster-title').textContent = isAll ? '전체' : rosterView.worker;
+            document.getElementById('roster-count').textContent = `${rows.length}명`;
+            // 생활지원사 칸은 "전체"일 때만
+            document.querySelectorAll('.roster-worker-col').forEach(th => th.style.display = isAll ? '' : 'none');
+
+            const body = document.getElementById('case-list-body');
+            if (rows.length === 0) {
+                body.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-sm text-gray-400">${all.length === 0 ? '등록된 어르신이 없습니다.' : '해당하는 어르신이 없습니다.'}</td></tr>`;
+                return;
+            }
+            const cnt = (n, label, strong) => `<span class="${n > 0 ? (strong ? 'font-semibold text-gray-900' : 'text-gray-800') : 'text-gray-300'}">${label} ${n}</span>`;
+            body.innerHTML = rows.map(i => {
+                const [label, shape] = ELDER_MARK[i.state] || [i.stateLabel || i.state, 'text'];
+                const lr = i.lastReport;
+                const c = i.linkageCounts || { progress: 0, unrecorded: 0, done: 0 };
+                const href = '/case/' + encodeURIComponent(i.id);
+                return `<tr data-href="${href}" onclick="location.href=this.dataset.href" class="block md:table-row border-b border-gray-100 last:border-b-0 px-4 py-3 md:p-0 cursor-pointer hover:bg-gray-50">
+                    <td class="block md:table-cell md:px-4 md:py-2.5 align-top whitespace-nowrap">
+                        <a href="${href}" class="font-semibold text-gray-900 hover:underline" onclick="event.stopPropagation()">${escapeHtml(i.userName || i.id)}</a>
+                        <span class="md:hidden float-right">${mark(label, shape)}</span>
+                    </td>
+                    ${isAll ? `<td class="block md:table-cell md:px-2 md:py-2.5 align-top text-gray-600 text-xs md:text-sm whitespace-nowrap">${escapeHtml(i.worker || '-')}</td>` : ''}
+                    <td class="block md:table-cell md:px-2 md:py-2.5 align-top text-gray-700 mt-0.5 md:mt-0">
+                        ${lr ? `<span class="text-xs text-gray-500 mr-1.5 whitespace-nowrap">${fmt(lr.at, { month: 'numeric', day: 'numeric' })}</span><span>${escapeHtml(lr.firstLine)}</span>` : '<span class="text-gray-400">보고 없음</span>'}
+                    </td>
+                    <td class="hidden md:table-cell md:px-2 md:py-2.5 align-top whitespace-nowrap">${mark(label, shape)}</td>
+                    <td class="block md:table-cell md:px-4 md:py-2.5 align-top text-xs whitespace-nowrap space-x-2 mt-1 md:mt-0">
+                        ${cnt(c.progress, '진행', false)}${cnt(c.unrecorded, '미기록', true)}${cnt(c.done, '완료', false)}
+                    </td>
+                </tr>`;
+            }).join('');
         }
 
         // 로그인 게이트용 기관 목록 (인증 전에도 필요)
