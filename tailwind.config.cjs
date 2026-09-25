@@ -9,6 +9,10 @@ module.exports = {
                 "primary": "#98002E",
                 // 파일럿 2층 강조색 (하나만 쓴다)
                 "navy": "#1F3553",
+                // 파일럿 2층 무채색 — 바탕 / 카드 테두리 / 카드 제목 줄
+                "mb-page": "#E9EAEC",
+                "mb-line": "#CFCFCB",
+                "mb-head": "#F4F4F2",
                 "primary-light": "#B8003E",
                 "bg-warm": "#F8F5F2",
                 "bg-section": "#F1ECE7",

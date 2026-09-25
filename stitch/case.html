@@ -103,10 +103,10 @@
     </div>
 
     <!-- 메인 콘텐츠 — 어르신 화면 (보고 → 연계 흐름 → 연계처 선택) -->
-    <div id="state-main" class="hidden min-h-screen">
+    <div id="state-main" class="hidden min-h-screen bg-mb-page">
 
         <!-- 헤더 (흰색) -->
-        <header class="bg-white border-b border-gray-200 sticky top-0 z-20">
+        <header class="bg-white border-b border-mb-line sticky top-0 z-20">
             <div class="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
                 <a href="/case" class="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-0.5">
                     <span class="material-symbols-rounded text-lg" aria-hidden="true">arrow_back</span>명부
@@ -132,30 +132,32 @@
                 <div class="contents lg:flex lg:flex-col lg:gap-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
 
                     <!-- 어르신 요약 -->
-                    <section class="order-1 bg-white border border-gray-200 rounded-xl px-5 py-4">
-                        <div class="flex items-center gap-2">
+                    <section class="order-1 bg-white border border-mb-line rounded-xl overflow-hidden">
+                        <div class="flex items-center gap-2 px-5 py-3 bg-mb-head border-b border-mb-line">
                             <h1 id="elder-name" class="text-lg font-bold text-gray-900">-</h1>
                             <span id="elder-state" class="ml-auto"></span>
                         </div>
-                        <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-                            <dt class="text-gray-500">담당 생활지원사</dt><dd id="elder-worker" class="text-gray-900">-</dd>
-                            <dt class="text-gray-500">시군</dt><dd id="elder-sigun" class="text-gray-900">-</dd>
+                        <dl class="px-5 py-3 grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1.5">
+                            <dt class="text-xs text-gray-500">담당 생활지원사</dt><dd id="elder-worker" class="text-sm font-semibold text-gray-900">-</dd>
+                            <dt class="text-xs text-gray-500">시군</dt><dd id="elder-sigun" class="text-sm font-semibold text-gray-900">-</dd>
                         </dl>
                     </section>
 
                     <!-- 생활지원사 보고 -->
-                    <section class="order-2 bg-white border border-gray-200 rounded-xl px-5 py-4">
-                        <h2 class="text-sm font-semibold text-gray-900">생활지원사 보고</h2>
-                        <div id="report-list" class="mt-1"></div>
+                    <section class="order-2 bg-white border border-mb-line rounded-xl overflow-hidden">
+                        <div class="flex items-center gap-2 px-5 py-3 bg-mb-head border-b border-mb-line"><h2 class="text-base font-bold text-gray-900">생활지원사 보고</h2></div>
+                        <div id="report-list" class="px-4 py-4 space-y-3"></div>
                     </section>
 
                     <!-- 담당자 메모 -->
-                    <section class="order-5 bg-white border border-gray-200 rounded-xl px-5 py-4">
-                        <h2 class="text-sm font-semibold text-gray-900 mb-2">담당자 메모</h2>
-                        <div id="memo-list" class="space-y-2 mb-3 max-h-[240px] overflow-y-auto"></div>
+                    <section class="order-5 bg-white border border-mb-line rounded-xl overflow-hidden">
+                        <div class="flex items-center gap-2 px-5 py-3 bg-mb-head border-b border-mb-line"><h2 class="text-base font-bold text-gray-900">담당자 메모</h2></div>
+                        <div class="px-5 py-4">
+                        <div id="memo-list" class="space-y-3 mb-3 max-h-[240px] overflow-y-auto"></div>
                         <div class="flex gap-2" data-action="add-note">
                             <input id="note-input" type="text" placeholder="메모 입력..." class="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40 focus:border-navy" />
                             <button onclick="submitNote()" id="note-btn" class="px-4 py-2 border border-gray-300 text-gray-900 rounded-lg text-sm font-semibold hover:bg-gray-50">추가</button>
+                        </div>
                         </div>
                     </section>
                 </div>
@@ -163,20 +165,21 @@
                 <div class="contents lg:flex lg:flex-col lg:gap-4">
 
                     <!-- 연계 흐름: 보고 → 연결된 연계 → 결과 -->
-                    <section class="order-3 bg-white border border-gray-200 rounded-xl px-5 py-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <h2 class="text-sm font-semibold text-gray-900">연계 흐름</h2>
+                    <section class="order-3 bg-white border border-mb-line rounded-xl overflow-hidden">
+                        <div class="flex items-center gap-2 px-5 py-3 bg-mb-head border-b border-mb-line">
+                            <h2 class="text-base font-bold text-gray-900">연계 흐름</h2>
                             <button onclick="openLinkagePanel(null)" data-action="create-linkage" class="ml-auto text-sm text-navy font-semibold hover:underline">보고 없이 연계하기</button>
                         </div>
-                        <div id="flow-list" class="space-y-3"></div>
+                        <div id="flow-list" class="px-4 py-4 space-y-4"></div>
                     </section>
 
                     <!-- 연계처 선택 ([연계하기]를 누르면 연다) -->
-                    <section id="linkage-panel" class="order-4 hidden bg-white border-2 border-navy rounded-xl px-5 py-4" data-action="create-linkage">
-                        <div class="flex items-center gap-2 mb-3">
-                            <h2 class="text-sm font-semibold text-gray-900">연계처 선택</h2>
+                    <section id="linkage-panel" class="order-4 hidden bg-white border border-mb-line rounded-xl overflow-hidden" data-action="create-linkage">
+                        <div class="flex items-center gap-2 px-5 py-3 bg-mb-head border-b border-mb-line">
+                            <h2 class="text-base font-bold text-gray-900">연계처 선택</h2>
                             <button onclick="closeLinkagePanel()" class="ml-auto text-sm text-gray-500 hover:text-gray-900">닫기</button>
                         </div>
+                        <div class="px-5 py-4">
 
                         <label for="linkage-report" class="text-xs text-gray-500 block mb-1">근거 보고</label>
                         <select id="linkage-report" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-navy/40"></select>
@@ -230,6 +233,7 @@
                                 <button onclick="submitLinkage('collaboration')" class="w-full border border-navy text-navy py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50">의뢰 보내기</button>
                                 <p class="text-xs text-gray-500">받는 기관이 수락 또는 반려합니다.</p>
                             </div>
+                        </div>
                         </div>
                     </section>
                 </div>
@@ -658,13 +662,14 @@
                                 <button onclick="showClosureForm('${r.id}')" class="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50">조치 불필요</button>
                            </div>`
                         : '';
-                    return `<article class="py-3 border-b border-gray-100 last:border-b-0">
+                    const box = st === 'new' ? 'border-[1.5px] border-navy' : 'border border-mb-line';
+                    return `<article class="${box} rounded-lg px-4 py-3 bg-white">
                         <div class="flex items-center gap-2 text-xs text-gray-500">
                             ${mark(label, shape)}
                             <span>${fmt(r.createdAt)}</span>
                             ${r.createdBy ? `<span class="truncate">${escapeHtml(r.createdBy)}</span>` : ''}
                         </div>
-                        <p class="text-sm text-gray-900 mt-1.5 whitespace-pre-line leading-relaxed">${escapeHtml(r.text)}</p>
+                        <p class="text-[15px] font-medium text-gray-900 mt-2 whitespace-pre-line leading-relaxed">${escapeHtml(r.text)}</p>
                         ${extra}
                         ${actions}
                     </article>`;
@@ -675,9 +680,9 @@
             const memoEl = document.getElementById('memo-list');
             memoEl.innerHTML = memos.length === 0
                 ? '<p class="text-sm text-gray-400">메모 없음</p>'
-                : memos.map(n => `<div class="text-sm">
+                : memos.map(n => `<div>
                         <p class="text-xs text-gray-500">${escapeHtml(n.author || '')} · ${fmt(n.createdAt)}</p>
-                        <p class="text-gray-800">${escapeHtml(n.text)}</p>
+                        <p class="text-sm font-medium text-gray-900 mt-0.5">${escapeHtml(n.text)}</p>
                     </div>`).join('');
             memoEl.scrollTop = memoEl.scrollHeight;
 
@@ -701,13 +706,13 @@
                 return;
             }
             el.innerHTML = groups.map(g => `
-                <div class="border border-gray-200 rounded-lg">
-                    <div class="px-4 py-2.5 bg-gray-50 rounded-t-lg text-sm">
+                <div>
+                    <div class="px-4 py-2.5 bg-mb-head border border-mb-line rounded-lg">
                         ${g.report
-                            ? `<span class="text-xs text-gray-500 mr-1.5">보고 ${fmt(g.report.createdAt)}</span><span class="text-gray-900">${escapeHtml(firstLine(g.report.text))}</span>`
-                            : '<span class="text-xs text-gray-500">보고 없이 만든 연계</span>'}
+                            ? `<p class="text-xs text-gray-500">보고 · ${fmt(g.report.createdAt)}</p><p class="text-sm font-semibold text-gray-900 mt-0.5">${escapeHtml(firstLine(g.report.text))}</p>`
+                            : '<p class="text-sm font-semibold text-gray-700">보고 없이 만든 연계</p>'}
                     </div>
-                    <div class="divide-y divide-gray-100">${g.items.map(flowRow).join('')}</div>
+                    <div class="ml-4 pl-4 border-l-2 border-mb-line pt-2 space-y-2">${g.items.map(flowRow).join('')}</div>
                 </div>`).join('');
         }
 
@@ -723,14 +728,16 @@
                 const phone = phoneRaw
                     ? `<a href="tel:${phoneRaw.replace(/[^0-9+]/g, '')}" class="text-navy font-semibold underline">${escapeHtml(phoneRaw)}</a>`
                     : unknown;
-                info = `<p class="text-xs text-gray-600 mt-1">부서 ${t?.department ? escapeHtml(t.department) : unknown} · 연락처 ${phone}</p>`;
+                info = `<p class="text-xs text-gray-500 mt-1.5">부서 ${t?.department ? escapeHtml(t.department) : unknown} · 연락처 ${phone}</p>`;
                 if (l.result) {
                     stateMark = mark(l.result.accepted ? '접수' : '미접수', 'text');
-                    body = `<p class="text-xs text-gray-700 mt-1.5">결과: ${l.result.accepted ? '접수됨' : '접수되지 않음'}${l.result.reason ? ' — ' + escapeHtml(l.result.reason) : ''}
-                        <span class="text-gray-400"> · ${fmt(l.result.recordedAt)}${l.result.recordedBy ? ' · ' + escapeHtml(l.result.recordedBy) : ''}</span></p>`;
+                    body = `<div class="mt-3 pt-2.5 border-t border-mb-line">
+                        <p class="text-sm font-semibold text-gray-900">결과: ${l.result.accepted ? '접수됨' : '접수되지 않음'}${l.result.reason ? ' — ' + escapeHtml(l.result.reason) : ''}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${fmt(l.result.recordedAt)}${l.result.recordedBy ? ' · ' + escapeHtml(l.result.recordedBy) : ''}</p>
+                    </div>`;
                 } else {
                     stateMark = mark('결과 미기록', 'border');
-                    body = `<div id="result-area-${l.id}" class="mt-2">
+                    body = `<div id="result-area-${l.id}" class="mt-3 pt-2.5 border-t border-mb-line">
                         <button onclick="showResultForm('${l.id}')" class="px-3 py-1.5 border border-gray-900 text-gray-900 rounded-lg text-xs font-semibold hover:bg-gray-50">결과 기록</button>
                     </div>`;
                 }
@@ -742,24 +749,27 @@
                     stateMark = mark('수락 대기', 'gray');
                     // 받는 기관만 수락 또는 반려한다
                     body = l.toDept === sessionDeptId
-                        ? `<div id="linkage-action-${l.id}" class="flex gap-1.5 mt-2">
+                        ? `<div id="linkage-action-${l.id}" class="flex gap-1.5 mt-3 pt-2.5 border-t border-mb-line">
                                 <button onclick="acceptLinkage('${l.id}')" class="px-3 py-1.5 bg-navy text-white rounded-lg text-xs font-semibold hover:opacity-90">수락</button>
                                 <button onclick="showRejectForm('${l.id}')" class="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50">반려</button>
                            </div>`
-                        : `<p class="text-xs text-gray-500 mt-1.5">${escapeHtml(getDeptName(l.toDept))}의 수락을 기다리는 중입니다</p>`;
+                        : `<p class="text-sm text-gray-700 mt-3 pt-2.5 border-t border-mb-line">${escapeHtml(getDeptName(l.toDept))}의 수락을 기다리는 중입니다</p>`;
                 } else if (l.approvalStatus === 'rejected') {
                     stateMark = mark('반려', 'text');
                     const h = [...(l.approvalHistory || [])].reverse().find(x => x.action === 'rejected');
-                    body = `<p class="text-xs text-gray-700 mt-1.5">반려 사유: ${h?.comment ? escapeHtml(h.comment) : '-'}${h?.by ? ' <span class="text-gray-400">· ' + escapeHtml(h.by) + '</span>' : ''}</p>`;
+                    body = `<div class="mt-3 pt-2.5 border-t border-mb-line">
+                        <p class="text-sm font-semibold text-gray-900">반려 사유: ${h?.comment ? escapeHtml(h.comment) : '-'}</p>
+                        ${h?.by ? `<p class="text-xs text-gray-500 mt-0.5">${fmt(h.at)} · ${escapeHtml(h.by)}</p>` : ''}
+                    </div>`;
                 } else {
                     stateMark = mark(ab.label, 'text');
                 }
             }
-            return `<div class="px-4 py-3">
+            return `<div class="border border-mb-line rounded-lg px-4 py-3 bg-white">
                 <div class="flex items-start gap-2">
                     <div class="min-w-0">
-                        <p class="text-sm font-semibold text-gray-900">${title}</p>
-                        <p class="text-xs text-gray-500">${sub}</p>
+                        <p class="text-[15px] font-bold text-gray-900">${title}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${sub}</p>
                     </div>
                     <span class="ml-auto shrink-0">${stateMark}</span>
                 </div>
