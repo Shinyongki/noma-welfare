@@ -138,6 +138,22 @@
         </div>
     </div>
 
+    <!-- 서랍 — 오른쪽에서 열린다(휴대폰은 전체 화면). 연계하기·결과 기록은 어르신·연계처 서랍 위에 겹쳐 열린다 -->
+    <div id="drawer-root" class="hidden fixed inset-0 z-40">
+        <div class="absolute inset-0 bg-gray-900/30 hidden lg:block" onclick="closeDrawer()" aria-hidden="true"></div>
+        <aside id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title"
+            class="absolute right-0 top-0 h-full w-full lg:w-[640px] bg-mb-page lg:border-l border-mb-line flex flex-col shadow-xl">
+            <div class="flex items-center gap-2 px-3 h-14 bg-white border-b border-mb-line shrink-0">
+                <button id="drawer-back" onclick="closeDrawer()" aria-label="닫기" class="p-2 rounded-lg hover:bg-gray-100">
+                    <span id="drawer-back-icon" class="material-symbols-rounded text-xl text-gray-700" aria-hidden="true">close</span>
+                </button>
+                <h2 id="drawer-title" tabindex="-1" class="text-base font-bold text-gray-900 truncate outline-none">-</h2>
+                <span id="drawer-sub" class="ml-auto shrink-0"></span>
+            </div>
+            <div id="drawer-body" class="flex-1 overflow-y-auto px-4 py-4 space-y-4"></div>
+        </aside>
+    </div>
+
     <!-- 메인 콘텐츠 — 어르신 화면 (보고 → 연계 흐름 → 연계처 선택) -->
     <div id="state-main" class="hidden min-h-screen bg-mb-page">
 
@@ -408,6 +424,8 @@
     let sessionDeptId = null;
     let sessionDeptName = null;
     let sessionServiceName = null;
+    // 세션으로 로그인했는가 — 토큰 링크만으로 들어오면 2층 표(/api/staff)를 쓸 수 없어 기존 어르신 화면을 쓴다
+    let sessionAuthed = false;
 
     // 기관·서비스 목록은 /api/departments(requestStore.DEPARTMENTS)에서 받는다 — 화면에 하드코딩하지 않음
     let _caseLoginDeptId = null;
@@ -1683,6 +1701,7 @@
                 });
                 const data = await resp.json();
                 if (resp.ok && data.success) {
+                    sessionAuthed = true;
                     sessionRole = data.role || 'staff';
                     sessionDeptId = data.deptId || deptId;
                     sessionDeptName = data.deptName || null;
@@ -1762,9 +1781,9 @@
         };
 
         async function startApp() {
-            if (!requestId) {
-                // requestId 없으면 케이스 목록 표시
-                await loadCaseList();
+            if (!requestId || sessionAuthed) {
+                // 세션 로그인: 표 + 서랍. /case/:id는 명부 위에 그 어르신 서랍을 연다
+                await loadCaseList(requestId ? decodeURIComponent(requestId) : null);
                 return;
             }
             await loadDepartments();
@@ -1812,7 +1831,7 @@
         // 생활지원사 범위가 적용되는 메뉴 (연계처는 범위와 무관)
         const SCOPED = new Set(['reports', 'roster', 'linkages']);
 
-        let view = { menu: 'workers', worker: '', tab: '', q: '' };
+        let view = { menu: 'workers', worker: '', tab: '', q: '', sector: '' };
         let shellData = { workers: null };
         let renderSeq = 0;
 
@@ -1821,7 +1840,8 @@
             const p = new URLSearchParams(location.search);
             const menu = MENUS.some(m => m.id === p.get('menu')) ? p.get('menu') : 'workers';
             const tab = MENU_TABS[menu].some(([t]) => t === p.get('tab')) ? p.get('tab') : defaultTab(menu);
-            view = { menu, worker: p.get('worker') || '', tab, q: p.get('q') || '' };
+            const sector = ['public', 'private'].includes(p.get('sector')) ? p.get('sector') : '';
+            view = { menu, worker: p.get('worker') || '', tab, q: p.get('q') || '', sector };
         }
         function writeView() {
             const p = new URLSearchParams();
@@ -1829,12 +1849,16 @@
             if (view.worker) p.set('worker', view.worker);
             if (view.tab !== defaultTab(view.menu)) p.set('tab', view.tab);
             if (view.q && view.menu === 'roster') p.set('q', view.q);
+            if (view.sector && view.menu === 'targets') p.set('sector', view.sector);
+            const open = new URLSearchParams(location.search).get('open');
+            if (open && drawerStack.length) p.set('open', open);
             history.replaceState(null, '', '/case?' + p.toString());
         }
         window.goView = function(patch) {
             const next = { ...view, ...patch };
             if (patch.menu && patch.menu !== view.menu && !('tab' in patch)) next.tab = defaultTab(patch.menu);
             if (patch.menu && patch.menu !== 'roster') next.q = '';
+            if (patch.menu && patch.menu !== 'targets') next.sector = '';
             view = next;
             writeView();
             document.getElementById('mobile-menu').classList.add('hidden');
@@ -1870,8 +1894,8 @@
             return `<span class="whitespace-nowrap">${fmt(iso, withTime ? { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' } : { month: 'numeric', day: 'numeric' })}</span>`;
         }
         function elderLink(caseId, name) {
-            // 3단계에서 어르신 서랍으로 바뀐다
-            return `<a href="/case/${encodeURIComponent(caseId)}" onclick="event.stopPropagation()" class="font-semibold text-gray-900 hover:underline whitespace-nowrap">${escapeHtml(name || caseId)}</a>`;
+            // 누르면 어르신 서랍. 주소는 새 탭 열기용으로 남긴다
+            return `<a href="/case/${encodeURIComponent(caseId)}" onclick="event.preventDefault(); event.stopPropagation(); openDrawer('elder', { caseId: '${escapeAttr(caseId)}' })" class="font-semibold text-gray-900 hover:underline whitespace-nowrap">${escapeHtml(name || caseId)}</a>`;
         }
 
         /**
@@ -1945,16 +1969,28 @@
                 return `<button role="tab" aria-selected="${on}" onclick="goView({ tab: '${t}' })"
                     class="px-3 py-1 rounded-full text-xs font-semibold ${on ? 'bg-navy text-white border border-navy' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}">${label}${n}</button>`;
             }).join('');
+            if (view.menu === 'targets') {
+                const chip = (v, label) => `<button onclick="goView({ sector: '${v}' })" aria-pressed="${view.sector === v}"
+                    class="px-3 py-1 rounded-full text-xs font-semibold ${view.sector === v ? 'bg-navy text-white border border-navy' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}">${label}</button>`;
+                document.getElementById('shell-tabs').insertAdjacentHTML('beforeend',
+                    '<span class="w-px self-stretch bg-mb-line mx-1" aria-hidden="true"></span><span class="text-xs text-gray-500 self-center">구분</span>' +
+                    chip('', '전체') + chip('public', '공공') + chip('private', '민간'));
+            }
             document.getElementById('shell-search').classList.toggle('hidden', view.menu !== 'roster');
             if (view.menu === 'roster') document.getElementById('roster-search').value = view.q;
         }
 
         // 진입점 (requestId 없이 로그인했을 때)
-        async function loadCaseList() {
+        async function loadCaseList(openCaseId) {
             show($caseList);
+            const openParam = new URLSearchParams(location.search).get('open');
             readView();
+            if (openCaseId) { view.menu = 'roster'; view.tab = defaultTab('roster'); }
             writeView();
             await renderShell();
+            const open = openCaseId ? 'elder:' + openCaseId : openParam;
+            const m = /^(elder|target):(.+)$/.exec(open || '');
+            if (m) openDrawer(m[1], m[1] === 'elder' ? { caseId: m[2] } : { targetId: m[2] });
         }
 
         let lastRows = null;   // 명부 검색은 다시 불러오지 않고 표만 다시 그린다
@@ -2020,7 +2056,7 @@
                 const canAct = canActOnReports();
                 const action = r => (canAct && (r.state === 'new' || r.state === 'reviewed'))
                     ? `<div data-rowact="${r.id}" class="flex gap-1.5 whitespace-nowrap">
-                            <a href="/case/${encodeURIComponent(r.caseId)}" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">연계하기</a>
+                            <button onclick="openDrawer('link', { caseId: '${escapeAttr(r.caseId)}', reportId: '${escapeAttr(r.id)}' })" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">연계하기</button>
                             <button onclick="showRowClosure('${r.caseId}','${r.id}')" class="px-3 py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50">조치 불필요</button>
                        </div>`
                     : '';
@@ -2100,8 +2136,7 @@
                 };
                 const action = l => {
                     if (l.category === 'referral' && !l.result) {
-                        // 3단계에서 결과 기록 서랍으로 바뀐다
-                        return `<a href="/case/${encodeURIComponent(l.caseId)}" class="px-3 py-1 border border-gray-900 rounded-md text-xs font-semibold text-gray-900 hover:bg-gray-50 whitespace-nowrap">결과 기록</a>`;
+                        return `<button onclick="openDrawer('result', { caseId: '${escapeAttr(l.caseId)}', linkageId: '${escapeAttr(l.id)}' })" class="px-3 py-1 border border-gray-900 rounded-md text-xs font-semibold text-gray-900 hover:bg-gray-50 whitespace-nowrap">결과 기록</button>`;
                     }
                     if (l.received && l.approvalStatus === 'pending') {
                         return `<div data-rowact="${l.id}" class="flex gap-1.5 whitespace-nowrap">
@@ -2137,11 +2172,17 @@
                 const all = data.items || [];
                 const counts = { all: all.length };
                 TARGET_CATEGORIES.forEach(c => counts[c] = all.filter(t => t.category === c).length);
-                const rows = view.tab === 'all' ? all : all.filter(t => t.category === view.tab);
+                const bySector = view.sector ? all.filter(t => t.sector === view.sector) : all;
+                counts.all = bySector.length;
+                TARGET_CATEGORIES.forEach(c => counts[c] = bySector.filter(t => t.category === c).length);
+                const rows = view.tab === 'all' ? bySector : bySector.filter(t => t.category === view.tab);
                 const unknown = '<span class="text-gray-400">(미확인)</span>';
+                const open = t => `<button onclick="openDrawer('target', { targetId: '${escapeAttr(t.id)}' })" class="text-left hover:underline"><span class="font-semibold text-gray-900 whitespace-nowrap">${escapeHtml(t.serviceName)}</span><span class="block text-gray-600 whitespace-nowrap">${escapeHtml(t.agencyName)}</span></button>`;
                 const cols = [
                     { h: '종류', cell: t => `<span class="whitespace-nowrap">${escapeHtml(t.category || '-')}</span>` },
-                    { h: '사업·기관', cell: t => `<span class="font-semibold text-gray-900 whitespace-nowrap">${escapeHtml(t.serviceName)}</span><span class="block text-gray-600 whitespace-nowrap">${escapeHtml(t.agencyName)}</span>${t.verified ? '' : '<span class="block text-xs text-gray-400 whitespace-nowrap">실데이터 미확인</span>'}` },
+                    { h: '구분', cell: t => `<span class="whitespace-nowrap">${escapeHtml(SECTOR_LABEL[t.sector] || '-')}</span>` },
+                    { h: '범위', cell: t => `<span class="whitespace-nowrap">${escapeHtml(scopeLabel(t))}</span>` },
+                    { h: '사업·기관', cell: t => `${open(t)}${t.verified ? '' : '<span class="block text-xs text-gray-400 whitespace-nowrap">실데이터 미확인</span>'}` },
                     { h: '대상 요건', cls: 'w-full', cell: t => escapeHtml(t.eligibility || '-') },
                     { h: '신청 방법', cell: t => `<span class="whitespace-nowrap">${t.howToApply && t.howToApply !== '(미확인)' ? escapeHtml(t.howToApply) : unknown}</span>` },
                     { h: '부서·연락처', cell: t => `<span class="whitespace-nowrap">${t.department ? escapeHtml(t.department) : unknown}</span><span class="block whitespace-nowrap">${t.phone ? escapeHtml(t.phone) : unknown}</span>` },
@@ -2149,9 +2190,8 @@
                     { h: '미기록', cls: 'text-right tabular-nums', cell: t => t.unrecordedCount ? `<span class="font-semibold text-gray-900">${t.unrecordedCount}</span>` : '<span class="text-gray-300">0</span>' },
                 ];
                 const mobile = t => `<div class="flex items-center gap-2">
-                        <span class="text-xs text-gray-500">${escapeHtml(t.category || '')}</span>
-                        <span class="font-semibold text-gray-900">${escapeHtml(t.serviceName)}</span>
-                        <span class="text-gray-600">${escapeHtml(t.agencyName)}</span>
+                        <span class="text-xs text-gray-500 whitespace-nowrap">${escapeHtml(t.category || '')} · ${escapeHtml(SECTOR_LABEL[t.sector] || '')} · ${escapeHtml(scopeLabel(t))}</span>
+                        ${open(t)}
                         <span class="ml-auto text-xs text-gray-500 whitespace-nowrap">이번 달 ${t.monthCount || 0} · 미기록 ${t.unrecordedCount || 0}</span>
                     </div>
                     <p class="mt-1 text-xs text-gray-500">${escapeHtml(t.eligibility || '')}</p>`;
@@ -2167,7 +2207,7 @@
                     <input type="text" maxlength="500" placeholder="사유 (선택)" aria-label="조치 불필요 사유 (선택)" class="rowclosure-reason w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40" />
                     <div class="flex gap-1.5">
                         <button onclick="submitRowClosure('${caseId}','${reportId}', this)" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">닫기</button>
-                        <button onclick="renderShell()" class="px-3 py-1 border border-gray-300 rounded-md text-xs text-gray-600 hover:bg-gray-50">취소</button>
+                        <button onclick="refreshAll()" class="px-3 py-1 border border-gray-300 rounded-md text-xs text-gray-600 hover:bg-gray-50">취소</button>
                     </div>
                 </div>`;
             });
@@ -2180,7 +2220,7 @@
                 });
                 if (!resp.ok) { const d = await resp.json().catch(() => ({})); return showToast(d.error || '처리하지 못했습니다.'); }
                 showToast('조치 불필요로 닫았습니다.', 'success');
-                renderShell();
+                refreshAll();
             } catch { showToast('처리하지 못했습니다.'); }
         };
         // 받은 의뢰 수락·반려 (받는 기관만 — 서버가 다시 확인한다)
@@ -2189,7 +2229,7 @@
                 const resp = await fetch(`/api/case/${encodeURIComponent(caseId)}/linkage/${encodeURIComponent(linkageId)}/accept`, { method: 'POST' });
                 if (!resp.ok) { const d = await resp.json().catch(() => ({})); return showToast(d.error || '수락에 실패했습니다.'); }
                 showToast('수락했습니다.', 'success');
-                renderShell();
+                refreshAll();
             } catch { showToast('수락에 실패했습니다.'); }
         };
         window.showRowReject = function(caseId, linkageId) {
@@ -2198,7 +2238,7 @@
                     <input type="text" maxlength="500" placeholder="반려 사유 (필수)" aria-label="반려 사유 (필수)" class="rowreject-reason w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40" />
                     <div class="flex gap-1.5">
                         <button onclick="submitRowReject('${caseId}','${linkageId}', this)" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">반려하기</button>
-                        <button onclick="renderShell()" class="px-3 py-1 border border-gray-300 rounded-md text-xs text-gray-600 hover:bg-gray-50">취소</button>
+                        <button onclick="refreshAll()" class="px-3 py-1 border border-gray-300 rounded-md text-xs text-gray-600 hover:bg-gray-50">취소</button>
                     </div>
                 </div>`;
             });
@@ -2212,10 +2252,443 @@
                 });
                 if (!resp.ok) { const d = await resp.json().catch(() => ({})); return showToast(d.error || '반려에 실패했습니다.'); }
                 showToast('반려했습니다.', 'success');
-                renderShell();
+                refreshAll();
             } catch { showToast('반려에 실패했습니다.'); }
         };
         window.renderShell = renderShell;
+
+        // ── 서랍 (작업 7 v2-3) ──
+        // 스택으로 겹친다: 어르신·연계처 서랍 위에 연계하기·결과 기록이 열리고, 닫으면 아래 서랍으로 돌아온다.
+        // 맨 아래 서랍(어르신·연계처)만 주소에 남긴다(open=elder:<id> / open=target:<id>).
+        const SECTOR_LABEL = { public: '공공', private: '민간' };
+        function scopeLabel(t) {
+            const s = t?.scope || 'sigun';
+            if (s === 'province') return '경남 전체';
+            if (s === 'region') return '권역';
+            return t?.sigun || '시군';
+        }
+        function scopeDetail(t) {
+            const s = t?.scope || 'sigun';
+            if (s === 'province') return '경남 전체';
+            if (s === 'region') return `권역 — ${(t.siguns || []).join(', ')}`;
+            return `시군 — ${t?.sigun || '-'}`;
+        }
+        function card(title, inner, headExtra = '') {
+            return `<section class="bg-white border border-mb-line rounded-xl overflow-hidden">
+                <div class="flex items-center gap-2 px-4 py-2.5 bg-mb-head border-b border-mb-line">
+                    <h3 class="text-base font-bold text-gray-900">${title}</h3>${headExtra}
+                </div>
+                ${inner}
+            </section>`;
+        }
+        function dl(pairs) {
+            return `<dl class="px-4 py-3 grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1.5">${pairs.map(([k, v]) =>
+                `<dt class="text-xs text-gray-500 whitespace-nowrap">${k}</dt><dd class="text-sm font-semibold text-gray-900">${v}</dd>`).join('')}</dl>`;
+        }
+        const unknownTxt = '<span class="font-normal text-gray-400">(미확인)</span>';
+        function phoneHtml(phone) {
+            const p = (phone || '').trim();
+            return p ? `<a href="tel:${escapeAttr(p.replace(/[^0-9+]/g, ''))}" class="text-navy underline">${escapeHtml(p)}</a>` : unknownTxt;
+        }
+
+        let drawerStack = [];
+        let drawerReturnFocus = null;
+        let drawerSeq = 0;
+
+        function setOpenParam() {
+            const base = drawerStack[0];
+            const p = new URLSearchParams(location.search);
+            if (base && (base.kind === 'elder' || base.kind === 'target')) p.set('open', `${base.kind}:${base.kind === 'elder' ? base.args.caseId : base.args.targetId}`);
+            else p.delete('open');
+            history.replaceState(null, '', '/case?' + p.toString());
+        }
+        // 표에서 연다 — 스택을 새로 시작
+        window.openDrawer = function(kind, args) {
+            if (drawerStack.length === 0) drawerReturnFocus = document.activeElement;
+            drawerStack = [{ kind, args: { ...args } }];
+            showDrawer();
+        };
+        // 서랍 안에서 연다 — 위에 겹친다
+        window.pushDrawer = function(kind, args) {
+            drawerStack.push({ kind, args: { ...args } });
+            showDrawer();
+        };
+        window.closeDrawer = function(opts = {}) {
+            drawerStack.pop();
+            if (drawerStack.length === 0) {
+                document.getElementById('drawer-root').classList.add('hidden');
+                document.body.style.overflow = '';
+                setOpenParam();
+                if (opts.refresh) renderShell();
+                try { drawerReturnFocus?.focus(); } catch { /* 무시 */ }
+                return;
+            }
+            showDrawer();
+            if (opts.refresh) renderShell();
+        };
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && drawerStack.length) closeDrawer();
+        });
+
+        async function showDrawer() {
+            const top = drawerStack[drawerStack.length - 1];
+            const root = document.getElementById('drawer-root');
+            root.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            document.getElementById('drawer-back-icon').textContent = drawerStack.length > 1 ? 'arrow_back' : 'close';
+            document.getElementById('drawer-back').setAttribute('aria-label', drawerStack.length > 1 ? '뒤로' : '닫기');
+            setOpenParam();
+            const seq = ++drawerSeq;
+            const body = document.getElementById('drawer-body');
+            body.innerHTML = '<p class="py-8 text-center text-sm text-gray-400">불러오는 중...</p>';
+            try {
+                await DRAWERS[top.kind](top.args, seq);
+            } catch {
+                if (seq === drawerSeq) body.innerHTML = '<p class="py-8 text-center text-sm text-red-600">불러올 수 없습니다.</p>';
+            }
+            if (seq === drawerSeq) { body.scrollTop = 0; document.getElementById('drawer-title').focus(); }
+        }
+        // 서랍 안의 내용만 다시 그린다 (스크롤 유지)
+        async function rerenderDrawer() {
+            const top = drawerStack[drawerStack.length - 1];
+            if (!top) return;
+            const body = document.getElementById('drawer-body');
+            const y = body.scrollTop;
+            const seq = ++drawerSeq;
+            try { await DRAWERS[top.kind](top.args, seq); } catch { /* 표시는 그대로 */ }
+            body.scrollTop = y;
+        }
+        function setDrawerHead(title, sub = '') {
+            document.getElementById('drawer-title').textContent = title;
+            document.getElementById('drawer-sub').innerHTML = sub;
+        }
+        // 표·서랍 모두 다시 그린다 (처리 후)
+        window.refreshAll = function() {
+            renderShell();
+            if (drawerStack.length) rerenderDrawer();
+        };
+
+        const DRAWERS = {
+            // 어르신 — 열면 staff 세션에 한해 새 보고를 확인으로 기록한다
+            async elder(args, seq) {
+                const c = await getJson('/api/case/' + encodeURIComponent(args.caseId));
+                if (!args.reviewed) {
+                    args.reviewed = new Set();
+                    if (sessionRole === 'staff') {
+                        try {
+                            const r = await fetch('/api/case/' + encodeURIComponent(args.caseId) + '/reports/review', { method: 'POST' });
+                            if (r.ok) ((await r.json()).reviewed || []).forEach(id => args.reviewed.add(id));
+                            if (args.reviewed.size) renderShell();   // 보고함 배지·상태가 바뀐다
+                        } catch { /* 확인 기록이 실패해도 서랍은 연다 */ }
+                    }
+                }
+                if (seq !== drawerSeq) return;
+                const shown = r => { const s = c.reportStates?.[r.id] || 'new'; return s === 'reviewed' && args.reviewed.has(r.id) ? 'new' : s; };
+                const reports = fieldReportsOf(c).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+                const eState = reports.some(r => shown(r) === 'new') ? 'new' : (c.elderSummary?.state || 'none');
+                const [el, es] = ELDER_MARK[eState] || [eState, 'text'];
+                setDrawerHead(c.userName || args.caseId, mark(el, es));
+
+                const canAct = sessionRole === 'staff';
+                const repAction = r => {
+                    const s = c.reportStates?.[r.id];
+                    if (!canAct || !(s === 'new' || s === 'reviewed')) return '';
+                    return `<div data-rowact="${escapeAttr(r.id)}" class="flex gap-1.5 whitespace-nowrap">
+                        <button onclick="pushDrawer('link', { caseId: '${escapeAttr(c.id)}', reportId: '${escapeAttr(r.id)}' })" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">연계하기</button>
+                        <button onclick="showRowClosure('${escapeAttr(c.id)}','${escapeAttr(r.id)}')" class="px-3 py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50">조치 불필요</button>
+                    </div>`;
+                };
+                const repMark = r => { const [l, s] = REPORT_MARK[shown(r)] || [shown(r), 'text']; return mark(l, s); };
+                const closureNote = r => r.closure ? `<span class="block text-xs text-gray-500 mt-0.5">조치 불필요 — ${r.closure.reason ? escapeHtml(r.closure.reason) : '사유 없음'}</span>` : '';
+                const repTable = tableHtml([
+                    { h: '날짜', cell: r => dateCell(r.createdAt, true) },
+                    { h: '내용', cls: 'w-full', cell: r => `<p class="text-gray-900 font-medium whitespace-pre-line">${escapeHtml(r.text)}</p>${closureNote(r)}` },
+                    { h: '상태', cell: repMark },
+                    { h: '처리', cell: repAction },
+                ], reports, r => `<div class="flex items-center gap-2 text-xs text-gray-500">${repMark(r)} ${dateCell(r.createdAt, true)}</div>
+                    <p class="mt-1 text-[15px] font-medium text-gray-900 whitespace-pre-line">${escapeHtml(r.text)}</p>${closureNote(r)}
+                    ${repAction(r) ? `<div class="mt-2">${repAction(r)}</div>` : ''}`, '아직 보고가 없습니다.');
+
+                const linkages = (c.linkages || []).slice().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+                const repOf = l => reports.find(r => r.id === l.fromReportId);
+                const lkName = l => l.category === 'referral'
+                    ? `<span class="font-semibold text-gray-900 whitespace-nowrap">${escapeHtml(l.target?.agencyName || '-')}</span><span class="block text-xs text-gray-500 whitespace-nowrap">${escapeHtml(l.target?.serviceName || '')}</span>`
+                    : `<span class="font-semibold text-gray-900 whitespace-nowrap">${escapeHtml(getDeptName(l.toDept))}</span><span class="block text-xs text-gray-500">다른 수행기관 의뢰</span>`;
+                const lkReport = l => { const r = repOf(l); return r ? `<span class="text-xs text-gray-500 mr-1 whitespace-nowrap">${fmt(r.createdAt, { month: 'numeric', day: 'numeric' })}</span><span class="text-gray-800">${escapeHtml(firstLine(r.text))}</span>` : '<span class="text-gray-400">없음</span>'; };
+                const lkResult = l => {
+                    if (l.category === 'referral') {
+                        if (!l.result) return mark('결과 미기록', 'border');
+                        return `${mark(l.result.accepted ? '접수' : '미접수', 'text')}${l.result.reason ? `<span class="block text-xs text-gray-500">${escapeHtml(l.result.reason)}</span>` : ''}`;
+                    }
+                    if (l.approvalStatus === 'pending') return mark('수락 대기', 'gray');
+                    if (l.approvalStatus === 'rejected') {
+                        const h = [...(l.approvalHistory || [])].reverse().find(x => x.action === 'rejected');
+                        return `${mark('반려', 'text')}<span class="block text-xs text-gray-500">${escapeHtml(h?.comment || '')}</span>`;
+                    }
+                    return mark(approvalBadgeOf(l.approvalStatus).label, 'text');
+                };
+                const lkAction = l => {
+                    if (l.category === 'referral' && !l.result) {
+                        return `<button onclick="pushDrawer('result', { caseId: '${escapeAttr(c.id)}', linkageId: '${escapeAttr(l.id)}' })" class="px-3 py-1 border border-gray-900 rounded-md text-xs font-semibold text-gray-900 hover:bg-gray-50 whitespace-nowrap">결과 기록</button>`;
+                    }
+                    if (l.category !== 'referral' && l.approvalStatus === 'pending' && l.toDept === sessionDeptId) {
+                        return `<div data-rowact="${escapeAttr(l.id)}" class="flex gap-1.5 whitespace-nowrap">
+                            <button onclick="rowAccept('${escapeAttr(c.id)}','${escapeAttr(l.id)}')" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">수락</button>
+                            <button onclick="showRowReject('${escapeAttr(c.id)}','${escapeAttr(l.id)}')" class="px-3 py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50">반려</button>
+                        </div>`;
+                    }
+                    return '';
+                };
+                const lkTable = tableHtml([
+                    { h: '연계일', cell: l => dateCell(l.createdAt) },
+                    { h: '연계처', cell: lkName },
+                    { h: '근거 보고', cls: 'w-full', cell: lkReport },
+                    { h: '결과', cell: lkResult },
+                    { h: '', cell: lkAction },
+                ], linkages, l => `<div class="flex items-center gap-2"><span class="text-xs text-gray-500">${fmt(l.createdAt, { month: 'numeric', day: 'numeric' })}</span>
+                        <span class="font-semibold text-gray-900">${escapeHtml(l.category === 'referral' ? (l.target?.agencyName || '-') : getDeptName(l.toDept))}</span>
+                        <span class="ml-auto">${lkResult(l)}</span></div>
+                    <p class="mt-1 text-sm">${lkReport(l)}</p>
+                    ${lkAction(l) ? `<div class="mt-2">${lkAction(l)}</div>` : ''}`, '아직 연계가 없습니다.');
+
+                const memos = (c.notes || []).filter(n => n.type !== 'field_report');
+                const memoHtml = `<div class="px-4 py-3">
+                    <div class="space-y-2 mb-3">${memos.length ? memos.map(n => `<div><p class="text-xs text-gray-500">${escapeHtml(n.author || '')} · ${fmt(n.createdAt)}</p><p class="text-sm font-medium text-gray-900">${escapeHtml(n.text)}</p></div>`).join('') : '<p class="text-sm text-gray-400">메모 없음</p>'}</div>
+                    <div class="flex gap-2">
+                        <label for="drawer-memo" class="sr-only">메모</label>
+                        <input id="drawer-memo" type="text" maxlength="1000" placeholder="메모 입력..." onkeydown="if(event.key==='Enter') submitDrawerMemo('${escapeAttr(c.id)}')" class="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40" />
+                        <button onclick="submitDrawerMemo('${escapeAttr(c.id)}')" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-900 hover:bg-gray-50">추가</button>
+                    </div>
+                </div>`;
+
+                document.getElementById('drawer-body').innerHTML =
+                    card('어르신', dl([['담당 생활지원사', escapeHtml(c.worker || '-')], ['시군', escapeHtml(c.sigun || '-')]])) +
+                    card('보고 이력', repTable, `<span class="ml-auto text-sm text-gray-500">${reports.length}건</span>`) +
+                    card('연계 이력', lkTable, canAct ? `<button onclick="pushDrawer('link', { caseId: '${escapeAttr(c.id)}', reportId: null })" class="ml-auto text-sm font-semibold text-navy hover:underline">보고 없이 연계하기</button>` : '') +
+                    card('담당자 메모', memoHtml);
+            },
+
+            // 연계하기 — 근거 보고(자동), 종류·구분 필터, 연계처 목록, 사유(선택). 내부 의뢰는 목록 아래 한 단계 뒤
+            async link(args, seq) {
+                const [c, t] = await Promise.all([
+                    getJson('/api/case/' + encodeURIComponent(args.caseId)),
+                    getJson('/api/case/' + encodeURIComponent(args.caseId) + '/linkage-targets'),
+                ]);
+                if (seq !== drawerSeq) return;
+                args.targets = t.items || [];
+                args.cat = args.cat || '';
+                args.sector = args.sector || '';
+                setDrawerHead('연계하기', `<span class="text-sm text-gray-500">${escapeHtml(c.userName || '')}</span>`);
+                const rep = args.reportId ? fieldReportsOf(c).find(r => r.id === args.reportId) : null;
+                const repHtml = rep
+                    ? `<div class="px-4 py-3"><p class="text-xs text-gray-500">${fmt(rep.createdAt)} · ${escapeHtml(rep.createdBy || '')}</p><p class="mt-1 text-[15px] font-medium text-gray-900 whitespace-pre-line">${escapeHtml(rep.text)}</p></div>`
+                    : '<p class="px-4 py-3 text-sm text-gray-500">근거 보고 없음</p>';
+                const deptOpts = sel => departments.map(d => `<option value="${escapeAttr(d.id)}" ${d.id === sel ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('');
+                const toDefault = (departments.find(d => d.id !== sessionDeptId) || {}).id;
+                document.getElementById('drawer-body').innerHTML =
+                    card('근거 보고', repHtml) +
+                    card('연계처', `<div class="px-4 pt-3 flex flex-wrap gap-1.5" id="dl-filters"></div>
+                        <div id="dl-targets" class="mt-2"></div>
+                        <div class="px-4 py-3 border-t border-mb-line">
+                            <label for="dl-reason" class="text-xs text-gray-500 block mb-1">사유 <span class="text-gray-400">(선택)</span></label>
+                            <textarea id="dl-reason" rows="2" maxlength="1000" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40 resize-none" placeholder="연계가 필요한 이유"></textarea>
+                            <button onclick="submitDrawerLink('referral')" class="mt-2 w-full bg-navy text-white py-2.5 rounded-lg text-sm font-semibold hover:opacity-90">연계처 선택</button>
+                            <p class="text-xs text-gray-500 mt-2">선택한 기관에는 전담사회복지사가 직접 연락합니다. 연락한 뒤 결과를 기록하세요.</p>
+                        </div>`) +
+                    `<details class="bg-white border border-mb-line rounded-xl overflow-hidden">
+                        <summary class="px-4 py-2.5 bg-mb-head text-sm font-semibold text-gray-800 cursor-pointer">다른 수행기관에 의뢰</summary>
+                        <div class="px-4 py-3 space-y-3 border-t border-mb-line">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div><label for="dl-from" class="text-xs text-gray-500 block mb-1">우리 기관</label><select id="dl-from" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">${deptOpts(sessionDeptId)}</select></div>
+                                <div><label for="dl-to" class="text-xs text-gray-500 block mb-1">받는 기관</label><select id="dl-to" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">${deptOpts(toDefault)}</select></div>
+                            </div>
+                            <div class="flex gap-3 text-sm">
+                                <label class="flex items-center gap-1.5"><input type="radio" name="dl-type" value="consultation" checked class="accent-navy"> 자문</label>
+                                <label class="flex items-center gap-1.5"><input type="radio" name="dl-type" value="joint" class="accent-navy"> 공동처리</label>
+                                <label class="flex items-center gap-1.5"><input type="radio" name="dl-type" value="transfer" class="accent-navy"> 이관</label>
+                            </div>
+                            <div><label for="dl-reason-internal" class="text-xs text-gray-500 block mb-1">의뢰 사유 (필수)</label>
+                            <textarea id="dl-reason-internal" rows="2" maxlength="1000" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40 resize-none"></textarea></div>
+                            <button onclick="submitDrawerLink('collaboration')" class="w-full border border-navy text-navy py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-50">의뢰 보내기</button>
+                            <p class="text-xs text-gray-500">받는 기관이 수락 또는 반려합니다.</p>
+                        </div>
+                    </details>`;
+                renderDrawerTargets();
+            },
+
+            // 결과 기록 — 연계처·연락처, [접수됨] [미접수], 사유(선택)
+            async result(args, seq) {
+                const [c, t] = await Promise.all([
+                    getJson('/api/case/' + encodeURIComponent(args.caseId)),
+                    getJson('/api/case/' + encodeURIComponent(args.caseId) + '/linkage-targets'),
+                ]);
+                if (seq !== drawerSeq) return;
+                const l = (c.linkages || []).find(x => x.id === args.linkageId);
+                if (!l) { document.getElementById('drawer-body').innerHTML = '<p class="py-8 text-center text-sm text-gray-500">연계를 찾을 수 없습니다.</p>'; return; }
+                const info = (t.items || []).find(x => x.id === l.target?.id) || {};
+                const rep = fieldReportsOf(c).find(r => r.id === l.fromReportId);
+                setDrawerHead('결과 기록', `<span class="text-sm text-gray-500">${escapeHtml(c.userName || '')}</span>`);
+                const infoHtml = dl([
+                    ['연계처', `${escapeHtml(l.target?.agencyName || '-')} <span class="font-normal text-gray-500">${escapeHtml(l.target?.serviceName || '')}</span>`],
+                    ['종류·구분', `${escapeHtml(info.category || '-')} · ${escapeHtml(SECTOR_LABEL[info.sector] || '-')}`],
+                    ['부서', info.department ? escapeHtml(info.department) : unknownTxt],
+                    ['연락처', phoneHtml(info.phone)],
+                    ['연계일', escapeHtml(fmt(l.createdAt))],
+                    ['근거 보고', rep ? `<span class="font-normal">${escapeHtml(firstLine(rep.text))}</span>` : '<span class="font-normal text-gray-400">없음</span>'],
+                    ['사유', l.reason ? `<span class="font-normal">${escapeHtml(l.reason)}</span>` : '<span class="font-normal text-gray-400">없음</span>'],
+                ]);
+                let form;
+                if (l.result) {
+                    form = `<div class="px-4 py-3"><p class="text-sm font-semibold text-gray-900">${l.result.accepted ? '접수됨' : '미접수'}${l.result.reason ? ' — ' + escapeHtml(l.result.reason) : ''}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">${fmt(l.result.recordedAt)} · ${escapeHtml(l.result.recordedBy || '')} · 기록한 결과는 고칠 수 없습니다</p></div>`;
+                } else {
+                    const choice = args.choice;
+                    const btn = (v, label) => `<button onclick="pickResult(${v})" aria-pressed="${choice === v}"
+                        class="flex-1 py-3 rounded-lg text-sm font-semibold ${choice === v ? 'bg-navy text-white border border-navy' : 'border border-gray-400 text-gray-900 hover:bg-gray-50'}">${label}</button>`;
+                    form = `<div class="px-4 py-3 space-y-3">
+                        <div class="flex gap-2" role="group" aria-label="접수 여부">${btn(true, '접수됨')}${btn(false, '미접수')}</div>
+                        <div><label for="dr-reason" class="text-xs text-gray-500 block mb-1">사유 <span class="text-gray-400">(선택)</span></label>
+                        <textarea id="dr-reason" rows="2" maxlength="1000" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40 resize-none">${escapeHtml(args.reason || '')}</textarea></div>
+                        <p class="text-xs text-gray-500">기록한 뒤에는 고칠 수 없습니다.</p>
+                        <button onclick="submitDrawerResult()" class="w-full bg-navy text-white py-2.5 rounded-lg text-sm font-semibold hover:opacity-90 disabled:opacity-40" ${typeof choice === 'boolean' ? '' : 'disabled'}>기록하기</button>
+                    </div>`;
+                }
+                document.getElementById('drawer-body').innerHTML = card('연계처', infoHtml) + card('결과', form);
+            },
+
+            // 연계처 — 기관 정보, 이 기관으로 연계한 어르신
+            async target(args, seq) {
+                const [T, L] = await Promise.all([
+                    getJson('/api/staff/linkage-targets'),
+                    getJson('/api/staff/linkages?tab=all&targetId=' + encodeURIComponent(args.targetId)),   // 연계처는 생활지원사 범위와 무관
+                ]);
+                if (seq !== drawerSeq) return;
+                const t = (T.items || []).find(x => x.id === args.targetId);
+                if (!t) { document.getElementById('drawer-body').innerHTML = '<p class="py-8 text-center text-sm text-gray-500">연계처를 찾을 수 없습니다.</p>'; return; }
+                setDrawerHead(t.agencyName, `<span class="text-sm text-gray-500">${escapeHtml(t.serviceName)}</span>`);
+                const infoHtml = dl([
+                    ['종류', escapeHtml(t.category || '-')],
+                    ['구분', escapeHtml(SECTOR_LABEL[t.sector] || '-')],
+                    ['범위', escapeHtml(scopeDetail(t))],
+                    ['사업', escapeHtml(t.serviceName)],
+                    ['기관', escapeHtml(t.agencyName)],
+                    ['대상 요건', `<span class="font-normal">${escapeHtml(t.eligibility || '-')}</span>`],
+                    ['신청 방법', t.howToApply && t.howToApply !== '(미확인)' ? escapeHtml(t.howToApply) : unknownTxt],
+                    ['부서', t.department ? escapeHtml(t.department) : unknownTxt],
+                    ['연락처', phoneHtml(t.phone)],
+                    ['이번 달 연계', `${t.monthCount || 0}건 · 미기록 ${t.unrecordedCount || 0}건`],
+                    ['실데이터', t.verified ? '확인됨' : '<span class="font-normal text-gray-500">미확인 (가상)</span>'],
+                ]);
+                const rows = L.items || [];
+                const res = l => l.result ? mark(l.result.accepted ? '접수' : '미접수', 'text') : mark('결과 미기록', 'border');
+                const who = l => `<a href="/case/${encodeURIComponent(l.caseId)}" onclick="event.preventDefault(); pushDrawer('elder', { caseId: '${escapeAttr(l.caseId)}' })" class="font-semibold text-gray-900 hover:underline whitespace-nowrap">${escapeHtml(l.elderName || l.caseId)}</a>`;
+                const lt = tableHtml([
+                    { h: '연계일', cell: l => dateCell(l.createdAt) },
+                    { h: '어르신', cell: who },
+                    { h: '생활지원사', cell: l => `<span class="text-gray-600 whitespace-nowrap">${escapeHtml(l.worker || '-')}</span>` },
+                    { h: '근거 보고', cls: 'w-full', cell: l => l.fromReport ? escapeHtml(l.fromReport.firstLine) : '<span class="text-gray-400">없음</span>' },
+                    { h: '결과', cell: res },
+                ], rows, l => `<div class="flex items-center gap-2"><span class="text-xs text-gray-500">${fmt(l.createdAt, { month: 'numeric', day: 'numeric' })}</span>${who(l)}<span class="ml-auto">${res(l)}</span></div>
+                    <p class="mt-1 text-sm text-gray-700">${l.fromReport ? escapeHtml(l.fromReport.firstLine) : '근거 보고 없음'}</p>`, '이 기관으로 연계한 어르신이 없습니다.');
+                document.getElementById('drawer-body').innerHTML = card('기관 정보', infoHtml) + card('이 기관으로 연계한 어르신', lt, `<span class="ml-auto text-sm text-gray-500">${rows.length}건</span>`);
+            },
+        };
+
+        // 연계하기 서랍의 연계처 목록 — 필터를 바꿔도 입력한 사유는 그대로 둔다
+        function renderDrawerTargets() {
+            const top = drawerStack[drawerStack.length - 1];
+            if (!top || top.kind !== 'link') return;
+            const a = top.args;
+            const chip = (group, value, label) => {
+                const on = a[group] === value;
+                return `<button onclick="filterDrawerTargets('${group}','${escapeAttr(value)}')" aria-pressed="${on}"
+                    class="px-3 py-1 rounded-full text-xs font-semibold ${on ? 'bg-navy text-white border border-navy' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}">${label}</button>`;
+            };
+            document.getElementById('dl-filters').innerHTML =
+                chip('cat', '', '전체') + TARGET_CATEGORIES.map(c => chip('cat', c, c)).join('') +
+                '<span class="w-px bg-mb-line mx-1" aria-hidden="true"></span>' +
+                chip('sector', '', '공공·민간') + chip('sector', 'public', '공공') + chip('sector', 'private', '민간');
+            const rows = a.targets.filter(t => (!a.cat || t.category === a.cat) && (!a.sector || t.sector === a.sector));
+            const sel = t => `<input type="radio" name="dl-target" value="${escapeAttr(t.id)}" ${a.sel === t.id ? 'checked' : ''} onchange="selectDrawerTarget('${escapeAttr(t.id)}')" aria-label="${escapeAttr(t.serviceName + ' ' + t.agencyName)} 선택" class="w-4 h-4 accent-navy">`;
+            const agency = t => `<span class="font-semibold text-gray-900">${escapeHtml(t.serviceName)}</span> <span class="text-gray-600">${escapeHtml(t.agencyName)}</span>
+                <span class="block text-xs text-gray-500 mt-0.5">${escapeHtml(t.eligibility || '')}</span>`;
+            const contact = t => `<span class="whitespace-nowrap">${t.department ? escapeHtml(t.department) : unknownTxt}</span><span class="block whitespace-nowrap">${t.phone ? escapeHtml(t.phone) : unknownTxt}</span>`;
+            const html = tableHtml([
+                { h: '종류', cell: t => `<span class="whitespace-nowrap">${escapeHtml(t.category || '-')}</span>` },
+                { h: '구분', cell: t => `<span class="whitespace-nowrap">${escapeHtml(SECTOR_LABEL[t.sector] || '-')}</span>` },
+                { h: '범위', cell: t => `<span class="whitespace-nowrap">${escapeHtml(scopeLabel(t))}</span>` },
+                { h: '사업·기관', cls: 'w-full', cell: agency },
+                { h: '부서·연락처', cell: contact },
+                { h: '선택', cls: 'text-center', cell: sel },
+            ], rows, t => `<label class="flex items-start gap-3 cursor-pointer">${sel(t)}<span class="min-w-0">
+                    <span class="block text-xs text-gray-500">${escapeHtml(t.category || '')} · ${escapeHtml(SECTOR_LABEL[t.sector] || '')} · ${escapeHtml(scopeLabel(t))}</span>
+                    <span class="block mt-0.5">${agency(t)}</span>
+                    <span class="block text-xs text-gray-600 mt-0.5">부서 ${t.department ? escapeHtml(t.department) : '(미확인)'} · 연락처 ${t.phone ? escapeHtml(t.phone) : '(미확인)'}</span>
+                </span></label>`, '조건에 맞는 연계처가 없습니다.');
+            document.getElementById('dl-targets').innerHTML = html;
+        }
+        window.filterDrawerTargets = function(group, value) {
+            const top = drawerStack[drawerStack.length - 1];
+            top.args[group] = value;
+            renderDrawerTargets();
+        };
+        window.selectDrawerTarget = function(id) {
+            drawerStack[drawerStack.length - 1].args.sel = id;
+        };
+        window.submitDrawerLink = async function(kind) {
+            const a = drawerStack[drawerStack.length - 1].args;
+            let body;
+            if (kind === 'collaboration') {
+                const reason = document.getElementById('dl-reason-internal').value.trim();
+                const fromDept = document.getElementById('dl-from').value, toDept = document.getElementById('dl-to').value;
+                if (fromDept === toDept) return showToast('같은 기관에는 의뢰할 수 없습니다.', 'warn');
+                if (!reason) return showToast('의뢰 사유를 입력하세요.', 'warn');
+                const type = document.querySelector('input[name="dl-type"]:checked')?.value || 'consultation';
+                body = { category: 'collaboration', type, fromDept, toDept, reason, fromReportId: a.reportId || null };
+            } else {
+                if (!a.sel) return showToast('연계처를 선택하세요.', 'warn');
+                body = { category: 'referral', type: 'service_referral', targetId: a.sel, reason: document.getElementById('dl-reason').value.trim(), fromReportId: a.reportId || null };
+            }
+            try {
+                const resp = await fetch('/api/case/' + encodeURIComponent(a.caseId) + '/linkage', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+                });
+                if (!resp.ok) { const d = await resp.json().catch(() => ({})); return showToast(d.error || '연계를 기록하지 못했습니다.'); }
+                showToast(kind === 'collaboration' ? '의뢰를 보냈습니다.' : '연계를 기록했습니다. 기관에 연락한 뒤 결과를 기록하세요.', 'success');
+                closeDrawer({ refresh: true });
+            } catch { showToast('연계를 기록하지 못했습니다.'); }
+        };
+        window.pickResult = function(v) {
+            const a = drawerStack[drawerStack.length - 1].args;
+            a.reason = document.getElementById('dr-reason')?.value || '';
+            a.choice = v;
+            rerenderDrawer();
+        };
+        window.submitDrawerResult = async function() {
+            const a = drawerStack[drawerStack.length - 1].args;
+            if (typeof a.choice !== 'boolean') return showToast('접수 여부를 고르세요.', 'warn');
+            const reason = (document.getElementById('dr-reason')?.value || '').trim();
+            try {
+                const resp = await fetch(`/api/case/${encodeURIComponent(a.caseId)}/linkage/${encodeURIComponent(a.linkageId)}/result`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accepted: a.choice, reason }),
+                });
+                if (!resp.ok) { const d = await resp.json().catch(() => ({})); return showToast(d.error || '결과를 기록하지 못했습니다.'); }
+                showToast('결과를 기록했습니다.', 'success');
+                closeDrawer({ refresh: true });
+            } catch { showToast('결과를 기록하지 못했습니다.'); }
+        };
+        window.submitDrawerMemo = async function(caseId) {
+            const input = document.getElementById('drawer-memo');
+            const note = input.value.trim();
+            if (!note) return;
+            try {
+                const resp = await fetch('/api/case/' + encodeURIComponent(caseId) + '/notes', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note }),
+                });
+                if (!resp.ok) throw new Error();
+                rerenderDrawer();
+            } catch { showToast('메모를 추가하지 못했습니다.'); }
+        };
 
         // 로그인 게이트용 기관 목록 (인증 전에도 필요)
         await loadDepartments();
@@ -2228,6 +2701,7 @@
             const data = await resp.json();
             if (data.authenticated) {
                 authenticated = true;
+                sessionAuthed = true;
                 sessionRole = data.role || 'staff';
                 sessionDeptId = data.deptId || null;
                 sessionDeptName = data.deptName || null;

@@ -1156,6 +1156,12 @@ function loadLinkageTargets() {
         linkageTargets = JSON.parse(fs.readFileSync(file, 'utf-8'));
         const unverified = linkageTargets.filter(t => !t.verified).length;
         console.log(`[연계처] ${linkageTargets.length}건 로딩 완료 (미확인 ${unverified}건)`);
+        // 파일로 관리하므로 값이 틀려도 서버는 뜬다 — 대신 로그로 알린다
+        for (const t of linkageTargets) {
+            if (!['sigun', 'region', 'province'].includes(t.scope || 'sigun')) console.warn(`[연계처] ${t.id}: 알 수 없는 scope "${t.scope}"`);
+            if (t.scope === 'region' && !(Array.isArray(t.siguns) && t.siguns.length)) console.warn(`[연계처] ${t.id}: region인데 siguns가 비어 있음`);
+            if (t.sector && !['public', 'private'].includes(t.sector)) console.warn(`[연계처] ${t.id}: 알 수 없는 sector "${t.sector}"`);
+        }
     } catch (err) {
         linkageTargets = [];
         console.error('[연계처] 목록 로딩 실패:', err.message);
@@ -1165,6 +1171,24 @@ loadLinkageTargets();
 
 function findLinkageTarget(id) {
     return linkageTargets.find(t => t.id === id) || null;
+}
+
+/**
+ * 연계처가 이 시군을 맡는가 — 시군(sigun) / 그 시군을 포함하는 권역(region.siguns) / 경남 전체(province).
+ * scope가 없는 옛 항목은 시군 단위로 본다.
+ */
+function targetCoversSigun(t, sigun) {
+    const scope = t.scope || 'sigun';
+    if (scope === 'province') return true;
+    if (scope === 'region') return Array.isArray(t.siguns) && t.siguns.includes(sigun);
+    return t.sigun === sigun;
+}
+
+/** 시군 목록 중 하나라도 맡는 연계처. 시군을 모르면(빈 목록) 전체 — 수동 선택이 막히는 편이 더 나쁘다 */
+function targetsForSiguns(siguns) {
+    const list = [...new Set(siguns.filter(Boolean))];
+    if (list.length === 0) return linkageTargets;
+    return linkageTargets.filter(t => list.some(s => targetCoversSigun(t, s)));
 }
 
 // ── API Routes ──
@@ -3120,6 +3144,7 @@ app.get('/api/staff/linkages', (req, res) => {
                 target: l.target ? {
                     id: l.target.id, serviceName: l.target.serviceName, agencyName: l.target.agencyName,
                     category: t?.category || null, department: t?.department || '', phone: t?.phone || '',
+                    sector: t?.sector || null, scope: t?.scope || 'sigun',
                 } : null,
                 fromDept: l.fromDept || null, toDept: l.toDept || null,
                 fromDeptName: l.fromDept ? getDeptName(l.fromDept) : null,
@@ -3141,11 +3166,15 @@ app.get('/api/staff/linkages', (req, res) => {
     res.json({ tab, counts, items });
 });
 
-// 연계처별 건수 — 생활지원사 범위와 무관
+// 연계처별 건수 — 생활지원사 범위와 무관.
+// 목록은 이 세션이 보는 어르신들의 시군 + 그 시군을 포함하는 권역 + 경남 전체
 app.get('/api/staff/linkage-targets', (req, res) => {
     const month = pilotStatus.seoulMonthKey(Date.now());
-    const stat = new Map(linkageTargets.map(t => [t.id, { monthCount: 0, unrecordedCount: 0 }]));
-    for (const c of requestStore.getStaffCases(req.session?.serviceName || null)) {
+    const cases = requestStore.getStaffCases(req.session?.serviceName || null);
+    const siguns = typeof req.query.sigun === 'string' && req.query.sigun ? [req.query.sigun] : cases.map(c => c.sigun);
+    const targets = targetsForSiguns(siguns);
+    const stat = new Map(targets.map(t => [t.id, { monthCount: 0, unrecordedCount: 0 }]));
+    for (const c of cases) {
         for (const l of c.linkages || []) {
             const s = l.target && stat.get(l.target.id);
             if (!s) continue;
@@ -3153,7 +3182,7 @@ app.get('/api/staff/linkage-targets', (req, res) => {
             if (pilotStatus.linkageProgress(l) === 'unrecorded') s.unrecordedCount++;
         }
     }
-    res.json({ month, count: linkageTargets.length, items: linkageTargets.map(t => ({ ...t, ...stat.get(t.id) })) });
+    res.json({ month, count: targets.length, items: targets.map(t => ({ ...t, ...stat.get(t.id) })) });
 });
 
 // ── Case API Routes (담당자 처리 페이지용) ──
@@ -3605,6 +3634,11 @@ app.post('/api/case/:id/linkage', async (req, res) => {
         if (!targetId) return res.status(400).json({ error: '연계처를 선택하세요.' });
         const found = findLinkageTarget(targetId);
         if (!found) return res.status(400).json({ error: '등록되지 않은 연계처입니다.' });
+        // 목록에서 거른 것과 같은 기준 — 이 어르신 시군을 맡지 않는 연계처는 고를 수 없다
+        const caseSigun = requestStore.findById(req.params.id)?.sigun || null;
+        if (caseSigun && !targetCoversSigun(found, caseSigun)) {
+            return res.status(400).json({ error: '이 어르신 시군을 맡지 않는 연계처입니다.' });
+        }
         target = { id: found.id, serviceName: found.serviceName, agencyName: found.agencyName };
     }
 
@@ -3649,11 +3683,10 @@ app.post('/api/case/:id/linkage/:lid/result', async (req, res) => {
 // 연계처 목록 (외부 연계 대상 선택지) — /api/case 아래라 세션·케이스 토큰 인증이 모두 적용된다
 app.get('/api/case/:id/linkage-targets', (req, res) => {
     const request = requestStore.findById(req.params.id);
-    // 대상자 시군이 있으면 같은 시군만 — 경남 전체로 확대돼도 구조가 바뀌지 않는다.
-    // 시군을 알 수 없으면 전체를 준다. 수동 선택이 막히는 편이 더 나쁘다.
+    // 케이스 시군 + 그 시군을 포함하는 권역 + 경남 전체. 시군을 알 수 없으면 전체를 준다
     const sigun = req.query.sigun || request?.sigun || null;
-    const items = sigun ? linkageTargets.filter(t => t.sigun === sigun) : linkageTargets;
-    res.json({ count: items.length, items });
+    const items = targetsForSiguns([sigun]);
+    res.json({ sigun, count: items.length, items });
 });
 
 // 연계 실행 상태 변경

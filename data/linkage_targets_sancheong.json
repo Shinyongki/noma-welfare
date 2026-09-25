@@ -1,7 +1,10 @@
 [
   {
     "id": "lt-001",
+    "scope": "sigun",
     "sigun": "산청군",
+    "siguns": [],
+    "sector": "public",
     "category": "돌봄",
     "serviceName": "긴급돌봄",
     "agencyName": "가상기관 A",
@@ -13,7 +16,10 @@
   },
   {
     "id": "lt-002",
+    "scope": "sigun",
     "sigun": "산청군",
+    "siguns": [],
+    "sector": "private",
     "category": "의료",
     "serviceName": "병원동행",
     "agencyName": "가상기관 B",
@@ -25,7 +31,10 @@
   },
   {
     "id": "lt-003",
+    "scope": "sigun",
     "sigun": "산청군",
+    "siguns": [],
+    "sector": "public",
     "category": "의료",
     "serviceName": "퇴원연계",
     "agencyName": "가상기관 C",
@@ -37,7 +46,10 @@
   },
   {
     "id": "lt-004",
+    "scope": "sigun",
     "sigun": "산청군",
+    "siguns": [],
+    "sector": "public",
     "category": "돌봄",
     "serviceName": "응급안전안심",
     "agencyName": "가상기관 D",
@@ -49,7 +61,10 @@
   },
   {
     "id": "lt-005",
+    "scope": "sigun",
     "sigun": "산청군",
+    "siguns": [],
+    "sector": "private",
     "category": "정서",
     "serviceName": "기타",
     "agencyName": "가상기관 E",
@@ -61,7 +76,10 @@
   },
   {
     "id": "lt-006",
+    "scope": "sigun",
     "sigun": "산청군",
+    "siguns": [],
+    "sector": "private",
     "category": "주거",
     "serviceName": "주거환경개선",
     "agencyName": "가상기관 F",
@@ -73,7 +91,10 @@
   },
   {
     "id": "lt-007",
+    "scope": "sigun",
     "sigun": "산청군",
+    "siguns": [],
+    "sector": "private",
     "category": "식사",
     "serviceName": "식사배달",
     "agencyName": "가상기관 G",
@@ -85,13 +106,51 @@
   },
   {
     "id": "lt-008",
+    "scope": "sigun",
     "sigun": "산청군",
+    "siguns": [],
+    "sector": "public",
     "category": "정서",
     "serviceName": "말벗·정서지원",
     "agencyName": "가상기관 H",
     "department": "",
     "phone": "",
     "eligibility": "혼자 지내며 우울감·고립감을 호소하는 어르신",
+    "howToApply": "(미확인)",
+    "verified": false
+  },
+  {
+    "id": "lt-009",
+    "scope": "region",
+    "sigun": "",
+    "siguns": [
+      "산청군",
+      "함양군",
+      "거창군",
+      "합천군"
+    ],
+    "sector": "public",
+    "category": "돌봄",
+    "serviceName": "권역 방문돌봄",
+    "agencyName": "가상 권역기관 I",
+    "department": "",
+    "phone": "",
+    "eligibility": "서부경남 권역에 사는 어르신 중 장기요양 등급 밖이지만 돌봄이 필요한 경우",
+    "howToApply": "(미확인)",
+    "verified": false
+  },
+  {
+    "id": "lt-010",
+    "scope": "province",
+    "sigun": "",
+    "siguns": [],
+    "sector": "public",
+    "category": "의료",
+    "serviceName": "도 단위 방문건강",
+    "agencyName": "가상 도 단위기관 J",
+    "department": "",
+    "phone": "",
+    "eligibility": "경남 도내 거주 어르신 중 만성질환 관리가 필요한 경우",
     "howToApply": "(미확인)",
     "verified": false
   }
