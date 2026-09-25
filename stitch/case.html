@@ -2035,12 +2035,12 @@
                     { h: '3주 이상 보고 없음', cell: w => numLink(w.staleElderCount, { worker: name(w), menu: 'roster', tab: 'stale' }) },
                     { h: '최근 보고', cell: w => w.lastReportAt ? dateCell(w.lastReportAt) : '<span class="text-gray-400">없음</span>' },
                     { h: '', cls: 'text-right', cell: w => `<button data-view="${escapeAttr(JSON.stringify({ worker: name(w), menu: 'roster', tab: 'all' }))}" onclick="goView(JSON.parse(this.dataset.view))"
-                        class="px-3 py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50 whitespace-nowrap">담당 보기</button>` },
+                        class="px-3 py-2.5 md:py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50 whitespace-nowrap">담당 보기</button>` },
                 ];
                 const mobile = w => `<div class="flex items-center gap-2">
                         <span class="font-semibold text-gray-900">${escapeHtml(w.name || '(담당 미지정)')}</span>
                         <span class="text-xs text-gray-500">어르신 ${numLink(w.elderCount, { worker: name(w), menu: 'roster', tab: 'all' })}</span>
-                        <button data-view="${escapeAttr(JSON.stringify({ worker: name(w), menu: 'roster', tab: 'all' }))}" onclick="goView(JSON.parse(this.dataset.view))" class="ml-auto px-3 py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800">담당 보기</button>
+                        <button data-view="${escapeAttr(JSON.stringify({ worker: name(w), menu: 'roster', tab: 'all' }))}" onclick="goView(JSON.parse(this.dataset.view))" class="ml-auto px-3 py-2.5 md:py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800">담당 보기</button>
                     </div>
                     <p class="text-xs text-gray-500 mt-1 space-x-3">
                         <span>새 보고 ${numLink(w.newReportCount, { worker: name(w), menu: 'reports', tab: 'new' })}</span>
@@ -2056,8 +2056,8 @@
                 const canAct = canActOnReports();
                 const action = r => (canAct && (r.state === 'new' || r.state === 'reviewed'))
                     ? `<div data-rowact="${r.id}" class="flex gap-1.5 whitespace-nowrap">
-                            <button onclick="openDrawer('link', { caseId: '${escapeAttr(r.caseId)}', reportId: '${escapeAttr(r.id)}' })" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">연계하기</button>
-                            <button onclick="showRowClosure('${r.caseId}','${r.id}')" class="px-3 py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50">조치 불필요</button>
+                            <button onclick="openDrawer('link', { caseId: '${escapeAttr(r.caseId)}', reportId: '${escapeAttr(r.id)}' })" class="px-3 py-2.5 md:py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">연계하기</button>
+                            <button onclick="showRowClosure('${r.caseId}','${r.id}')" class="px-3 py-2.5 md:py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50">조치 불필요</button>
                        </div>`
                     : '';
                 const stateMark = r => { const [l, s] = REPORT_MARK[r.state] || [r.state, 'text']; return mark(l, s); };
@@ -2136,12 +2136,12 @@
                 };
                 const action = l => {
                     if (l.category === 'referral' && !l.result) {
-                        return `<button onclick="openDrawer('result', { caseId: '${escapeAttr(l.caseId)}', linkageId: '${escapeAttr(l.id)}' })" class="px-3 py-1 border border-gray-900 rounded-md text-xs font-semibold text-gray-900 hover:bg-gray-50 whitespace-nowrap">결과 기록</button>`;
+                        return `<button onclick="openDrawer('result', { caseId: '${escapeAttr(l.caseId)}', linkageId: '${escapeAttr(l.id)}' })" class="px-3 py-2.5 md:py-1 border border-gray-900 rounded-md text-xs font-semibold text-gray-900 hover:bg-gray-50 whitespace-nowrap">결과 기록</button>`;
                     }
                     if (l.received && l.approvalStatus === 'pending') {
                         return `<div data-rowact="${l.id}" class="flex gap-1.5 whitespace-nowrap">
-                            <button onclick="rowAccept('${l.caseId}','${l.id}')" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">수락</button>
-                            <button onclick="showRowReject('${l.caseId}','${l.id}')" class="px-3 py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50">반려</button>
+                            <button onclick="rowAccept('${l.caseId}','${l.id}')" class="px-3 py-2.5 md:py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">수락</button>
+                            <button onclick="showRowReject('${l.caseId}','${l.id}')" class="px-3 py-2.5 md:py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50">반려</button>
                         </div>`;
                     }
                     return '';
@@ -2206,8 +2206,8 @@
                 area.innerHTML = `<div class="flex flex-col gap-1.5 min-w-[14rem]">
                     <input type="text" maxlength="500" placeholder="사유 (선택)" aria-label="조치 불필요 사유 (선택)" class="rowclosure-reason w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40" />
                     <div class="flex gap-1.5">
-                        <button onclick="submitRowClosure('${caseId}','${reportId}', this)" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">닫기</button>
-                        <button onclick="refreshAll()" class="px-3 py-1 border border-gray-300 rounded-md text-xs text-gray-600 hover:bg-gray-50">취소</button>
+                        <button onclick="submitRowClosure('${caseId}','${reportId}', this)" class="px-3 py-2.5 md:py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">닫기</button>
+                        <button onclick="refreshAll()" class="px-3 py-2.5 md:py-1 border border-gray-300 rounded-md text-xs text-gray-600 hover:bg-gray-50">취소</button>
                     </div>
                 </div>`;
             });
@@ -2237,8 +2237,8 @@
                 area.innerHTML = `<div class="flex flex-col gap-1.5 min-w-[14rem]">
                     <input type="text" maxlength="500" placeholder="반려 사유 (필수)" aria-label="반려 사유 (필수)" class="rowreject-reason w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy/40" />
                     <div class="flex gap-1.5">
-                        <button onclick="submitRowReject('${caseId}','${linkageId}', this)" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">반려하기</button>
-                        <button onclick="refreshAll()" class="px-3 py-1 border border-gray-300 rounded-md text-xs text-gray-600 hover:bg-gray-50">취소</button>
+                        <button onclick="submitRowReject('${caseId}','${linkageId}', this)" class="px-3 py-2.5 md:py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">반려하기</button>
+                        <button onclick="refreshAll()" class="px-3 py-2.5 md:py-1 border border-gray-300 rounded-md text-xs text-gray-600 hover:bg-gray-50">취소</button>
                     </div>
                 </div>`;
             });
@@ -2394,8 +2394,8 @@
                     const s = c.reportStates?.[r.id];
                     if (!canAct || !(s === 'new' || s === 'reviewed')) return '';
                     return `<div data-rowact="${escapeAttr(r.id)}" class="flex gap-1.5 whitespace-nowrap">
-                        <button onclick="pushDrawer('link', { caseId: '${escapeAttr(c.id)}', reportId: '${escapeAttr(r.id)}' })" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">연계하기</button>
-                        <button onclick="showRowClosure('${escapeAttr(c.id)}','${escapeAttr(r.id)}')" class="px-3 py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50">조치 불필요</button>
+                        <button onclick="pushDrawer('link', { caseId: '${escapeAttr(c.id)}', reportId: '${escapeAttr(r.id)}' })" class="px-3 py-2.5 md:py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">연계하기</button>
+                        <button onclick="showRowClosure('${escapeAttr(c.id)}','${escapeAttr(r.id)}')" class="px-3 py-2.5 md:py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50">조치 불필요</button>
                     </div>`;
                 };
                 const repMark = r => { const [l, s] = REPORT_MARK[shown(r)] || [shown(r), 'text']; return mark(l, s); };
@@ -2429,12 +2429,12 @@
                 };
                 const lkAction = l => {
                     if (l.category === 'referral' && !l.result) {
-                        return `<button onclick="pushDrawer('result', { caseId: '${escapeAttr(c.id)}', linkageId: '${escapeAttr(l.id)}' })" class="px-3 py-1 border border-gray-900 rounded-md text-xs font-semibold text-gray-900 hover:bg-gray-50 whitespace-nowrap">결과 기록</button>`;
+                        return `<button onclick="pushDrawer('result', { caseId: '${escapeAttr(c.id)}', linkageId: '${escapeAttr(l.id)}' })" class="px-3 py-2.5 md:py-1 border border-gray-900 rounded-md text-xs font-semibold text-gray-900 hover:bg-gray-50 whitespace-nowrap">결과 기록</button>`;
                     }
                     if (l.category !== 'referral' && l.approvalStatus === 'pending' && l.toDept === sessionDeptId) {
                         return `<div data-rowact="${escapeAttr(l.id)}" class="flex gap-1.5 whitespace-nowrap">
-                            <button onclick="rowAccept('${escapeAttr(c.id)}','${escapeAttr(l.id)}')" class="px-3 py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">수락</button>
-                            <button onclick="showRowReject('${escapeAttr(c.id)}','${escapeAttr(l.id)}')" class="px-3 py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50">반려</button>
+                            <button onclick="rowAccept('${escapeAttr(c.id)}','${escapeAttr(l.id)}')" class="px-3 py-2.5 md:py-1 bg-navy text-white rounded-md text-xs font-semibold hover:opacity-90">수락</button>
+                            <button onclick="showRowReject('${escapeAttr(c.id)}','${escapeAttr(l.id)}')" class="px-3 py-2.5 md:py-1 border border-gray-400 rounded-md text-xs font-semibold text-gray-800 hover:bg-gray-50">반려</button>
                         </div>`;
                     }
                     return '';
