@@ -2,6 +2,7 @@
   {
     "id": "lt-001",
     "sigun": "산청군",
+    "category": "돌봄",
     "serviceName": "긴급돌봄",
     "agencyName": "가상기관 A",
     "department": "",
@@ -13,6 +14,7 @@
   {
     "id": "lt-002",
     "sigun": "산청군",
+    "category": "의료",
     "serviceName": "병원동행",
     "agencyName": "가상기관 B",
     "department": "",
@@ -24,6 +26,7 @@
   {
     "id": "lt-003",
     "sigun": "산청군",
+    "category": "의료",
     "serviceName": "퇴원연계",
     "agencyName": "가상기관 C",
     "department": "",
@@ -35,6 +38,7 @@
   {
     "id": "lt-004",
     "sigun": "산청군",
+    "category": "돌봄",
     "serviceName": "응급안전안심",
     "agencyName": "가상기관 D",
     "department": "",
@@ -46,11 +50,48 @@
   {
     "id": "lt-005",
     "sigun": "산청군",
+    "category": "정서",
     "serviceName": "기타",
     "agencyName": "가상기관 E",
     "department": "",
     "phone": "",
     "eligibility": "위 사업에 해당하지 않으나 지역사회 자원 연계가 필요한 경우",
+    "howToApply": "(미확인)",
+    "verified": false
+  },
+  {
+    "id": "lt-006",
+    "sigun": "산청군",
+    "category": "주거",
+    "serviceName": "주거환경개선",
+    "agencyName": "가상기관 F",
+    "department": "",
+    "phone": "",
+    "eligibility": "집 안 문턱·욕실 미끄럼 등 주거 환경 때문에 생활이 위험한 어르신",
+    "howToApply": "(미확인)",
+    "verified": false
+  },
+  {
+    "id": "lt-007",
+    "sigun": "산청군",
+    "category": "식사",
+    "serviceName": "식사배달",
+    "agencyName": "가상기관 G",
+    "department": "",
+    "phone": "",
+    "eligibility": "혼자 식사 준비가 어려워 끼니를 거르는 어르신",
+    "howToApply": "(미확인)",
+    "verified": false
+  },
+  {
+    "id": "lt-008",
+    "sigun": "산청군",
+    "category": "정서",
+    "serviceName": "말벗·정서지원",
+    "agencyName": "가상기관 H",
+    "department": "",
+    "phone": "",
+    "eligibility": "혼자 지내며 우울감·고립감을 호소하는 어르신",
     "howToApply": "(미확인)",
     "verified": false
   }

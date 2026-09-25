@@ -13,6 +13,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import * as requestStore from './data/requestStore.mjs';
 import * as analyticsStore from './data/analyticsStore.mjs';
+import * as pilotStatus from './data/pilotStatus.mjs';
 import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1139,6 +1140,11 @@ buildKnownServiceNames();
 const migratedCount = await requestStore.migrateToLinkages();
 if (migratedCount > 0) {
     console.log(`[마이그레이션] 기존 데이터 ${migratedCount}건을 linkages로 변환 완료`);
+}
+// 파일럿 2층: 보고 id·확인·종결 필드, 연계 fromReportId (여러 번 실행해도 결과가 같다)
+const reportMigration = await requestStore.migrateFieldReports();
+if (reportMigration.reports + reportMigration.linkages > 0) {
+    console.log(`[마이그레이션] 보고 ${reportMigration.reports}건, 연계 ${reportMigration.linkages}건 필드 보강`);
 }
 
 // ── 연계처 목록 로드 (서버 시작 시 1회) ──
@@ -2996,6 +3002,33 @@ app.get('/api/staff/cases', (req, res) => {
     res.json({ count: cases.length, items: cases });
 });
 
+// 명부 — 어르신 한 줄에 필요한 값만 계산해서 준다 (보고 원문·연계 상세는 싣지 않는다)
+app.get('/api/staff/roster', (req, res) => {
+    const svcName = req.session?.serviceName || null;
+    const now = Date.now();
+    const items = requestStore.getStaffCases(svcName).map(c => ({
+        id: c.id,
+        userName: c.userName,
+        worker: c.worker || null,
+        sigun: c.sigun || null,
+        ...pilotStatus.elderSummary(c, now),
+    }));
+    items.sort((a, b) => a.rank - b.rank || String(a.userName).localeCompare(String(b.userName), 'ko'));
+
+    const byWorker = new Map();
+    for (const it of items) {
+        const key = it.worker || '';
+        const w = byWorker.get(key) || { name: it.worker, elderCount: 0, newReportCount: 0 };
+        w.elderCount++;
+        w.newReportCount += it.newReportCount;
+        byWorker.set(key, w);
+    }
+    const workers = [...byWorker.values()].sort((a, b) =>
+        String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ko', { numeric: true }));
+
+    res.json({ count: items.length, workers, items, states: pilotStatus.ELDER_STATE, now: new Date(now).toISOString() });
+});
+
 // ── Case API Routes (담당자 처리 페이지용) ──
 
 const MAX_REFERRAL_CHAIN_DEPTH = 10;
@@ -3009,7 +3042,39 @@ app.get('/api/case/:requestId', (req, res) => {
     const request = requestStore.findById(req.params.requestId);
     if (!request) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
     const chain = getSafeReferralChain(req.params.requestId);
-    res.json({ ...request, linkages: request.linkages || [], chain });
+    // 보고·어르신 상태는 저장하지 않고 여기서 계산해 붙인다
+    res.json({
+        ...request, linkages: request.linkages || [], chain,
+        reportStates: pilotStatus.reportStates(request),
+        elderSummary: pilotStatus.elderSummary(request),
+    });
+});
+
+// 보고 확인 기록 — 어르신 화면을 연 시점까지의 새 보고. 전담사회복지사(staff) 세션만 남긴다
+app.post('/api/case/:requestId/reports/review', async (req, res) => {
+    if (req.session?.role !== 'staff') {
+        return res.status(403).json({ error: '담당자 세션에서만 확인을 기록합니다.' });
+    }
+    const by = req.session.deptName || req.session.serviceName || '담당자';
+    const reviewed = await requestStore.markReportsReviewed(req.params.requestId, by);
+    if (!reviewed) return res.status(404).json({ error: '어르신을 찾을 수 없습니다.' });
+    res.json({ success: true, reviewed });
+});
+
+// 보고 종결(조치 불필요). 사유는 선택 입력
+app.post('/api/case/:requestId/reports/:reportId/closure', async (req, res) => {
+    const reason = typeof req.body.reason === 'string' ? req.body.reason : '';
+    if (reason.length > 500) return res.status(400).json({ error: '사유가 너무 깁니다.' });
+    const by = req.session?.deptName || req.session?.serviceName || '담당자';
+    const out = await requestStore.closeReport(req.params.requestId, req.params.reportId, { reason, by });
+    const errors = {
+        not_found: [404, '어르신을 찾을 수 없습니다.'],
+        report_not_found: [404, '보고를 찾을 수 없습니다.'],
+        already_closed: [400, '이미 조치 불필요로 닫힌 보고입니다.'],
+        has_linkage: [400, '연계가 붙은 보고는 조치 불필요로 닫을 수 없습니다.'],
+    };
+    if (out.error) { const [s, m] = errors[out.error]; return res.status(s).json({ error: m }); }
+    res.json({ success: true, report: out.note });
 });
 
 // 상태 변경 (전진만 허용, referred는 별도 허용)
@@ -3390,10 +3455,18 @@ app.post('/api/case/:requestId/collaboration/:collabId/notes', async (req, res) 
 
 // 통합 연계 생성 (이메일 안 보냄)
 app.post('/api/case/:id/linkage', async (req, res) => {
-    const { category, type, fromDept, toDept, targetId, reason } = req.body;
+    const { category, type, fromDept, toDept, targetId, reason, fromReportId } = req.body;
     if (!reason) return res.status(400).json({ error: '사유를 입력하세요.' });
     if (category === 'collaboration' && (!fromDept || !toDept)) {
         return res.status(400).json({ error: '요청 부서와 대상 부서를 선택하세요.' });
+    }
+
+    // 근거 보고는 이 어르신의 보고여야 하고, 조치 불필요로 닫힌 보고는 쓸 수 없다
+    if (fromReportId) {
+        const caseReq = requestStore.findById(req.params.id);
+        const report = pilotStatus.fieldReports(caseReq).find(r => r.id === fromReportId);
+        if (!report) return res.status(400).json({ error: '이 어르신의 보고가 아닙니다.' });
+        if (report.closure) return res.status(400).json({ error: '조치 불필요로 닫힌 보고입니다.' });
     }
 
     // 외부 연계 대상은 연계처 목록에서만 고른다 (deptServiceMap 참조 없음)
@@ -3409,6 +3482,7 @@ app.post('/api/case/:id/linkage', async (req, res) => {
         category, type, fromDept, toDept, target,
         targetService: target ? target.serviceName : null,
         reason, submittedBy: '담당자',
+        fromReportId: fromReportId || null,
     });
     if (!linkage) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
