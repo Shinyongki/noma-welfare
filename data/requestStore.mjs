@@ -346,7 +346,7 @@ export function getWorkerCases(workerName) {
 // 기관 id·표시명·담당 서비스 목록의 유일한 원본. 화면(case.html, admin.html)은 /api/departments로 받아 렌더한다.
 // 실제 기관명이 확정되면 name만 바꾸면 된다. id는 세션·linkage(fromDept/toDept)에 저장되므로 바꾸지 않는다.
 export const DEPARTMENTS = [
-    { id: 'sancheong-1', name: '산청 수행기관', type: 'department', services: ['노인맞춤돌봄서비스'] },
+    { id: 'sancheong-1', name: '산청복음노인통합지원센터', type: 'department', services: ['노인맞춤돌봄서비스'] },
     { id: 'virtual-b', name: '산청해민노인통합지원센터', type: 'department', services: ['노인맞춤돌봄서비스'] },
 ];
 

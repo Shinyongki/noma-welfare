@@ -95,7 +95,7 @@ if (args.includes('--roster')) {
     const HOUR = 60 * 60 * 1000, DAY = 24 * HOUR;
     const nowMs = now.getTime();
     const iso = ms => new Date(Math.min(ms, nowMs - HOUR)).toISOString();
-    const DEPT = '산청 수행기관';
+    const DEPT = '산청복음노인통합지원센터';
     const RECEIVER = '산청해민노인통합지원센터';
     const TEXTS = [
         '오늘 방문했더니 식사를 거의 못 하셨어요.',
