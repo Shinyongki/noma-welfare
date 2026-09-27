@@ -3,6 +3,7 @@
 // 실행: node scripts/seed_cases.mjs                  가상 대상자 4명
 //       node scripts/seed_cases.mjs --roster         명부·캡처용 가상어르신 244명을 새로 만든다 (기존 seed-* 케이스는 지우고 다시 만듦)
 //       node scripts/seed_cases.mjs --remove-roster  명부 검증용 데이터(seed-roster-*)만 지운다
+//       node scripts/seed_cases.mjs --roster --showcase  시연용 — 빈 저장소에서 시작해 가상 기관명·가상 연계처로 244명을 만든다
 //
 // 가상 데이터만 넣는다. 실제 명단 CSV는 저장소에 두지 않는다.
 // 기본 실행은 기존 케이스를 유지하고 같은 id가 있으면 건너뛴다. --roster는 seed-* 케이스만 새로 만들고 나머지는 둔다.
@@ -14,8 +15,12 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = path.join(__dirname, '..', 'data', 'requests.json');
-const TARGETS_FILE = path.join(__dirname, '..', 'data', 'linkage_targets_sancheong.json');
 const args = process.argv.slice(2);
+// 시연 모드: 실제 시군·기관명·연계처가 들어가지 않게 가상 값으로 바꾼다
+const SHOWCASE = args.includes('--showcase');
+const TARGETS_FILE = path.join(__dirname, '..', 'data', SHOWCASE ? 'linkage_targets_showcase.json' : 'linkage_targets_sancheong.json');
+const SIGUN = SHOWCASE ? '가상군' : '산청군';
+const PREFIX = SHOWCASE ? 'showcase-' : 'sancheong-';
 
 // 가상 대상자 — 이름·연락처 모두 누가 봐도 가상인 값
 const SEED = [
@@ -35,7 +40,7 @@ function readStore() {
     return {};
 }
 
-const store = readStore();
+const store = SHOWCASE ? {} : readStore();   // 시연 모드는 기존 케이스를 가져오지 않는다
 const now = new Date();
 let added = 0;
 let removed = 0;
@@ -57,7 +62,7 @@ for (const s of (args.includes('--remove-roster') || args.includes('--roster')) 
         serviceName: '노인맞춤돌봄서비스',
         userName: s.userName,
         userPhone: s.userPhone,
-        sigun: '산청군',
+        sigun: SIGUN,
         worker: s.worker,
         createdAt: now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
         createdAtISO: now.toISOString(),
@@ -95,8 +100,8 @@ if (args.includes('--roster')) {
     const HOUR = 60 * 60 * 1000, DAY = 24 * HOUR;
     const nowMs = now.getTime();
     const iso = ms => new Date(Math.min(ms, nowMs - HOUR)).toISOString();
-    const DEPT = '산청복음노인통합지원센터';
-    const RECEIVER = '산청해민노인통합지원센터';
+    const DEPT = SHOWCASE ? '가상 수행기관 A (군 지역)' : '산청복음노인통합지원센터';
+    const RECEIVER = SHOWCASE ? '가상 수행기관 B (군 지역)' : '산청해민노인통합지원센터';
     const TEXTS = [
         '오늘 방문했더니 식사를 거의 못 하셨어요.',
         '계단에서 넘어질 뻔하셨다고 합니다. 무릎이 아프다고 하세요.',
@@ -113,10 +118,10 @@ if (args.includes('--roster')) {
     ];
     // 보고 내용에 어울리는 연계처 (없으면 아무 연계처)
     const FIT = {
-        '식사': ['sancheong-ic-meal'], '넘어질': ['sancheong-ic-housing', 'sancheong-visit-health'], '약을': ['sancheong-visit-health'],
-        '보일러': ['sancheong-emergency-welfare', 'sancheong-ic-housing'], '우울': ['sancheong-mental'], '병원': ['sancheong-ic-escort'],
-        '음식': ['sancheong-ic-meal', 'sancheong-emergency-welfare'], '욕실': ['sancheong-ic-housing'], '잠을': ['sancheong-mental'],
-        '같은 말': ['sancheong-dementia'],
+        '식사': [PREFIX + 'ic-meal'], '넘어질': [PREFIX + 'ic-housing', PREFIX + 'visit-health'], '약을': [PREFIX + 'visit-health'],
+        '보일러': [PREFIX + 'emergency-welfare', PREFIX + 'ic-housing'], '우울': [PREFIX + 'mental'], '병원': [PREFIX + 'ic-escort'],
+        '음식': [PREFIX + 'ic-meal', PREFIX + 'emergency-welfare'], '욕실': [PREFIX + 'ic-housing'], '잠을': [PREFIX + 'mental'],
+        '같은 말': [PREFIX + 'dementia'],
     };
     const fitTarget = text => {
         const k = Object.keys(FIT).find(k => text.includes(k));
@@ -174,7 +179,7 @@ if (args.includes('--roster')) {
     const elder = (id, userName, userPhone, worker, registeredDays, notes, linkages) => {
         const reg = new Date(nowMs - registeredDays * DAY);
         store[id] = {
-            id, serviceName: '노인맞춤돌봄서비스', userName, userPhone, sigun: '산청군', worker,
+            id, serviceName: '노인맞춤돌봄서비스', userName, userPhone, sigun: SIGUN, worker,
             createdAt: reg.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }), createdAtISO: reg.toISOString(),
             status: 'open', referrals: [], linkages, notes,
         };
@@ -186,7 +191,7 @@ if (args.includes('--roster')) {
         const old1 = report(9, { text: '오늘 방문했더니 어지럽다고 하시고 식사를 못 하셨습니다.' });
         const new1 = report(0, { reviewed: false, text: '기침이 며칠째 계속되고 가래가 나온다고 하세요.' });
         elder('seed-elder-001', '가상어르신 하나', '010-0000-0001', '가상생활지원사1', 60, [old1, new1], [
-            referral(old1, tById('sancheong-visit-health'), { accepted: true, reason: '다음 주 방문 일정 잡음' }),   // 새 연계처 · 접수
+            referral(old1, tById(PREFIX + 'visit-health'), { accepted: true, reason: '다음 주 방문 일정 잡음' }),   // 새 연계처 · 접수
             collab(old1, 'accepted'),                                                                              // 산청해민 · 수락
         ]);
         const r2 = report(6, { text: '무릎이 아파 혼자 씻고 드시기가 어렵다고 하세요.' });

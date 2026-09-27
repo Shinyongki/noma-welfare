@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tailwindcss -c tailwind.config.cjs -i ./src/tailwind.css -o ./stitch/css/tailwind.css --minify",
     "start": "node server.js",
+    "start:showcase": "node scripts/seed_cases.mjs --roster --showcase && node server.js",
     "build:css": "tailwindcss -c tailwind.config.cjs -i ./src/tailwind.css -o ./stitch/css/tailwind.css --minify",
     "watch:css": "tailwindcss -c tailwind.config.cjs -i ./src/tailwind.css -o ./stitch/css/tailwind.css --watch"
   },

@@ -104,6 +104,9 @@ app.use(session({
     },
 }));
 
+// ── 시연 모드 여부 (인증 불필요, worker 화이트리스트보다 위) ──
+app.get('/api/showcase', (req, res) => res.json({ showcase: process.env.SHOWCASE === '1' }));
+
 // ── 생활지원사(worker) 접근 범위 제한 ──
 // 화이트리스트를 /api/ 진입점에 한 번 건다. 새 라우트가 늘어도 worker에게는 자동으로 닫힌다.
 const WORKER_ALLOWED_PREFIXES = ['/report', '/unified-auth'];
@@ -1152,7 +1155,7 @@ if (reportMigration.reports + reportMigration.linkages > 0) {
 let linkageTargets = [];
 function loadLinkageTargets() {
     try {
-        const file = path.join(__dirname, 'data', 'linkage_targets_sancheong.json');
+        const file = path.join(__dirname, 'data', process.env.SHOWCASE === '1' ? 'linkage_targets_showcase.json' : 'linkage_targets_sancheong.json');
         linkageTargets = JSON.parse(fs.readFileSync(file, 'utf-8'));
         const unverified = linkageTargets.filter(t => !t.verified).length;
         console.log(`[연계처] ${linkageTargets.length}건 로딩 완료 (미확인 ${unverified}건)`);
@@ -1195,7 +1198,7 @@ function targetsForSiguns(siguns) {
 
 // 정적 파일 서빙 및 메인 화면 라우트
 app.use(express.static(path.join(__dirname, 'stitch'), { dotfiles: 'deny', index: false }));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'code.html')));
+app.get('/', (req, res) => process.env.SHOWCASE === '1' ? res.redirect('/case') : res.sendFile(path.join(__dirname, 'stitch', 'code.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'admin.html')));
 app.get('/report', (req, res) => res.sendFile(path.join(__dirname, 'stitch', 'report.html')));
 app.get('/favicon.ico', (req, res) => res.status(204).end());

@@ -22,6 +22,8 @@
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
+<div id="showcase-banner" class="hidden w-full bg-amber-100 text-amber-900 text-center text-xs py-1">시연용 화면 · 모든 어르신·기관·연락처는 가상 데이터입니다 · 실제 운영 시스템이 아닙니다</div>
+<script>fetch('/api/showcase').then(r=>r.json()).then(d=>{ if(d.showcase) document.getElementById('showcase-banner').classList.remove('hidden'); }).catch(()=>{});</script>
 
 <!-- 로그인 게이트 -->
 <div id="login-gate" class="min-h-screen flex items-center justify-center px-5">
