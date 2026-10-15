@@ -456,6 +456,8 @@ export async function addLinkage(requestId, data) {
             result: null,
             // 근거가 된 생활지원사 보고. 보고 없이 만든 연계는 null
             fromReportId: data.fromReportId || null,
+            // 연계처를 고를 때 목록 순위·관련 점수 (외부 연계만, 화면 표시 없음). 내부 의뢰는 null
+            recommendSnapshot: data.recommendSnapshot || null,
             targetService: data.targetService || null,
             reason: data.reason || '',
             approvalStatus: isReferral ? 'accepted' : 'pending',

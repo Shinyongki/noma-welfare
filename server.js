@@ -3656,6 +3656,7 @@ app.post('/api/case/:id/linkage', async (req, res) => {
 
     // 외부 연계 대상은 연계처 목록에서만 고른다 (deptServiceMap 참조 없음)
     let target = null;
+    let recommendSnapshot = null;
     if (category === 'referral') {
         if (!targetId) return res.status(400).json({ error: '연계처를 선택하세요.' });
         const found = findLinkageTarget(targetId);
@@ -3666,6 +3667,11 @@ app.post('/api/case/:id/linkage', async (req, res) => {
             return res.status(400).json({ error: '이 어르신 시군을 맡지 않는 연계처입니다.' });
         }
         target = { id: found.id, serviceName: found.serviceName, agencyName: found.agencyName };
+        // 고른 연계처가 그때 목록 몇 번째였고 점수가 얼마였는지 (화면에 보이지 않는 기록, 작업 6A)
+        // 서랍이 받은 목록과 같은 계산 — 시군 범위, 같은 근거 보고
+        const caseReq = requestStore.findById(req.params.id);
+        const ranked = rankTargetsForCase(caseReq, targetsForSiguns([caseSigun]), fromReportId || null);
+        recommendSnapshot = recommend.snapshotOf(ranked, found.id, recommendRules.version);
     }
 
     const linkage = await requestStore.addLinkage(req.params.id, {
@@ -3673,6 +3679,7 @@ app.post('/api/case/:id/linkage', async (req, res) => {
         targetService: target ? target.serviceName : null,
         reason, submittedBy: '담당자',
         fromReportId: fromReportId || null,
+        recommendSnapshot,
     });
     if (!linkage) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
