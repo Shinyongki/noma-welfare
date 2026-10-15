@@ -15,6 +15,32 @@
         .animate-fade-up { animation: fade-up 0.4s ease-out; }
         @keyframes spin-slow { to { transform: rotate(360deg); } }
         .animate-spin-slow { animation: spin-slow 1.2s linear infinite; }
+        /* 어르신 연계 연결도 (작업 9) — 손으로 쓴 SVG. 상태는 글자 + 모양, 색만으로 구분하지 않는다 */
+        .lkmap { --lk-bg: transparent; --lk-box: #ffffff; --lk-boxline: #c9ced6; --lk-ink: #111827; --lk-muted: #6b7280;
+                 --lk-line: #9aa1ad; --lk-navy: #1F3553; --lk-elder-ink: #ffffff; --lk-hi: #eef2f7;
+                 background: var(--lk-bg); border-radius: 0.5rem; }
+        @media (prefers-color-scheme: dark) {
+            .lkmap { --lk-bg: #111827; --lk-box: #1f2937; --lk-boxline: #4b5563; --lk-ink: #f3f4f6; --lk-muted: #a3acb9;
+                     --lk-line: #7b8494; --lk-navy: #a9c1e0; --lk-elder-ink: #0b1626; --lk-hi: #273449; padding: 0.5rem; }
+        }
+        .lkmap svg { display: block; overflow: visible; }
+        .lkmap .lk-edge { stroke: var(--lk-line); stroke-width: 1.5; fill: none; }
+        .lkmap .lk-arc { stroke: var(--lk-navy); stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; }
+        .lkmap .lk-dot { fill: var(--lk-navy); }
+        .lkmap .lk-arrow { fill: var(--lk-line); }
+        .lkmap .lk-box { fill: var(--lk-box); stroke: var(--lk-boxline); stroke-width: 1; }
+        .lkmap .lk-box.lk-strong { stroke: var(--lk-ink); stroke-width: 1.5; }
+        .lkmap .lk-elder { fill: var(--lk-navy); }
+        .lkmap .lk-et { fill: var(--lk-elder-ink); font-weight: 700; }
+        .lkmap .lk-t { fill: var(--lk-ink); }
+        .lkmap .lk-m { fill: var(--lk-muted); }
+        .lkmap .lk-s-fill { fill: var(--lk-ink); }
+        .lkmap .lk-s-line { fill: var(--lk-box); stroke: var(--lk-ink); stroke-width: 1.5; }
+        .lkmap .lk-go { cursor: pointer; outline: none; }
+        .lkmap .lk-go:hover .lk-box, .lkmap .lk-go:focus-visible .lk-box { fill: var(--lk-hi); stroke: var(--lk-navy); stroke-width: 2; }
+        .lkmap .lk-legend { color: var(--lk-muted); }
+        .lk-flash { animation: lk-flash 1.6s ease-out; }
+        @keyframes lk-flash { 0%, 40% { background-color: #e5ebf3; } 100% { background-color: transparent; } }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -1904,12 +1930,12 @@
          * 모든 목록은 같은 표 형식이다. PC는 표, 휴대폰은 한 줄 요약 목록으로 그린다.
          * cols: [{ h, cell(row), cls }], mobile(row): 휴대폰 한 줄 요약
          */
-        function tableHtml(cols, rows, mobile, empty) {
+        function tableHtml(cols, rows, mobile, empty, rowAttr = () => '') {
             if (rows.length === 0) return `<p class="px-4 py-8 text-center text-sm text-gray-400">${empty}</p>`;
             const head = cols.map(c => `<th scope="col" class="text-left font-medium px-3 first:pl-4 last:pr-4 py-2 whitespace-nowrap">${c.h}</th>`).join('');
-            const body = rows.map(r => `<tr class="border-t border-mb-line align-top hover:bg-gray-50">${cols.map(c =>
+            const body = rows.map(r => `<tr ${rowAttr(r)} class="border-t border-mb-line align-top hover:bg-gray-50">${cols.map(c =>
                 `<td class="px-3 first:pl-4 last:pr-4 py-2.5 ${c.cls || ''}">${c.cell(r)}</td>`).join('')}</tr>`).join('');
-            const list = rows.map(r => `<li class="px-4 py-3">${mobile(r)}</li>`).join('');
+            const list = rows.map(r => `<li ${rowAttr(r)} class="px-4 py-3">${mobile(r)}</li>`).join('');
             return `<table class="hidden md:table w-full text-sm">
                     <thead class="text-xs text-gray-500"><tr>${head}</tr></thead>
                     <tbody>${body}</tbody>
@@ -2451,7 +2477,7 @@
                         <span class="font-semibold text-gray-900">${escapeHtml(l.category === 'referral' ? (l.target?.agencyName || '-') : getDeptName(l.toDept))}</span>
                         <span class="ml-auto">${lkResult(l)}</span></div>
                     <p class="mt-1 text-sm">${lkReport(l)}</p>
-                    ${lkAction(l) ? `<div class="mt-2">${lkAction(l)}</div>` : ''}`, '아직 연계가 없습니다.');
+                    ${lkAction(l) ? `<div class="mt-2">${lkAction(l)}</div>` : ''}`, '아직 연계가 없습니다.', l => `data-lk="${escapeAttr(l.id)}"`);
 
                 const memos = (c.notes || []).filter(n => n.type !== 'field_report');
                 const memoHtml = `<div class="px-4 py-3">
@@ -2466,8 +2492,10 @@
                 document.getElementById('drawer-body').innerHTML =
                     card('어르신', dl([['담당 생활지원사', escapeHtml(c.worker || '-')], ['시군', escapeHtml(c.sigun || '-')]])) +
                     card('보고 이력', repTable, `<span class="ml-auto text-sm text-gray-500">${reports.length}건</span>`) +
+                    linkMapCard() +
                     card('연계 이력', lkTable, canAct ? `<button onclick="pushDrawer('link', { caseId: '${escapeAttr(c.id)}', reportId: null })" class="ml-auto text-sm font-semibold text-navy hover:underline">보고 없이 연계하기</button>` : '') +
                     card('담당자 메모', memoHtml);
+                drawLinkMap({ name: c.userName || args.caseId, reports, linkages });
             },
 
             // 연계하기 — 근거 보고(자동), 종류·구분 필터, 연계처 목록, 사유(선택). 내부 의뢰는 목록 아래 한 단계 뒤
@@ -2597,6 +2625,194 @@
                 document.getElementById('drawer-body').innerHTML = card('기관 정보', infoHtml) + card('이 기관으로 연계한 어르신', lt, `<span class="ml-auto text-sm text-gray-500">${rows.length}건</span>`);
             },
         };
+
+        // ── 어르신 연계 연결도 (작업 9) ──
+        // 보고(최근 3건) → 어르신 → 연계. 보조 그림이다 — 편집·기록은 아래 연계 이력에서 한다.
+        // 그릴 자리 폭이 560px 이상이면 가로, 그보다 좁으면(휴대폰) 세로로 그린다.
+        let linkMapOpen = true;
+        let linkMapData = null;
+        function linkMapCard() {
+            return `<details id="lkmap-card" ${linkMapOpen ? 'open' : ''} class="bg-white border border-mb-line rounded-xl overflow-hidden">
+                <summary class="flex items-center gap-2 px-4 py-2.5 bg-mb-head text-base font-bold text-gray-900 cursor-pointer">연결도<span class="ml-auto text-xs font-normal text-gray-500">보고 → 어르신 → 연계</span></summary>
+                <div class="px-3 py-3 border-t border-mb-line"><div id="lkmap" class="lkmap"></div></div>
+            </details>`;
+        }
+        // 접고 펼친 상태는 서랍을 다시 그려도 유지한다
+        document.addEventListener('toggle', e => {
+            if (e.target?.id !== 'lkmap-card') return;
+            linkMapOpen = e.target.open;
+            if (linkMapOpen) drawLinkMap(linkMapData);
+        }, true);
+
+        // [글자, 모양, 굵은 테두리] — 모양: fill ● / empty ○ / half ◐ / slash ⊘
+        const LK_STATUS = {
+            unrecorded: ['결과 미기록', 'empty', true], received: ['접수', 'fill', false], refused: ['미접수', 'slash', false],
+            waiting: ['수락 대기', 'half', true], accepted: ['수락', 'fill', false], rejected: ['반려', 'slash', false],
+        };
+        function linkStatusOf(l) {
+            if (l.category === 'referral') return LK_STATUS[!l.result ? 'unrecorded' : l.result.accepted ? 'received' : 'refused'];
+            if (l.approvalStatus === 'accepted') return LK_STATUS.accepted;
+            if (l.approvalStatus === 'rejected') return LK_STATUS.rejected;
+            return LK_STATUS.waiting;
+        }
+        let lkCtx = null;
+        // SVG 글자는 넘쳐도 줄이 바뀌지 않으므로 폭에 맞춰 자른다
+        function lkFit(text, maxW, size, weight = 400) {
+            text = String(text || '');
+            if (!lkCtx) lkCtx = document.createElement('canvas').getContext('2d');
+            lkCtx.font = `${weight} ${size}px 'Pretendard Variable', sans-serif`;
+            if (lkCtx.measureText(text).width <= maxW) return text;
+            let lo = 0, hi = text.length;
+            while (lo < hi) { const m = (lo + hi + 1) >> 1; if (lkCtx.measureText(text.slice(0, m) + '…').width <= maxW) lo = m; else hi = m - 1; }
+            return text.slice(0, lo) + '…';
+        }
+        function lkShape(kind, x, y) {
+            const r = 5.5;
+            if (kind === 'fill') return `<circle cx="${x}" cy="${y}" r="${r}" class="lk-s-fill"/>`;
+            if (kind === 'half') return `<circle cx="${x}" cy="${y}" r="${r}" class="lk-s-line"/><path d="M${x} ${y - r} A${r} ${r} 0 0 0 ${x} ${y + r} Z" class="lk-s-fill"/>`;
+            if (kind === 'slash') return `<circle cx="${x}" cy="${y}" r="${r}" class="lk-s-line"/><line x1="${x - r * 0.7}" y1="${y + r * 0.7}" x2="${x + r * 0.7}" y2="${y - r * 0.7}" class="lk-s-line"/>`;
+            return `<circle cx="${x}" cy="${y}" r="${r}" class="lk-s-line"/>`;
+        }
+        const lkDay = iso => fmt(iso, { month: 'numeric', day: 'numeric' });
+
+        function drawLinkMap(data) {
+            linkMapData = data;
+            const host = document.getElementById('lkmap');
+            if (!host || !data || !linkMapOpen) return;
+            const links = data.linkages || [];
+            if (!links.length) { host.innerHTML = '<p class="lk-legend px-1 py-1 text-sm">아직 연계가 없습니다</p>'; return; }
+            const reps = (data.reports || []).slice(0, 3);
+            const moreReps = (data.reports || []).length - reps.length;
+            const cs = getComputedStyle(host);
+            const W = Math.max(260, Math.floor(host.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)));
+            const horizontal = W >= 560;
+            // 보고와 그 보고로 만든 연계를 잇는 선 (그림에 나온 보고만)
+            const arcs = [];
+            links.forEach((l, j) => { const i = reps.findIndex(r => r.id && r.id === l.fromReportId); if (i >= 0) arcs.push({ i, j }); });
+            const linkedCount = r => links.filter(l => r.id && l.fromReportId === r.id).length;
+            const RH = 46, LH = 62, GAP = 10, EH = 44;
+            const repsLabel = `생활지원사 보고${moreReps > 0 ? ` (최근 3건 · 외 ${moreReps}건)` : ''}`;
+
+            const repBox = (r, x, y, w) => {
+                const n = linkedCount(r);
+                const head = `${lkDay(r.createdAt)} 보고${n ? ` · 연계 ${n}건` : ''}`;
+                return `<g><rect x="${x}" y="${y}" width="${w}" height="${RH}" rx="8" class="lk-box"/>
+                    <text x="${x + 10}" y="${y + 17}" font-size="11.5" class="lk-m">${escapeHtml(lkFit(head, w - 20, 11.5))}</text>
+                    <text x="${x + 10}" y="${y + 35}" font-size="13" class="lk-t">${escapeHtml(lkFit(firstLine(r.text), w - 20, 13))}</text></g>`;
+            };
+            const linkBox = (l, x, y, w) => {
+                const [label, shape, strong] = linkStatusOf(l);
+                const name = l.category === 'referral' ? (l.target?.agencyName || '-') : getDeptName(l.toDept);
+                const sub = l.category === 'referral' ? (l.target?.serviceName || '') : '다른 수행기관 의뢰';
+                return `<g class="lk-go" role="link" tabindex="0" data-goto="${escapeAttr(l.id)}" aria-label="${escapeAttr(`${name} ${sub} — ${label}. 연계 이력으로 이동`)}">
+                    <rect x="${x}" y="${y}" width="${w}" height="${LH}" rx="8" class="lk-box ${strong ? 'lk-strong' : ''}"/>
+                    <text x="${x + 10}" y="${y + 18}" font-size="13" font-weight="700" class="lk-t">${escapeHtml(lkFit(name, w - 20, 13, 700))}</text>
+                    <text x="${x + 10}" y="${y + 34}" font-size="11.5" class="lk-m">${escapeHtml(lkFit(sub, w - 20, 11.5))}</text>
+                    ${lkShape(shape, x + 16, y + 49)}
+                    <text x="${x + 27}" y="${y + 53.5}" font-size="12.5" font-weight="700" class="lk-t">${escapeHtml(label)}</text>
+                    <text x="${x + w - 10}" y="${y + 53.5}" font-size="11" text-anchor="end" class="lk-m">${escapeHtml(lkDay(l.createdAt))} 연계</text></g>`;
+            };
+            const elderBox = (x, y, w, h) => `<g><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="10" class="lk-elder"/>
+                <text x="${x + w / 2}" y="${y + h / 2 + 5}" font-size="14" text-anchor="middle" class="lk-et">${escapeHtml(lkFit(data.name, w - 16, 14, 700))}</text></g>`;
+            const colLabel = (x, y, t, anchor = 'start') => `<text x="${x}" y="${y}" font-size="11.5" font-weight="600" text-anchor="${anchor}" class="lk-m">${escapeHtml(t)}</text>`;
+            const arrow = 'marker-end="url(#lk-arrowhead)"';
+            let svg = '', H;
+
+            if (horizontal) {
+                const rw = reps.length ? Math.round(Math.min(200, Math.max(140, W * 0.28))) : 0;
+                const lw = Math.round(Math.min(240, Math.max(170, W * 0.34)));
+                // 어르신 상자는 이름이 다 들어가는 폭으로 (너무 길면 자른다)
+                lkFit('', 0, 14, 700);
+                const ew = Math.round(Math.min(160, Math.max(96, lkCtx.measureText(data.name || '').width + 28)));
+                const xR = 0, xL = W - lw;
+                const xE = Math.round(reps.length ? (rw + xL) / 2 - ew / 2 : xL / 2 - ew / 2);
+                const colR = reps.length ? reps.length * RH + (reps.length - 1) * GAP : 0;
+                const colL = links.length * LH + (links.length - 1) * GAP;
+                const top = 22;
+                const laneRoom = arcs.length ? 2 * (14 + arcs.length * 9) : 0;
+                const Hc = Math.max(colR, colL, EH + laneRoom);
+                H = top + Hc + 4;
+                const yE = top + Hc / 2;
+                const yR0 = top + (Hc - colR) / 2, yL0 = top + (Hc - colL) / 2;
+                const ry = i => yR0 + i * (RH + GAP), ly = j => yL0 + j * (LH + GAP);
+                const a = xR + rw, b = xE, c = xE + ew, d = xL;
+                const m1 = (a + b) / 2, m2 = (c + d) / 2;
+                // 보고 → 어르신
+                reps.forEach((r, i) => { const y = ry(i) + RH / 2 - 6;
+                    svg += `<path d="M${a} ${y} C${m1} ${y} ${m1} ${yE} ${b - 1} ${yE}" class="lk-edge" ${arrow}/>`; });
+                // 어르신 → 연계
+                links.forEach((l, j) => { const y = ly(j) + LH / 2 - 8;
+                    svg += `<path d="M${c} ${yE} C${m2} ${yE} ${m2} ${y} ${d - 1} ${y}" class="lk-edge" ${arrow}/>`; });
+                // 보고 ⇢ 연계 — 어르신 상자 위나 아래로 돌아간다. 같은 쪽은 줄을 한 칸씩 띄운다
+                let up = 0, down = 0;
+                arcs.forEach(({ i, j }) => {
+                    const y1 = ry(i) + RH / 2 + 8, y2 = ly(j) + LH / 2 + 12;
+                    const above = (y1 + y2) / 2 < yE;
+                    const lane = above ? yE - EH / 2 - 12 - (up++) * 9 : yE + EH / 2 + 12 + (down++) * 9;
+                    svg += `<path d="M${a} ${y1} C${m1} ${y1} ${m1} ${lane} ${b} ${lane} L${c} ${lane} C${m2} ${lane} ${m2} ${y2} ${d} ${y2}" class="lk-arc"/>
+                        <circle cx="${a}" cy="${y1}" r="2.5" class="lk-dot"/><circle cx="${d}" cy="${y2}" r="2.5" class="lk-dot"/>`;
+                });
+                svg += reps.map((r, i) => repBox(r, xR, ry(i), rw)).join('');
+                svg += elderBox(xE, yE - EH / 2, ew, EH);
+                svg += links.map((l, j) => linkBox(l, xL, ly(j), lw)).join('');
+                if (reps.length) svg += colLabel(xR, 12, repsLabel);
+                svg += colLabel(xE + ew / 2, 12, '어르신', 'middle') + colLabel(xL, 12, `연계 ${links.length}건`);
+            } else {
+                // 세로: 왼쪽 줄기(보고 → 어르신 → 연계). 보고 ⇢ 연계는 오른쪽 여백으로 돈다
+                const spine = 10, x0 = 26;
+                const laneW = arcs.length ? 6 + arcs.length * 8 : 0;
+                const bw = W - x0 - laneW;
+                let y = 0;
+                const repY = [], linkY = [];
+                if (reps.length) {
+                    svg += colLabel(0, y + 12, repsLabel); y += 20;
+                    reps.forEach(() => { repY.push(y); y += RH + 8; });
+                    y += 10;
+                }
+                const yEl = y; y += EH + 14;
+                svg += colLabel(0, y + 12, `연계 ${links.length}건`); y += 20;
+                links.forEach(() => { linkY.push(y); y += LH + 8; });
+                H = y - 8;
+                if (reps.length) {
+                    svg += `<path d="M${spine} ${repY[0] + RH / 2} L${spine} ${yEl - 1}" class="lk-edge" ${arrow}/>`;
+                    repY.forEach(t => { svg += `<path d="M${x0} ${t + RH / 2} L${spine} ${t + RH / 2}" class="lk-edge"/>`; });
+                }
+                svg += `<path d="M${spine} ${yEl + EH} L${spine} ${linkY[linkY.length - 1] + LH / 2}" class="lk-edge"/>`;
+                linkY.forEach(t => { svg += `<path d="M${spine} ${t + LH / 2} L${x0 - 1} ${t + LH / 2}" class="lk-edge" ${arrow}/>`; });
+                arcs.forEach(({ i, j }, k) => {
+                    const sx = x0 + bw, lx = W - 2 - k * 8, y1 = repY[i] + RH / 2, y2 = linkY[j] + LH / 2;
+                    svg += `<path d="M${sx} ${y1} L${lx - 5} ${y1} Q${lx} ${y1} ${lx} ${y1 + 5} L${lx} ${y2 - 5} Q${lx} ${y2} ${lx - 5} ${y2} L${sx} ${y2}" class="lk-arc"/>
+                        <circle cx="${sx}" cy="${y1}" r="2.5" class="lk-dot"/><circle cx="${sx}" cy="${y2}" r="2.5" class="lk-dot"/>`;
+                });
+                svg += reps.map((r, i) => repBox(r, x0, repY[i], bw)).join('');
+                svg += elderBox(0, yEl, x0 + bw, EH);
+                svg += links.map((l, j) => linkBox(l, x0, linkY[j], bw)).join('');
+            }
+            const summary = `${data.name} — 보고 ${reps.length}건, 연계 ${links.length}건: ` +
+                links.map(l => `${l.category === 'referral' ? (l.target?.agencyName || '') : getDeptName(l.toDept)} ${linkStatusOf(l)[0]}`).join(', ');
+            const h = Math.ceil(H);
+            host.innerHTML = `<svg viewBox="0 0 ${W} ${h}" width="${W}" height="${h}" role="img" aria-label="${escapeAttr(summary)}" data-layout="${horizontal ? 'h' : 'v'}">
+                <defs><marker id="lk-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" class="lk-arrow"/></marker></defs>${svg}</svg>` +
+                (arcs.length ? `<p class="lk-legend mt-2 text-xs flex items-center gap-1.5"><svg width="26" height="8" aria-hidden="true"><path d="M1 4 H25" class="lk-arc"/></svg>점선: 보고와 그 보고로 만든 연계</p>` : '');
+        }
+        // 상자를 누르면 아래 연계 이력의 그 행으로 간다 (도형 안에서는 편집하지 않는다)
+        function goLinkRow(id) {
+            const row = [...document.querySelectorAll(`#drawer-body [data-lk="${CSS.escape(id)}"]`)].find(el => el.offsetParent);
+            if (!row) return;
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.remove('lk-flash'); void row.offsetWidth; row.classList.add('lk-flash');
+        }
+        document.addEventListener('click', e => { const g = e.target.closest?.('#lkmap [data-goto]'); if (g) goLinkRow(g.dataset.goto); });
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const g = e.target.closest?.('#lkmap [data-goto]');
+            if (g) { e.preventDefault(); goLinkRow(g.dataset.goto); }
+        });
+        let lkResizeTimer = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(lkResizeTimer);
+            lkResizeTimer = setTimeout(() => { if (document.getElementById('lkmap')) drawLinkMap(linkMapData); }, 120);
+        });
 
         // 연계하기 서랍의 연계처 목록 — 필터를 바꿔도 입력한 사유는 그대로 둔다
         function renderDrawerTargets() {
