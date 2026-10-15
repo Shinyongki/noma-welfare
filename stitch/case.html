@@ -2472,9 +2472,11 @@
 
             // 연계하기 — 근거 보고(자동), 종류·구분 필터, 연계처 목록, 사유(선택). 내부 의뢰는 목록 아래 한 단계 뒤
             async link(args, seq) {
+                // 근거 보고가 있으면 그 보고 원문으로 관련 연계처를 위로 올린다 (순서만 바뀐다)
+                const tq = args.reportId ? '?reportId=' + encodeURIComponent(args.reportId) : '';
                 const [c, t] = await Promise.all([
                     getJson('/api/case/' + encodeURIComponent(args.caseId)),
-                    getJson('/api/case/' + encodeURIComponent(args.caseId) + '/linkage-targets'),
+                    getJson('/api/case/' + encodeURIComponent(args.caseId) + '/linkage-targets' + tq),
                 ]);
                 if (seq !== drawerSeq) return;
                 args.targets = t.items || [];
@@ -2612,8 +2614,12 @@
                 chip('sector', '', '공공·민간') + chip('sector', 'public', '공공') + chip('sector', 'private', '민간');
             const rows = a.targets.filter(t => (!a.cat || t.category === a.cat) && (!a.sector || t.sector === a.sector));
             const sel = t => `<input type="radio" name="dl-target" value="${escapeAttr(t.id)}" ${a.sel === t.id ? 'checked' : ''} onchange="selectDrawerTarget('${escapeAttr(t.id)}')" aria-label="${escapeAttr(t.serviceName + ' ' + t.agencyName)} 선택" class="w-4 h-4 accent-navy">`;
+            // 왜 위에 왔는지 — 보고에 들어 있던 단어. "추천"이 아니라 "관련"이라고 쓴다
+            const related = t => t.recommend
+                ? `<span class="block mt-1 text-xs"><span class="font-semibold text-navy">보고 내용과 관련</span> <span class="text-gray-600">· 관련: ${escapeHtml(t.recommend.matched.join(', '))}</span></span>`
+                : '';
             const agency = t => `<span class="font-semibold text-gray-900">${escapeHtml(t.serviceName)}</span> <span class="text-gray-600">${escapeHtml(t.agencyName)}</span>
-                <span class="block text-xs text-gray-500 mt-0.5">${escapeHtml(t.eligibility || '')}</span>`;
+                <span class="block text-xs text-gray-500 mt-0.5">${escapeHtml(t.eligibility || '')}</span>${related(t)}`;
             const contact = t => `<span class="whitespace-nowrap">${t.department ? escapeHtml(t.department) : unknownTxt}</span><span class="block whitespace-nowrap">${t.phone ? escapeHtml(t.phone) : unknownTxt}</span>`;
             const html = tableHtml([
                 { h: '종류', cell: t => `<span class="whitespace-nowrap">${escapeHtml(t.category || '-')}</span>` },
