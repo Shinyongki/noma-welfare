@@ -2512,6 +2512,17 @@
                 args.sector = args.sector || '';
                 setDrawerHead('연계하기', `<span class="text-sm text-gray-500">${escapeHtml(c.userName || '')}</span>`);
                 const rep = args.reportId ? fieldReportsOf(c).find(r => r.id === args.reportId) : null;
+                // 이 어르신의 지금 연계 — 어르신 서랍과 같은 연결도, 기본 접힘
+                const mapReports = fieldReportsOf(c).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+                const mapLinks = (c.linkages || []).slice().sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+                const linkMapInLink = a => {
+                    if (!mapLinks.length) return `<p class="bg-white border border-mb-line rounded-xl px-4 py-2.5 text-sm text-gray-500">아직 연계가 없습니다</p>`;
+                    const unrecorded = mapLinks.filter(l => l.category === 'referral' && !l.result).length;
+                    return linkMapCard({
+                        view: { open: !!a.mapOpen, nav: false, save: v => { a.mapOpen = v; } },
+                        summary: `<span class="text-sm font-semibold">현재 연계 ${mapLinks.length}건 · 결과 미기록 ${unrecorded}</span>`,
+                    });
+                };
                 const repHtml = rep
                     ? `<div class="px-4 py-3"><p class="text-xs text-gray-500">${fmt(rep.createdAt)} · ${escapeHtml(rep.createdBy || '')}</p><p class="mt-1 text-[15px] font-medium text-gray-900 whitespace-pre-line">${escapeHtml(rep.text)}</p></div>`
                     : '<p class="px-4 py-3 text-sm text-gray-500">근거 보고 없음</p>';
@@ -2519,6 +2530,7 @@
                 const toDefault = (departments.find(d => d.id !== sessionDeptId) || {}).id;
                 document.getElementById('drawer-body').innerHTML =
                     card('근거 보고', repHtml) +
+                    linkMapInLink(args) +
                     card('연계처', `<div class="px-4 pt-3 flex flex-wrap gap-1.5" id="dl-filters"></div>
                         <div id="dl-targets" class="mt-2"></div>
                         <div class="px-4 py-3 border-t border-mb-line">
@@ -2545,6 +2557,7 @@
                             <p class="text-xs text-gray-500">받는 기관이 수락 또는 반려합니다.</p>
                         </div>
                     </details>`;
+                if (mapLinks.length) drawLinkMap({ name: c.userName || args.caseId, reports: mapReports, linkages: mapLinks });
                 renderDrawerTargets();
             },
 
@@ -2629,19 +2642,24 @@
         // ── 어르신 연계 연결도 (작업 9) ──
         // 보고(최근 3건) → 어르신 → 연계. 보조 그림이다 — 편집·기록은 아래 연계 이력에서 한다.
         // 그릴 자리 폭이 560px 이상이면 가로, 그보다 좁으면(휴대폰) 세로로 그린다.
-        let linkMapOpen = true;
+        // - 어르신 서랍: 기본 펼침, 상자를 누르면 연계 이력 행으로 이동. 접힘 상태는 다시 그려도 유지
+        // - 연계하기 서랍: 기본 접힘(요약 한 줄), 상자를 눌러도 이동하지 않음. 접힘 상태는 서랍 args에 둔다
+        let elderMapOpen = true;
         let linkMapData = null;
-        function linkMapCard() {
-            return `<details id="lkmap-card" ${linkMapOpen ? 'open' : ''} class="bg-white border border-mb-line rounded-xl overflow-hidden">
-                <summary class="flex items-center gap-2 px-4 py-2.5 bg-mb-head text-base font-bold text-gray-900 cursor-pointer">연결도<span class="ml-auto text-xs font-normal text-gray-500">보고 → 어르신 → 연계</span></summary>
+        let lkView = { open: true, nav: true, save: v => { elderMapOpen = v; } };
+        function linkMapCard(opts = {}) {
+            lkView = opts.view || { open: elderMapOpen, nav: true, save: v => { elderMapOpen = v; } };
+            const summary = opts.summary || `연결도<span class="ml-auto text-xs font-normal text-gray-500">보고 → 어르신 → 연계</span>`;
+            return `<details id="lkmap-card" ${lkView.open ? 'open' : ''} class="bg-white border border-mb-line rounded-xl overflow-hidden">
+                <summary class="flex items-center gap-2 px-4 py-2.5 bg-mb-head text-base font-bold text-gray-900 cursor-pointer">${summary}</summary>
                 <div class="px-3 py-3 border-t border-mb-line"><div id="lkmap" class="lkmap"></div></div>
             </details>`;
         }
-        // 접고 펼친 상태는 서랍을 다시 그려도 유지한다
         document.addEventListener('toggle', e => {
             if (e.target?.id !== 'lkmap-card') return;
-            linkMapOpen = e.target.open;
-            if (linkMapOpen) drawLinkMap(linkMapData);
+            lkView.open = e.target.open;
+            lkView.save?.(lkView.open);
+            if (lkView.open) drawLinkMap(linkMapData);
         }, true);
 
         // [글자, 모양, 굵은 테두리] — 모양: fill ● / empty ○ / half ◐ / slash ⊘
@@ -2678,7 +2696,7 @@
         function drawLinkMap(data) {
             linkMapData = data;
             const host = document.getElementById('lkmap');
-            if (!host || !data || !linkMapOpen) return;
+            if (!host || !data || !lkView.open) return;
             const links = data.linkages || [];
             if (!links.length) { host.innerHTML = '<p class="lk-legend px-1 py-1 text-sm">아직 연계가 없습니다</p>'; return; }
             const reps = (data.reports || []).slice(0, 3);
@@ -2704,7 +2722,10 @@
                 const [label, shape, strong] = linkStatusOf(l);
                 const name = l.category === 'referral' ? (l.target?.agencyName || '-') : getDeptName(l.toDept);
                 const sub = l.category === 'referral' ? (l.target?.serviceName || '') : '다른 수행기관 의뢰';
-                return `<g class="lk-go" role="link" tabindex="0" data-goto="${escapeAttr(l.id)}" aria-label="${escapeAttr(`${name} ${sub} — ${label}. 연계 이력으로 이동`)}">
+                const open = lkView.nav
+                    ? `<g class="lk-go" role="link" tabindex="0" data-goto="${escapeAttr(l.id)}" aria-label="${escapeAttr(`${name} ${sub} — ${label}. 연계 이력으로 이동`)}">`
+                    : '<g>';
+                return `${open}
                     <rect x="${x}" y="${y}" width="${w}" height="${LH}" rx="8" class="lk-box ${strong ? 'lk-strong' : ''}"/>
                     <text x="${x + 10}" y="${y + 18}" font-size="13" font-weight="700" class="lk-t">${escapeHtml(lkFit(name, w - 20, 13, 700))}</text>
                     <text x="${x + 10}" y="${y + 34}" font-size="11.5" class="lk-m">${escapeHtml(lkFit(sub, w - 20, 11.5))}</text>
