@@ -14,6 +14,7 @@ import rateLimit from 'express-rate-limit';
 import * as requestStore from './data/requestStore.mjs';
 import * as analyticsStore from './data/analyticsStore.mjs';
 import * as pilotStatus from './data/pilotStatus.mjs';
+import * as recommend from './data/recommend.mjs';
 import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1171,6 +1172,28 @@ function loadLinkageTargets() {
     }
 }
 loadLinkageTargets();
+
+// ── 연계처 정렬 규칙 (작업 6A) — 종류별 단어 목록. 편집 화면 없이 파일로 고친다 ──
+let recommendRules = { version: null, rules: {}, exclude: [] };
+function loadRecommendRules() {
+    try {
+        const parsed = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'recommend_rules.json'), 'utf-8'));
+        recommendRules = { version: parsed.version ?? null, rules: parsed.rules || {}, exclude: parsed.exclude || [] };
+        const words = Object.values(recommendRules.rules).reduce((n, w) => n + (w?.length || 0), 0);
+        console.log(`[연계처 정렬] 규칙 v${recommendRules.version} 로딩 (종류 ${Object.keys(recommendRules.rules).length}개, 단어 ${words}개)`);
+    } catch (err) {
+        // 규칙이 없으면 정렬하지 않을 뿐 연계처 선택은 그대로 된다
+        recommendRules = { version: null, rules: {}, exclude: [] };
+        console.error('[연계처 정렬] 규칙 로딩 실패 — 기존 순서로 보여준다:', err.message);
+    }
+}
+loadRecommendRules();
+
+/** 이 어르신 보고 원문으로 연계처 목록에 관련 표시를 붙이고 순서를 바꾼다. 거르지 않는다 */
+function rankTargetsForCase(request, targets, reportId = null) {
+    const report = request ? recommend.pickReport(request, reportId) : null;
+    return recommend.rankTargets(targets, report?.text || '', recommendRules.rules, recommendRules.exclude);
+}
 
 function findLinkageTarget(id) {
     return linkageTargets.find(t => t.id === id) || null;
@@ -3633,6 +3656,7 @@ app.post('/api/case/:id/linkage', async (req, res) => {
 
     // 외부 연계 대상은 연계처 목록에서만 고른다 (deptServiceMap 참조 없음)
     let target = null;
+    let recommendSnapshot = null;
     if (category === 'referral') {
         if (!targetId) return res.status(400).json({ error: '연계처를 선택하세요.' });
         const found = findLinkageTarget(targetId);
@@ -3643,6 +3667,11 @@ app.post('/api/case/:id/linkage', async (req, res) => {
             return res.status(400).json({ error: '이 어르신 시군을 맡지 않는 연계처입니다.' });
         }
         target = { id: found.id, serviceName: found.serviceName, agencyName: found.agencyName };
+        // 고른 연계처가 그때 목록 몇 번째였고 점수가 얼마였는지 (화면에 보이지 않는 기록, 작업 6A)
+        // 서랍이 받은 목록과 같은 계산 — 시군 범위, 같은 근거 보고
+        const caseReq = requestStore.findById(req.params.id);
+        const ranked = rankTargetsForCase(caseReq, targetsForSiguns([caseSigun]), fromReportId || null);
+        recommendSnapshot = recommend.snapshotOf(ranked, found.id, recommendRules.version);
     }
 
     const linkage = await requestStore.addLinkage(req.params.id, {
@@ -3650,6 +3679,7 @@ app.post('/api/case/:id/linkage', async (req, res) => {
         targetService: target ? target.serviceName : null,
         reason, submittedBy: '담당자',
         fromReportId: fromReportId || null,
+        recommendSnapshot,
     });
     if (!linkage) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
@@ -3688,7 +3718,9 @@ app.get('/api/case/:id/linkage-targets', (req, res) => {
     const request = requestStore.findById(req.params.id);
     // 케이스 시군 + 그 시군을 포함하는 권역 + 경남 전체. 시군을 알 수 없으면 전체를 준다
     const sigun = req.query.sigun || request?.sigun || null;
-    const items = targetsForSiguns([sigun]);
+    // 시군 범위로 거른 뒤, 보고 원문과 관련 있는 종류를 위로 올린다 (순서만 바꾼다)
+    const reportId = typeof req.query.reportId === 'string' ? req.query.reportId : null;
+    const items = rankTargetsForCase(request, targetsForSiguns([sigun]), reportId);
     res.json({ sigun, count: items.length, items });
 });
 
